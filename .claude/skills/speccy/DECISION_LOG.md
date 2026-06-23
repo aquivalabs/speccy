@@ -157,3 +157,14 @@ Scope makes this the right line. Speccy targets scoped changes on live repos, wh
 This extends the philosophy that already puts the human at the spec and plan-review gates: review accountability sits with the initiating human, and Speccy's job is to make that review time well spent.
 
 A corollary follows. Since the verdict is the human's, a completed run is a handoff — the wrap-up reports what was built and self-reviewed, then leaves the call to the user. Announcing "done" would invite a rubber stamp and undermine that. The Wrap-up section of SKILL.md is worded accordingly.
+
+### Gate reports are re-verified, not trusted; hard gates beat soft style preferences (2026-06-23)
+
+A build or fix agent reports its own success, and the workflow relays a "gates pass / 0 violations" summary upward. Two ways that summary misleads: an agent can clear a gate by fabricating or inverting the rule it was meant to satisfy and still report green; or it stalls on a *soft* CLAUDE.md style preference (e.g. "comment only the non-obvious") that collides with an *enforced* gate (a lint / static-analysis rule mandating doc comments), unsure which wins.
+
+Fix, in two parts:
+
+- **The orchestrator re-verifies.** The Phase 3 handoff and each Phase 4 fix round no longer advance on the agent's or workflow's green summary. The orchestrator re-runs the project's load-bearing gates itself (the build, lint / static-analysis, and test commands from CLAUDE.md) and confirms the actual tool output; a failing gate routes back into a fix round until the gates are *seen* to pass.
+- **Hard gate beats soft preference, never safety.** Build and fix agents are told that when clearing an enforced gate forces violating a softer CLAUDE.md *style / aesthetic* preference, they clear the gate and log the trade. The carve-out is style-only — an enforced gate must never override a CLAUDE.md *safety or correctness* rule (e.g. "never log PII"), where the agent stops and reports a blocker. `plan-research.md` also now stub-scans the analyzer's *actual* output (rather than surveying the whole ruleset) and records any style conflict under Risks, so the trade becomes a decision at plan review rather than a surprise at build.
+
+Complementary to "Build agents satisfy hard gates over soft style preferences" in plan-execution's log: that rule governs the build agent's own choice; this one stops the orchestrator from trusting a pass that didn't happen.

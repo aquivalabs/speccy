@@ -54,16 +54,24 @@ The fix: the `execute` prompt declares the plan and spec authoritative and read-
 
 This rides the existing git-confirmation mechanism rather than adding new signalling: success is judged by whether the task's work landed in a commit (`confirmFromGit`), so an agent that deliberately commits nothing is recorded as a failed task, halting the run. The agent's prose explanation is preserved in the friction log returned with the result, so the human sees *why* it stopped. Design changes belong upstream — the spec-driven pipeline revises the spec or plan and re-runs — not in a build agent improvising mid-task.
 
+### Build agents satisfy hard gates over soft style preferences (2026-06-23)
+
+Companion to "Build agents may not edit the spec or plan." An execute agent can stall when an enforced completion gate (a failing lint / static-analysis check or a required test) can only be cleared by violating a softer CLAUDE.md *style* preference — e.g. a rule mandating doc comments versus "comment only the non-obvious." The execute prompt now resolves the tie: satisfy the gate and record the trade under `harder_than_expected` in the friction log. The carve-out is style / aesthetic preferences only — an enforced gate must never override a CLAUDE.md *safety or correctness* rule (e.g. "never log PII"); there the agent stops and reports a blocker, as above.
+
+The speccy orchestrator independently re-verifies gates rather than trusting the workflow's green summary — see "Gate reports are re-verified, not trusted" in speccy's log.
+
 ### Watchdog over background workflow runs (2026-06-23)
 
 A background workflow notifies the orchestrator only on completion. In one run that left a ~10-minute window where a live-but-slow build (real `sf` deploy + test round-trips, sparse commits) was indistinguishable from a hang, and a build quietly spawning its third corrective task — improvising an async redesign — drew no attention until a human happened to look. The orchestrator had no signal between launch and completion.
 
-The fix: the SKILL instructs the orchestrator to arm a `Monitor` watchdog right after launching the workflow. It polls cheap git/journal state every ~75s and stays silent while healthy, emitting only on a tripped heuristic. The tiers are deliberately asymmetric to serve both a present user (sees the warning, can correct) and an absent user (overnight run — happier with a completed run than one killed out from under them):
+The fix: the SKILL instructs the orchestrator to arm a `Monitor` watchdog right after launching the workflow. It polls cheap git and transcript state every ~75s and stays silent while healthy, emitting only on a tripped heuristic. The tiers are deliberately asymmetric to serve both a present user (sees the warning, can correct) and an absent user (overnight run — happier with a completed run than one killed out from under them):
 
 - **Tier 1 (warn, don't stop)** — ≥2 corrective tasks, or a ~25-min soft wall-clock cap. Emit + `PushNotification`; let the run continue. The build's halt-on-impossibility rule means a *stuck* build now stops itself, so this tier flags "slow / many passes," not "redesigning."
-- **Tier 2 (auto-stop)** — a hard stall (>5 min with no commit and no journal activity). No progress to preserve, so `TaskStop` and report where to resume.
+- **Tier 2 (auto-stop)** — a hard stall (>5 min with no commit and no transcript activity). No progress to preserve, so `TaskStop` + `PushNotification` and report where to resume.
 
 The watchdog is best-effort and lives in plan-execution (not the caller), so every invoker — direct or via spec-driven — gets it. It is observability and a kill switch, not flow control: it never redirects the build, only surfaces or stops it.
+
+**Liveness signal (2026-06-23).** Liveness keys off the newest `agent-*.jsonl` mtime in the transcript dir, not `journal.jsonl`. The journal only records phase-boundary events, so it goes silent through a single long-running agent (e.g. breakdown) and would read as a stall. Two follow-on refinements: the stall check confirms no tool is in flight before stopping — transcript mtime ticks only when a tool *returns*, so a long `sf` deploy or test run looks identical to a hang until the orchestrator tails the newest transcript for an unfinished `tool_use`; and the stall flag re-arms once activity resumes, so a confirmed-benign stall doesn't blind the watchdog to a later real one.
 
 ### Verify escalates blocked requirements instead of redesigning around them (2026-06-23)
 
