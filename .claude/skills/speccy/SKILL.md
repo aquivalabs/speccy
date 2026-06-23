@@ -218,7 +218,7 @@ Invoke the `plan-execution` skill directly via the Skill tool from the main conv
 
 Do _not_ wrap this in an Agent subagent. Plan-execution drives a `Workflow` tool, which already isolates the orchestration — breakdown, execute, integrate, and verify all run backgrounded, and only the final result returns. Wrapping it in an Agent adds no isolation and breaks the call (Agent subagents lack `Workflow`).
 
-When implementation completes, set `phase: "review"` in state.json and continue.
+When the workflow reports complete, do not advance on its "gates pass" / "0 violations" summary — a build agent can satisfy a gate by fabricating or inverting a rule and still report green. Re-run the project's load-bearing gates yourself (the build, lint / static-analysis, and test commands from CLAUDE.md) and confirm the actual tool output. If a gate fails, the run isn't done: carry the real tool output into a fix round (the Phase 4 implementation-fix agent handles exactly this), re-run the gates after it, and repeat until you have seen them pass. Only then set `phase: "review"` in state.json and continue.
 
 If the implementation workflow exits incomplete, stop the pipeline. Report what's done and what remains — the user has a branch with partial progress. State.json remains at `phase: "implementation"` so the run can be resumed later.
 
@@ -231,7 +231,7 @@ The implementation review focuses on quality, design, and spec fidelity — the 
 For each round (up to 4):
 
 1. **Review.** Spawn an adversary subagent with the implementation review prompt, the spec path, and instructions to run `git diff <base-branch>...HEAD` for the full implementation diff. Instruct it to read key files for deeper understanding and write its review to `.speccy/<run-id>/review-round-N.md`. Use the implementation-review ladder for the model override: round 1 → haiku, round 2 → sonnet, round 3 → opus, round 4 → opus (or the user's pinned model, if they set one).
-2. **Fix.** Read `.speccy/<run-id>/review-round-N.md` (N from state.json) to triage. If no legitimate flaws found, the review is done. Otherwise, read `prompts/implementation-fix.md` and spawn a subagent with that prompt, the review file path, the spec path, and the plan path. The subagent makes the code changes and commits.
+2. **Fix.** Read `.speccy/<run-id>/review-round-N.md` (N from state.json) to triage. If no legitimate flaws found, the review is done. Otherwise, read `prompts/implementation-fix.md` and spawn a subagent with that prompt, the review file path, the spec path, and the plan path. The subagent makes the code changes and commits. After it commits, re-run the load-bearing gates yourself and confirm the actual output before starting the next round — never advance on the fix agent's claim that the gates pass.
 
 After 4 rounds, proceed regardless. Update state.json after each round (`reviewRounds`) and set `phase: "complete"` when done.
 

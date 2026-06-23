@@ -28,6 +28,8 @@ The plan and spec are authoritative — treat them as read-only. Never edit them
 
 Before committing, run the project's verification tools (build, lint, static analysis, tests) as documented in CLAUDE.md. If none are documented, note this under `suggestions` in your friction log.
 
+When satisfying an enforced completion gate forces violating a softer CLAUDE.md preference, satisfy the gate and log the friction. An enforced gate is a rule whose violation blocks "done" — a failing lint / static-analysis check or a required test. If the only way to clear it conflicts with a CLAUDE.md *style or aesthetic* preference (e.g. a rule requiring doc comments vs. "comment only the non-obvious"), clear the gate and record the trade under `harder_than_expected` in your friction log. This carve-out is for style preferences only: an enforced gate must never override a CLAUDE.md *safety or correctness* rule (e.g. "never log PII") — there, stop and report it as a blocker rather than complying.
+
 Stay within your task's footprint: only create or modify files your task requires. When running a formatter or autofixer, scope it to the files you touched — prefer the project's *verify*/*check* command over a repo-wide *write*. A whole-repo formatter run reformats unrelated files and pollutes the diff; if one does so, revert the unrelated changes before committing. Commit only the files belonging to your task.
 
 When done, commit all changes. Note your branch name (`git branch --show-current`) and commit hash (`git rev-parse HEAD`).
