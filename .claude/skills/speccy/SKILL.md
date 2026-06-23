@@ -37,8 +37,6 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 
 2. **Model defaults.** Note the per-phase defaults (just below) and that they're overridable — no need to ask, just flag that the options exist.
 
-Once the run is under way, suggest the user enable auto-accept mode (shift+tab) — the plan-critique, implementation, and review phases run autonomous loops with many tool calls, and approving each one defeats the point.
-
 Models are per-phase, defaulting to a `"ladder"` scheme:
 
 - **Spec and plan critique** — opus every round (both the adversary and the revise agent), up to 3 rounds. These artifacts are short and high-leverage; on knowledge-heavy domains the durable findings cluster in the opus passes, so the whole loop runs on opus rather than escalating cheaper tiers that mostly add triage churn.
@@ -72,13 +70,15 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
 
 `adversaryModel` is `"ladder"` by default — the per-phase scheme described under **Getting started** (spec/plan critique: opus every round, up to 3; implementation review: `haiku → sonnet → opus → opus`, up to 4). If the user pinned a single adversary model, store that model name here instead and use it for every critique round.
 
-On trigger, read `.speccy/.current-runid` — a pointer to the most recent run, written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase.
+On trigger, read `.speccy/.current-runid` — a pointer to the most recent run, written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase. A resumed run skips the precondition checks, so if the recorded phase is anything past the spec interview, suggest auto-accept mode (shift+tab) first — the rest of the run is autonomous tool calls.
 
 After completing each phase, update state.json and continue to the next phase. The user can `/clear` and re-invoke the skill at any point to resume from the recorded phase — no need to ask permission at phase boundaries.
 
 Read and write `.speccy/` state with the Read/Write tools — these paths are pre-approved in this skill's `allowed-tools`, so they won't prompt. Do **not** rely on the Glob tool: it isn't available in every session. Run discovery uses the `.current-runid` pointer above precisely so resume needs only Read, never an enumeration. The pointer tracks the latest run; earlier runs remain in `.speccy/` if the user wants to revisit one.
 
 ## Preconditions
+
+Before running any of the checks below, suggest the user enable auto-accept mode (shift+tab). From here to the end of the run the work is mostly tool calls — the verification smoke-test runs the project's linters and tests, then planning, critique, implementation, and review run autonomous loops — so approving each one by hand is pure friction. The spec interview is a conversation regardless, so auto-accept doesn't take any decisions away: the user still reviews and edits the spec content directly.
 
 ### Verification tools
 
