@@ -1,0 +1,82 @@
+# Subagent Prompts
+
+Prompt templates for each subagent role. The SKILL.md instructs Claude to read this file and pass the prompts via `args.prompts`. The workflow appends task-specific data (plan text, file lists, acceptance criteria, etc.) to each prompt at runtime.
+
+---
+
+## breakdown
+
+Decompose this implementation plan into an ordered list of steps for execution by subagents in separate git worktrees.
+
+Each step contains one or more tasks. Return steps in execution order.
+
+**Default to sequential steps** (one task per step). Only group tasks into a parallel step when they are obviously independent — e.g. touching completely separate files and features with no interaction.
+
+For each task, write self-contained instructions — a fresh agent with no knowledge of the plan must be able to complete the task from the description alone. Include relevant context about the codebase, conventions, and surrounding code.
+
+Read the files referenced in the plan and their immediate dependencies to understand the current state before decomposing.
+
+Write each task description to `.tasks/{run-id}/{task-id}.md`, using the run ID provided below. These files are the durable record of the decomposition — they enable resuming after partial failure without re-running breakdown. Ensure `.tasks/` is in `.gitignore`.
+
+---
+
+## execute
+
+Execute this task in your worktree. Do NOT merge or modify other branches.
+
+The plan and spec are authoritative — treat them as read-only. Never edit them, and never redesign around them to force your task to pass. If the task is impossible as written — the plan contradicts itself or the spec, an acceptance criterion is technically infeasible, or completing it would require changing the agreed design — stop. Commit nothing, and report plainly what is blocked, why, and what decision is needed. Halting lets a human revise the spec or plan; a silently improvised workaround corrupts both.
+
+Before committing, run the project's verification tools (build, lint, static analysis, tests) as documented in CLAUDE.md. If none are documented, note this under `suggestions` in your friction log.
+
+Stay within your task's footprint: only create or modify files your task requires. When running a formatter or autofixer, scope it to the files you touched — prefer the project's *verify*/*check* command over a repo-wide *write*. A whole-repo formatter run reformats unrelated files and pollutes the diff; if one does so, revert the unrelated changes before committing. Commit only the files belonging to your task.
+
+When done, commit all changes. Note your branch name (`git branch --show-current`) and commit hash (`git rev-parse HEAD`).
+
+You do not need to return a structured result — a concise prose report is enough. The orchestrator confirms what landed from git state, so the one thing that matters is that your work is **committed**. Include a friction log in your report with three fields:
+
+- **harder_than_expected** — anything that took more effort or was more complex than the task description suggested
+- **wrong_turns** — approaches you tried that didn't work, and why
+- **suggestions** — what would have made this task easier (better instructions, missing context, tooling gaps)
+
+---
+
+## integrate
+
+Integrate a completed task branch onto the base branch via squash merge.
+
+Steps:
+
+1. `git checkout <base-branch>`
+2. `git merge --squash <task-branch>`
+3. Resolve conflicts if any, based on the task's intent
+4. Verify the project builds
+5. `git commit -m "<task-id>: <task-title>"`
+6. `git branch -D <task-branch>`
+
+If the build fails after merge, run `git reset --hard HEAD` to restore the base branch, then report failure.
+
+---
+
+## verify
+
+Verify implementation completeness against the original plan.
+
+Steps:
+
+1. Run the project's test suite
+2. Extract every deliverable from the plan
+3. For each, find concrete evidence: a file, function, test, or config change
+4. Deliverables without evidence are gaps
+5. If there are gaps or test failures, define corrective tasks with full self-contained instructions
+
+This is a gap check, not a quality review.
+
+---
+
+## retrospective
+
+Synthesize friction logs from a multi-task execution run into a retrospective.
+
+Focus on cross-cutting patterns: repeated struggles, systemic plan gaps, friction a skill or CLAUDE.md update could eliminate. Note positives too. Individual one-off difficulties: mention briefly.
+
+Be concise and actionable.
