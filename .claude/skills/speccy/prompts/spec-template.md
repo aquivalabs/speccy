@@ -16,7 +16,7 @@
 
 ## Constraints
 
-<!-- Technical, organisational, or business constraints. Performance budgets, security considerations, platform-specific rules, compatibility requirements. Only what matters for this feature. -->
+<!-- Technical, organisational, or business constraints specific to THIS feature: performance budgets, security considerations, platform-specific rules, compatibility requirements. Do NOT restate project-wide standards already in CLAUDE.md (logging, comments, naming conventions, testing policy, code style) — the builder reads CLAUDE.md anyway. Reference a rule by file/section only when this feature's constraints turn on it, and spell one out only where this feature deliberately diverges from it. -->
 
 ## Completion criteria
 
