@@ -12,6 +12,8 @@ Speccy is an engineering tool. It keeps you close to the code and the system. Yo
 
 The artefacts it produces — specs, ADRs, and code — are all included in PRs, so a team can review them like any other change. It focuses your attention onto the decisions that matter: you settle the architecture, take open questions back to the customer for answers, and bring your domain and system knowledge to bear. Then you step out of the loop and let the AI build. Speccy leans towards quality by construction — getting your input, running the project's verification tools, and putting independent review agents on every artefact.
 
+Speccy stops at a reviewable PR. It isn't a merge gate and doesn't run end-to-end verification — that's deliberate. Reviewing the output is *your* job, through every tool you'd use for any change: the diff, the artefacts, CI, E2E, running it yourself. Speccy makes sure your review time is well spent by constructing good output, but it hands off to you for the final decision. 
+
 ## The six phases
 
 The pipeline runs as: **specification → spec critique → planning → plan critique → implementation → implementation review.**
@@ -27,7 +29,7 @@ Speccy guides you through these phases; there is no list of commands to remember
 | **2b. Plan review** | User decides | You review the hardened plan, raise concerns, approve. |
 | **3. Implementation** | Autonomous | Delegates to the `plan-execution` skill, which breaks the plan into tasks and builds. |
 | **3a. Implementation review** | User observes | Adversary checks code against the spec; a fix agent applies corrections directly. |
-| **Wrap-up** | — | Summary, an ADR distilled from critique decisions, deferred-feedback list, retrospective. |
+| **Wrap-up** | User reviews | Summary, an ADR distilled from critique decisions, deferred-feedback list, retrospective. The branch is handed back for your review — Speccy doesn't merge or certify it. |
 
 ## Core design ideas
 

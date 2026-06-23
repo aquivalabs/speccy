@@ -147,3 +147,13 @@ Fix, spread across three prompts so the assumption is caught progressively earli
 - **`plan-critique.md`** — an unproven load-bearing mechanism is now a named high-severity finding; the critic must confirm the plan's evidence exercised the actual risky action, and demand a spike if it did not.
 
 Complementary to "Build agents may not edit the spec or plan" in plan-execution (2026-06-23): that rule makes the build *halt* when it hits an impossibility; this one keeps the impossibility from reaching the build at all. Together they close the loop the merge saga exposed — prove it can be done before planning around it, and refuse to improvise if it can't.
+
+### E2E and final verification are out of scope; the initiating human owns review (2026-06-23)
+
+Speccy produces reviewable artefacts — spec, plan, ADR, diff, PR — and the human who started the run reviews them through every available tool: the diff, the artefacts, CI, E2E, running it themselves. Speccy does not run end-to-end verification and is not a merge gate.
+
+Scope makes this the right line. Speccy targets scoped changes on live repos, where a human reviewer and CI already stand. Running E2E inside Speccy would duplicate CI and couple the skill to per-project app-running infrastructure (browsers, test envs, fixtures) — the environment-specific machinery Speccy deliberately delegates to CLAUDE.md verification commands. E2E belongs in CI on the PR, one instrument in the reviewer's kit.
+
+This extends the philosophy that already puts the human at the spec and plan-review gates: review accountability sits with the initiating human, and Speccy's job is to make that review time well spent.
+
+A corollary follows. Since the verdict is the human's, a completed run is a handoff — the wrap-up reports what was built and self-reviewed, then leaves the call to the user. Announcing "done" would invite a rubber stamp and undermine that. The Wrap-up section of SKILL.md is worded accordingly.

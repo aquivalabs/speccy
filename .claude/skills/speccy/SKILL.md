@@ -237,9 +237,11 @@ After 4 rounds, proceed regardless. Update state.json after each round (`reviewR
 
 ## Wrap-up
 
+A completed run is a handoff. Speccy has built and self-reviewed the work; the verdict is the user's, reached through the diff, the artefacts below, CI, E2E, or running it themselves. Speccy stops at a reviewable PR — it does not merge, certify, or run end-to-end verification (see DECISION_LOG, "E2E and final verification are out of scope"). Report what was built and leave the review to the user.
+
 When all phases complete, report concisely:
 
-1. **Summary** — what was built, how many critique/review rounds ran, what changed
+1. **Summary** — what was built, how many critique/review rounds ran, what changed, and that the branch is ready for review.
 2. **ADR** — distil key decisions from the critique rounds into `specs/<slug>-adrs.md`. Each entry: what was proposed, what was decided, why. Commit the ADR.
 3. **Deferred feedback** — any substantial feedback the user chose to skip
 4. **Retrospective** — if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns
