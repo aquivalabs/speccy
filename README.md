@@ -2,8 +2,6 @@
 
 ![Speccy banner — a ZX Spectrum rainbow flash beside the SPECCY wordmark, with the tagline "Think before you build... Then keep thinking" and the pipeline "spec → critique → plan → build → review"](speccy_logo.png)
 
-*Audience: technical staff at Aquiva. A tour of the local `speccy` skill — what it does, how it's structured, and why.*
-
 **Speccy** is a local Claude Code skill that takes a feature from a rough idea through to reviewed code, forcing a specification before humans or agents write code.
 
 The name is a nod to the Sinclair ZX Spectrum and a pun on "spec".
