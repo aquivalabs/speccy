@@ -61,6 +61,36 @@ Call the Workflow tool with the chosen workflow's `scriptPath` and these `args`:
 - `retrospective` (optional, default true) — when false, skips friction log synthesis
 - `worktreeInit` (optional) — array of resolved shell commands to run at the start of every worktree agent (parallel tasks and corrective tasks only). Assembled from the gather/apply blocks in CLAUDE.md's `## Worktree init` section (see Prerequisites above). Pass the fully-substituted commands — no unresolved `${VAR}` references. Sequential tasks run on the main checkout and don't need this.
 
+## While the workflow runs: watchdog
+
+The `Workflow` tool runs in the background and notifies you on completion. But a long run with sparse commits is indistinguishable from a hang, and a build that keeps spawning corrective tasks may be improvising rather than converging — the orchestrator needs a way to notice and intervene without watching every tick.
+
+Right after launching the workflow, arm a `Monitor` as a watchdog (best-effort — if `Monitor` is unavailable, just proceed). The launch result gives you the `runId` and the **transcript dir**; its `journal.jsonl` is the run's liveness signal. The Monitor polls every ~75s and stays **silent while healthy**, emitting a line only when a heuristic trips. Poll cheap git/file state: commits on the base branch since launch (progress), commit subjects starting with `CT-` (corrective tasks), and the `journal.jsonl` mtime (liveness).
+
+Two tiers, deliberately asymmetric — they serve both a present user (who can correct on a warning) and an absent user (e.g. an overnight run, who is better served by a completed run than one killed out from under them):
+
+- **Tier 1 — warn, do NOT stop.** Trips on corrective-task escalation (**≥2** corrective tasks) or a soft wall-clock cap (**~25 min**). The run may be struggling but is still making progress. Emit the warning and send a `PushNotification` so an absent user is reached — then **let the workflow continue**. A present user can judge and `TaskStop` manually; an absent user gets a finished run. (With the build's read-only and halt-on-impossibility rules, a genuinely stuck build halts itself, so this tier means "slow / many passes," not "redesigning around the spec.")
+- **Tier 2 — auto-stop.** Trips on a hard stall: **no new commit AND no `journal.jsonl` activity for >5 min**. Nothing is being accomplished, so stopping loses no progress whether the user is present or absent. `TaskStop` the workflow, then report what it was last doing (last commit, journal tail) and where to resume.
+
+When any line lands, first read the cheap signals to confirm before acting — a slow `sf` deploy or test run is not a hang. The Monitor command should emit each distinct warning at most once (track a flag per tier) so it isn't auto-stopped for noise. `TaskStop` the Monitor once the workflow's completion notification arrives so it doesn't linger.
+
+Sketch of the poll loop (adapt paths; `stat -f %m` is macOS, use `-c %Y` on Linux):
+
+```bash
+BASE=<base-branch>; JOURNAL=<transcript-dir>/journal.jsonl
+START=$(git rev-parse HEAD); START_TS=$(date +%s); w_ct=0; w_cap=0; w_stall=0
+while true; do
+  now=$(date +%s); el=$(( now - START_TS ))
+  ct=$(git log "$START"..HEAD --format='%s' 2>/dev/null | grep -cE '^CT-')
+  lc=$(git log -1 --format=%ct 2>/dev/null || echo 0); jm=$(stat -f %m "$JOURNAL" 2>/dev/null || echo 0)
+  idle=$(( now - (lc > jm ? lc : jm) ))
+  if [ "$idle" -gt 300 ] && [ "$w_stall" -eq 0 ]; then echo "STALL: idle $((idle/60))m (elapsed $((el/60))m, $ct corrective)"; w_stall=1; fi
+  if [ "$ct" -ge 2 ] && [ "$w_ct" -eq 0 ]; then echo "WARN: $ct corrective tasks — may be struggling (elapsed $((el/60))m)"; w_ct=1; fi
+  if [ "$el" -gt 1500 ] && [ "$w_cap" -eq 0 ]; then echo "WARN: elapsed $((el/60))m over soft cap"; w_cap=1; fi
+  sleep 75
+done
+```
+
 ## After the workflow completes
 
 Report to the user:

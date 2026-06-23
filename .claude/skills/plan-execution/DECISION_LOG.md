@@ -54,12 +54,23 @@ The fix: the `execute` prompt declares the plan and spec authoritative and read-
 
 This rides the existing git-confirmation mechanism rather than adding new signalling: success is judged by whether the task's work landed in a commit (`confirmFromGit`), so an agent that deliberately commits nothing is recorded as a failed task, halting the run. The agent's prose explanation is preserved in the friction log returned with the result, so the human sees *why* it stopped. Design changes belong upstream — the spec-driven pipeline revises the spec or plan and re-runs — not in a build agent improvising mid-task.
 
+### Watchdog over background workflow runs (2026-06-23)
+
+A background workflow notifies the orchestrator only on completion. In one run that left a ~10-minute window where a live-but-slow build (real `sf` deploy + test round-trips, sparse commits) was indistinguishable from a hang, and a build quietly spawning its third corrective task — improvising an async redesign — drew no attention until a human happened to look. The orchestrator had no signal between launch and completion.
+
+The fix: the SKILL instructs the orchestrator to arm a `Monitor` watchdog right after launching the workflow. It polls cheap git/journal state every ~75s and stays silent while healthy, emitting only on a tripped heuristic. The tiers are deliberately asymmetric to serve both a present user (sees the warning, can correct) and an absent user (overnight run — happier with a completed run than one killed out from under them):
+
+- **Tier 1 (warn, don't stop)** — ≥2 corrective tasks, or a ~25-min soft wall-clock cap. Emit + `PushNotification`; let the run continue. The build's halt-on-impossibility rule means a *stuck* build now stops itself, so this tier flags "slow / many passes," not "redesigning."
+- **Tier 2 (auto-stop)** — a hard stall (>5 min with no commit and no journal activity). No progress to preserve, so `TaskStop` and report where to resume.
+
+The watchdog is best-effort and lives in plan-execution (not the caller), so every invoker — direct or via spec-driven — gets it. It is observability and a kill switch, not flow control: it never redirects the build, only surfaces or stops it.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
 
 **No budget awareness.** Neither workflow checks `budget.remaining()`. A large plan will consume the full token budget without warning. The right fix is to log remaining budget after each step and bail when it's insufficient for the next, but this requires estimating per-task cost, which varies widely. For now, keep plans reasonable or set a model override to a cheaper tier for execution.
 
-**Corrective tasks are uncapped.** The verify loop runs up to 3 iterations, and each can spawn an arbitrary number of corrective tasks. In the worst case a verify agent returns many corrections per round, each spawning an execute and integrate agent. A per-iteration cap or total corrective-task budget would bound this, but the right cap depends on plan size and hasn't been calibrated yet.
+**Corrective tasks are uncapped.** The verify loop runs up to 3 iterations, and each can spawn an arbitrary number of corrective tasks. In the worst case a verify agent returns many corrections per round, each spawning an execute and integrate agent. A per-iteration cap or total corrective-task budget would bound this, but the right cap depends on plan size and hasn't been calibrated yet. Partially mitigated: the watchdog (see design decision above) now *surfaces* corrective-task escalation as a Tier-1 warning, so a runaway loop no longer goes unnoticed — but the loop itself is still not hard-capped.
 
 **Worktrees lose per-checkout state.** Addressed by the gather/apply worktree init mechanism (see design decision above). This now only affects parallel tasks and corrective tasks — sequential tasks run on the main checkout and have full state. Residual limitation: if a gather command fails (e.g. no default org set), the execute agent is told to stop and report, but this surfaces late — after the worktree is already created. A pre-flight check in the invoking Claude could catch this earlier.
