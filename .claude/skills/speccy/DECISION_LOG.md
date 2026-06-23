@@ -133,3 +133,17 @@ Fix: a single authoritative rule — **"Subagent results: trust files, not retur
 - The orchestrator must **not** narrate or diagnose misrouting — a mislabelled notification is expected noise, read the correct file and carry on.
 
 This is a second reason the round files exist (see "Why `.speccy/` is gitignored").
+
+### Plans must prove load-bearing mechanisms, not assert them (2026-06-23)
+
+On a Salesforce run, the spec mandated that an Account-merge correction happen "synchronously, in the same transaction." Planning researched the merge against a live org and the plan critique even ran live probes — but they confirmed *adjacent* facts (the Contact trigger fires mid-merge; the reparented Contacts are query-visible afterward) and never exercised the one risky action the mechanism depended on: a DML update of the merged Account from within an Account `after delete` trigger. The platform forbids exactly that (`SELF_REFERENCE_FROM_TRIGGER`). The infeasibility surfaced only at build time, where it triggered three corrective tasks, an async Platform-Event redesign, and — before the read-only rule landed — an edit to the spec. The user resolved it in one sentence by descoping merge.
+
+The lesson: an empirical probe that verifies a precondition is not proof the mechanism works, yet it reads like proof and sails through review. A load-bearing assumption about platform/timing/API behaviour is the kind that survives every paper review and then collapses against reality.
+
+Fix, spread across three prompts so the assumption is caught progressively earlier:
+
+- **`spec-template.md`** — the Open-questions guidance now names *feasibility assumptions* (often hiding in Constraints or Completion criteria, like "corrected synchronously") and tells the author to mark each for a planning spike.
+- **`plan-research.md`** — before committing the plan to any non-trivial mechanism not already demonstrated in the codebase, the planner must run a feasibility spike that performs the **riskiest action itself** against the real environment, not the facts around it. If the mechanism is infeasible, design around it — or, if the spec mandates it, stop and flag for spec revision. Spike code is throwaway.
+- **`plan-critique.md`** — an unproven load-bearing mechanism is now a named high-severity finding; the critic must confirm the plan's evidence exercised the actual risky action, and demand a spike if it did not.
+
+Complementary to "Build agents may not edit the spec or plan" in plan-execution (2026-06-23): that rule makes the build *halt* when it hits an impossibility; this one keeps the impossibility from reaching the build at all. Together they close the loop the merge saga exposed — prove it can be done before planning around it, and refuse to improvise if it can't.

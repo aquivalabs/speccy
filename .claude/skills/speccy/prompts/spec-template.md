@@ -30,4 +30,4 @@
 
 ## Open questions
 
-<!-- Items deferred to the planning phase, with context on what codebase research is needed to resolve them. -->
+<!-- Items deferred to the planning phase, with context on what codebase research is needed to resolve them. Include any *feasibility assumption* — a requirement (often hiding in Constraints or Completion criteria) that takes for granted some platform, API, timing, or ordering capability is achievable without it being confirmed (e.g. "corrected synchronously in the same transaction"). Mark each for a feasibility spike in planning, so the plan proves the mechanism works before committing to it rather than the build discovering it cannot. -->
