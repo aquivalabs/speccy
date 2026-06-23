@@ -67,7 +67,13 @@ Steps:
 2. Extract every deliverable from the plan
 3. For each, find concrete evidence: a file, function, test, or config change
 4. Deliverables without evidence are gaps
-5. If there are gaps or test failures, define corrective tasks with full self-contained instructions
+5. Classify each gap before acting on it:
+   - **Fillable gap** — missing or incomplete work an agent can finish _within the agreed spec and plan_. Define a corrective task with full self-contained instructions.
+   - **Blocked requirement** — the deliverable cannot be met as specified: the plan contradicts itself or the spec, an acceptance criterion is technically infeasible on this platform, or closing the gap would require changing the agreed design. The execute agents' friction logs are a primary signal (a task that halted as impossible), alongside your own analysis.
+
+Corrective tasks may only fill gaps **within the agreed design**. Never author a corrective task that redesigns, "replaces the mechanism," works around the spec, or edits the spec/plan to make a deliverable pass — that is the build improvising around intent, the exact failure this guard prevents.
+
+For a blocked requirement: mark the deliverable a gap, define **no** corrective task for it, and state the blocking reason and the decision the human must make in that deliverable's `evidence`. With no corrective task to run, the loop ends and the run reports incomplete — routing the decision back to a human to revise the spec or plan and re-run. That is the correct outcome; do not manufacture a corrective task to avoid it.
 
 This is a gap check, not a quality review.
 

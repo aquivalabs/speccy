@@ -97,7 +97,9 @@ Report to the user:
 
 1. Summary — tasks completed, whether verification passed, any remaining gaps
 2. Retrospective — if one was produced, present the cross-cutting patterns and suggestions
-3. If incomplete — what failed and where to pick up (see "Resuming after failure")
+3. If incomplete — distinguish two cases:
+   - **Blocked on intent** — a task or the verify step reported a requirement that can't be met as specified (infeasible, self-contradictory, or only closable by changing the agreed design). The reason is usually in the friction logs of a halted task. Surface it and present it as a **decision for the user** — revise the spec or plan and re-run. Do not retry it as-is or improvise a workaround.
+   - **Mechanical gap** — work simply didn't finish. Report what landed and where to pick up (see "Resuming after failure").
 
 Keep it concise. Don't dump raw JSON — synthesize.
 

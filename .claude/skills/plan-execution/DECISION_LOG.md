@@ -65,6 +65,18 @@ The fix: the SKILL instructs the orchestrator to arm a `Monitor` watchdog right 
 
 The watchdog is best-effort and lives in plan-execution (not the caller), so every invoker — direct or via spec-driven — gets it. It is observability and a kill switch, not flow control: it never redirects the build, only surfaces or stops it.
 
+### Verify escalates blocked requirements instead of redesigning around them (2026-06-23)
+
+The execute agent halts when a task is impossible (see "Build agents may not edit the spec or plan"), but the **verify** step had the opposite instinct. Its prompt said "if there are gaps or test failures, define corrective tasks" — so when a deliverable couldn't be met as specified, verify authored a corrective task to close it anyway. In one run the verify agent wrote a corrective task titled *"…replace or supplement with a working mechanism"* — explicitly licensing a redesign (an async Platform-Event workaround for a synchronous requirement the platform forbids). The guard against build-time improvisation has to cover the verify loop, not just execute, or the loop becomes the back door.
+
+The fix is in the verify prompt, working within the bundled workflow's fixed schema:
+
+- Verify classifies each gap as a **fillable gap** (finishable within the agreed design → corrective task, as before) or a **blocked requirement** (infeasible, self-contradictory, or only closable by changing the design → no corrective task).
+- Corrective tasks may only fill gaps within the agreed design — never redesign, replace a mechanism, work around, or edit the spec/plan to force a pass.
+- A blocked requirement gets no corrective task. With nothing to run, the verify loop ends and the run reports incomplete, which routes the decision back to a human. The SKILL's "After the workflow completes" now distinguishes *blocked on intent* (surface the reason from friction logs, present as a decision to revise spec/plan) from a *mechanical gap* (resume where it stopped).
+
+Constraint worth recording: the bundled `COMPLETENESS_SCHEMA` has no first-class "blocked" field, and the workflow's return value omits the verify deliverables, so the blocking *reason* travels on the existing channels — the halted execute agent's friction log (reliable, common case) and the deliverable's `evidence` text. A cleaner signal would add a `blocked` outcome to the schema, but that means editing the bundled workflow (currently fixed). Deferred until the friction-log channel proves insufficient.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
