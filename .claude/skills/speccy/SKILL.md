@@ -35,7 +35,7 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 
    Also mention: state is saved after every phase boundary, so the user can `/clear` and re-invoke the skill at any point to resume with a fresh context. Useful for long runs where the main conversation has grown.
 
-2. **Model defaults.** Note the per-phase defaults (just below) and that they're overridable — no need to ask, just flag that the options exist.
+2. **Defaults you can change.** Note the per-phase model defaults (just below) and that they're overridable. Also flag the engagement checks: at the spec, plan, and wrap-up gates the skill will ask the user to commit a view before seeing the agent's, and to say what convinced them (see **Steering away from cognitive surrender**). These are on by default and can be turned off for a run. No need to ask about any of this — just flag that the options exist.
 
 Models are per-phase, defaulting to a `"ladder"` scheme:
 
@@ -59,6 +59,7 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
   "baseBranch": "develop",
   "adversaryModel": "ladder",
   "builderModel": "sonnet",
+  "engagementChecks": true,
   "phase": "planning" | "spec-critique" | "plan-critique" | "implementation" | "review" | "complete",
   "specPath": "specs/auth-refactor.md",
   "planPath": ".speccy/auth-refactor-20260609-1430/plan.md",
@@ -117,6 +118,18 @@ Subagents run in the background, and their completion notifications are unreliab
 
 So for every spawned agent: you know what it was spawned to do and the exact file it writes, and the round number comes from state.json, not the notification. When a completion arrives, read that file and act only on its contents — never branch control flow (early-exit, round counting, commit messages, what you tell the user) on a returned summary or a notification's label. Don't narrate or diagnose misrouting; read the right file and carry on.
 
+## Steering away from cognitive surrender
+
+Speccy's own output is the hazard. Adversarially-hardened specs and plans read as authoritative, and the more authoritative they read, the stronger the pull for the user to approve without understanding (cognitive surrender: borrowed confidence, surface correctness hiding deeper flaws). The pipeline already hardens its artifacts. These habits guard the user's engagement, which nothing else does. Apply them at every human gate:
+
+- **Ask before you tell.** Draw out the user's own expectations or concerns before presenting the agent's findings or recommendation. This forestalls anchoring and breaks the path dependency where one nodded-through gate makes the next easier.
+- **Flag doubt; stay quiet about certainty.** Surface where the agent is unsure and what it assumed. Never offer high confidence as a reason to skip review, since a confident wrong call adopted wholesale is the worst outcome. Point the user's attention at the doubtful parts and let the settled ones pass.
+- **Name what convinced you.** When the user approves a load-bearing decision, ask them to say what persuaded them, and to notice whether they verified it or simply trusted that the agent sounded sure. Keep this to one decision per gate, so it reads as a self-check rather than an interrogation.
+
+Apply the same standard to the final diff: read it as if a contributor you do not fully trust wrote it.
+
+These checks are on by default, because the default should be to make the user think. Some users find them grating, so they can opt out: store the choice as `engagementChecks` in state.json (default `true`), offered alongside the model defaults at the start. When it is `false`, skip the active prompts above (ask-before-you-tell, name-what-convinced-you, and the ADR reconstruction at wrap-up), but keep flagging genuine uncertainty, which is candour the user benefits from either way.
+
 ## Phase 1 — Specification
 
 Build a structured spec through interview.
@@ -163,7 +176,7 @@ git checkout -b speccy/<slug>
 
 Save to `specs/<slug>.md`. Commit the spec.
 
-Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, specPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
+Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, engagementChecks, specPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
 
 Tell the user about the directory — critique rounds, the plan, review notes, and run state will be saved there so they can open them in their editor rather than scrolling terminal output. Mention the path once here; don't repeat it at every save.
 
@@ -176,7 +189,7 @@ Run the loop to exhaustion before offering to clear or move on. The user is in t
 For each round (up to 3):
 
 1. **Critique.** Spawn an adversary subagent (Agent tool) with the spec critique prompt and the path to the spec. Instruct it to **write its review to `.speccy/<run-id>/spec-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one).
-2. **Present.** Read `.speccy/<run-id>/spec-critique-round-N.md` (N from state.json) and present its findings to the user. Point the user to the file for the full text. Ask which findings to incorporate. If the round surfaced no valuable criticism, the loop is done — exit it.
+2. **Present.** Before showing the critique, ask the user where they think the spec is weakest, so their read isn't anchored to the adversary's (see **Steering away from cognitive surrender**). Then read `.speccy/<run-id>/spec-critique-round-N.md` (N from state.json) and present its findings. Point the user to the file for the full text. Ask which findings to incorporate, and on the most consequential accept-or-reject call, ask what convinced them. If the round surfaced no valuable criticism, the loop is done — exit it.
 3. **Revise.** Spawn a revise subagent (Agent tool) **on opus** with `prompts/revise.md`, the spec path, the critique file path, and the list of accepted findings. The subagent rewrites the spec in place. Once it completes, commit the updated spec with a message summarising the accepted findings you incorporated — you already have that list, so build the message from it rather than from the agent's return. Then run the next round to check the revisions and probe deeper.
 
 After 3 rounds, proceed regardless, noting any unaddressed feedback. Update state.json after each round (`specCritiqueRounds`). When the critique loop exits, set `phase: "planning"`.
@@ -206,9 +219,13 @@ After 3 rounds, exit the loop regardless. Update state.json after each round (`p
 
 ### 2b. User review
 
-Present the hardened plan to the user for free-form review. The adversary has already cleaned up obvious issues — this is the user's chance to raise concerns the adversary didn't catch, adjust the approach based on their own knowledge, or approve as-is. Have them read the plan file directly rather than re-dumping it into the conversation.
+This is the highest-stakes human gate, so engage it deliberately (see **Steering away from cognitive surrender**):
 
-Iterate until the user is satisfied. When approved, set `phase: "implementation"` in state.json.
+- **Draw out the user first.** Before walking through the plan's decisions, ask what they expect the hard parts or risky choices to be. Let them commit a view before the agent frames one.
+- **Then present, candidly.** Have them read the plan file directly rather than re-dumping it into the conversation. Walk through the two or three load-bearing decisions, and for each surface the alternative the plan rejected and its best argument. Flag where the plan is genuinely uncertain, and don't let a confident passage stand in for a verified one.
+- **Name what convinced you.** On the single most consequential decision, ask the user to say what persuaded them, and whether they checked it or are trusting the plan's confidence.
+
+The adversary has already cleaned up obvious issues; this is the user's chance to raise concerns it missed, adjust the approach on their own knowledge, or approve as-is. Iterate until the user is satisfied. When approved, set `phase: "implementation"` in state.json.
 
 Before starting implementation, verify all run state is in files: state.json current, spec and plan committed, review decisions reflected in the plan. The main clear already happened after the spec, so this is conditional: if plan critique and review accumulated heavy context, suggest the user `/clear` and re-invoke to resume at implementation; if planning stayed lean, just proceed.
 
@@ -237,12 +254,12 @@ After 4 rounds, proceed regardless. Update state.json after each round (`reviewR
 
 ## Wrap-up
 
-A completed run is a handoff. Speccy has built and self-reviewed the work; the verdict is the user's, reached through the diff, the artefacts below, CI, E2E, or running it themselves. Speccy stops at a reviewable PR — it does not merge, certify, or run end-to-end verification (see DECISION_LOG, "E2E and final verification are out of scope"). Report what was built and leave the review to the user.
+A completed run is a handoff. Speccy has built and self-reviewed the work; the verdict is the user's, reached through the diff, the artefacts below, CI, E2E, or running it themselves. Speccy stops at a reviewable PR — it does not merge, certify, or run end-to-end verification (see DECISION_LOG, "E2E and final verification are out of scope"). Report what was built and leave the review to the user. When pointing them at the diff, suggest they read it as if a contributor they do not fully trust wrote it: the same standard they would apply to any other author's code (see **Steering away from cognitive surrender**).
 
 When all phases complete, report concisely:
 
 1. **Summary** — what was built, how many critique/review rounds ran, what changed, and that the branch is ready for review.
-2. **ADR** — distil key decisions from the critique rounds into `specs/<slug>-adrs.md`. Each entry: what was proposed, what was decided, why. Commit the ADR.
+2. **ADR, co-authored** — distil key decisions from the critique rounds into `specs/<slug>-adrs.md`. Each entry: what was proposed, what was decided, why. Before writing it, ask the user to restate the rationale for one or two of those decisions in their own words, and build the entry from their account where they have one (see **Steering away from cognitive surrender**). A decision the user cannot reconstruct is the surrender signal worth catching here, while the code is fresh and they are about to own it. Commit the ADR.
 3. **Deferred feedback** — any substantial feedback the user chose to skip
 4. **Retrospective** — if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns
 
