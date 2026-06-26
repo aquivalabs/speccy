@@ -53,7 +53,8 @@ Steps:
 3. Resolve conflicts if any, based on the task's intent
 4. Verify the project builds
 5. `git commit -m "<task-id>: <task-title>"`
-6. `git branch -D <task-branch>`
+
+Do not delete the task branch or remove its worktree — the workflow owns that teardown after the run (it removes the worktree first, then deletes the branch). Running `git branch -D` here while the task's worktree is still live makes git refuse ("cannot delete branch ... used by worktree") and fails the integration.
 
 If the build fails after merge, run `git reset --hard HEAD` to restore the base branch, then report failure.
 

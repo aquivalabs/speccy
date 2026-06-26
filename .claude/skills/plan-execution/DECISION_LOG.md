@@ -85,6 +85,19 @@ The fix is in the verify prompt, working within the bundled workflow's fixed sch
 
 Constraint worth recording: the bundled `COMPLETENESS_SCHEMA` has no first-class "blocked" field, and the workflow's return value omits the verify deliverables, so the blocking *reason* travels on the existing channels — the halted execute agent's friction log (reliable, common case) and the deliverable's `evidence` text. A cleaner signal would add a `blocked` outcome to the schema, but that means editing the bundled workflow (currently fixed). Deferred until the friction-log channel proves insufficient.
 
+### Worktree and branch teardown owned by the workflow (2026-06-26)
+
+The `integrate` prompt's last step used to be `git branch -D <task-branch>`, while worktrees were only removed in an end-of-run cleanup pass that never deleted branches. Two consequences: git refuses to delete a branch still checked out in a live worktree, so the in-prompt `git branch -D` failed on every parallel task — branches accumulated and the failure muddied integration reports; and the end-of-run cleanup ran only on the success path, so any early-return failure (parallel exec, integration, sequential task) leaked its worktrees into the next run. A failed parallel sibling leaked too, because the branch was recorded only when the task succeeded.
+
+The fix consolidates teardown in `workflow.js`:
+
+- A single idempotent `cleanupWorktrees()` removes the worktree **first**, then deletes only squash-merged branches (tracked in `mergedBranches`) with `-D` — a squash merge leaves no ancestry for `-d` to recognise. Unmerged branches survive for recovery and are reported under `skipped_branches`.
+- It is called on every exit path — success and each early-return failure — and guards against double-execution with a `worktreesCleaned` flag.
+- Worktree branches are recorded regardless of task success, so a failed sibling's worktree is still swept (the harness provisions the worktree before the agent runs).
+- The `integrate` prompt no longer deletes the branch or removes the worktree; it is told the workflow owns that teardown, and why an in-prompt `git branch -D` would fail.
+
+`workflow-simple.js` is unaffected — it runs a single task on the main checkout with no worktrees or integration.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.

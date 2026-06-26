@@ -171,6 +171,27 @@ const MERGE_RESULT_SCHEMA = {
   required: ["task_id", "success"]
 };
 
+const CLEANUP_RESULT_SCHEMA = {
+  type: "object",
+  properties: {
+    removed_worktrees: { type: "array", items: { type: "string" } },
+    deleted_branches: { type: "array", items: { type: "string" } },
+    skipped_branches: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "Branches left intact — unmerged, or still checked out in a worktree"
+    },
+    errors: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "Teardown failures, e.g. a branch delete refused because its worktree was still live"
+    }
+  },
+  required: ["errors"]
+};
+
 const COMPLETENESS_SCHEMA = {
   type: "object",
   properties: {
@@ -354,7 +375,45 @@ log(`${taskCount} tasks across ${steps.length} steps`);
 
 const allFriction = [];
 const completedWork = [];
-const worktreeBranches = [];
+const worktreeBranches = []; // every worktree branch ever provisioned (success or fail)
+const mergedBranches = new Set(); // branches whose squash-merge landed on base — safe to delete
+
+// Branch + worktree teardown is owned here, not in the integrate prompt: git refuses to
+// delete a branch still checked out in a live worktree, so the worktree must go first.
+// Only squash-merged branches are deleted (with `-D` — a squash merge leaves no ancestry
+// for `-d` to recognise); unmerged branches survive for recovery. Idempotent so it can run
+// on every exit path — success, early-return failure, or end of run.
+let worktreesCleaned = false;
+async function cleanupWorktrees() {
+  if (worktreesCleaned) return;
+  worktreesCleaned = true;
+  const trees = [...new Set(worktreeBranches)];
+  if (trees.length === 0) return;
+  log(`Cleaning up ${trees.length} worktree(s)`);
+  const treeList = trees.map((b) => "- `" + b + "`").join("\n");
+  const merged = trees.filter((b) => mergedBranches.has(b));
+  const deleteList = merged.length
+    ? merged.map((b) => "- `" + b + "`").join("\n")
+    : "(none — do not delete any branch)";
+  const result = await agent(
+    `Tear down git worktrees and integrated branches. Touch ONLY the branches listed below; leave any others alone.
+
+## Worktrees to remove (by branch)
+${treeList}
+
+Steps:
+1. Run \`git worktree prune\` to clear stale entries left by crashed runs.
+2. Run \`git worktree list\`. For each branch above that still has a worktree, run \`git worktree unlock <path>\` (ignore a "not locked" error) then \`git worktree remove --force <path>\`.
+3. Run \`git worktree prune\` again.
+4. Delete ONLY these already-integrated branches, and only after their worktree is gone. Use \`git branch -D <branch>\` (a squash merge leaves no ancestry, so \`-d\` would wrongly refuse):
+${deleteList}
+   If \`git branch -D\` reports a branch is still checked out in a worktree, the removal in step 2 did not take effect — record it under \`errors\` and move on; do not retry blindly.
+5. Leave every branch NOT in the delete list intact — it may hold unmerged work needed for recovery. Record those under \`skipped_branches\`.
+6. If \`.claude/worktrees/\` is now empty, remove it.`,
+    { label: "cleanup-worktrees", schema: CLEANUP_RESULT_SCHEMA }
+  );
+  for (const e of result?.errors || []) log(`cleanup-worktrees: ${e}`);
+}
 
 for (let si = 0; si < steps.length; si++) {
   const step = steps[si];
@@ -380,9 +439,11 @@ for (let si = 0; si < steps.length; si++) {
           title: t.title,
           friction: r.friction_text
         });
+      // Record the branch whether or not the task succeeded, so a failed sibling's
+      // worktree is still swept (the harness provisions the worktree before the agent runs).
+      if (r?.branch) worktreeBranches.push(r.branch);
       if (r?.success) {
         succeeded.push({ task: t, result: r });
-        if (r.branch) worktreeBranches.push(r.branch);
       } else {
         failed.push({ task: t, error: r?.error || "agent returned null" });
       }
@@ -393,6 +454,7 @@ for (let si = 0; si < steps.length; si++) {
       const salvageable = succeeded.filter((s) => s.result.branch);
       for (const s of salvageable)
         log(`${s.task.id} succeeded — work on branch ${s.result.branch}`);
+      await cleanupWorktrees(); // sweep leaked trees; branches survive (none merged yet)
       return {
         tasks_total: taskCount,
         complete: false,
@@ -413,6 +475,7 @@ for (let si = 0; si < steps.length; si++) {
         log(
           `Integration failed for ${t.id}: ${merge?.error || "unknown"} — stopping`
         );
+        await cleanupWorktrees();
         return {
           tasks_total: taskCount,
           complete: false,
@@ -420,6 +483,7 @@ for (let si = 0; si < steps.length; si++) {
           friction_logs: allFriction
         };
       }
+      if (r.branch) mergedBranches.add(r.branch); // squash-merge landed — safe to delete at cleanup
       completedWork.push({
         task_id: t.id,
         title: t.title,
@@ -443,6 +507,7 @@ for (let si = 0; si < steps.length; si++) {
         log(
           `${task.id} failed: ${r?.error || "agent returned null"} — stopping`
         );
+        await cleanupWorktrees(); // a prior parallel step may have left worktrees
         return {
           tasks_total: taskCount,
           complete: false,
@@ -512,6 +577,8 @@ while (!complete && iteration < 3) {
         log(
           `Corrective integration failed for ${fix.id}: ${merge?.error || "unknown"}`
         );
+      } else {
+        mergedBranches.add(r.branch); // corrective squash-merge landed — safe to delete at cleanup
       }
     }
 
@@ -542,21 +609,11 @@ if (runRetrospective && allFriction.length > 0) {
   );
 }
 
-// ── Cleanup: remove worktrees ────────────────────────────────────────
+// ── Cleanup: remove worktrees, delete integrated branches ────────────
+// Owned here (not in the integrate prompt). Idempotent and already called on every
+// early-return failure path above, so a failed run never leaks trees into the next one.
 
-if (worktreeBranches.length > 0) {
-  log(`Cleaning up ${worktreeBranches.length} worktrees`);
-  const branchList = worktreeBranches.map((b) => "- `" + b + "`").join("\n");
-  await agent(
-    `Remove the git worktrees for these branches:\n${branchList}\n\nSteps:
-1. Run \`git worktree list\` to find the paths for these branches.
-2. For each matching worktree, run \`git worktree unlock <path>\` (may fail if not locked — that's fine) then \`git worktree remove --force <path>\`.
-3. Run \`git worktree prune\`.
-4. If \`.claude/worktrees/\` is now empty, remove it.
-Only remove worktrees matching the branches listed above — leave any others alone.`,
-    { label: "cleanup-worktrees" }
-  );
-}
+await cleanupWorktrees();
 
 // ── Result ───────────────────────────────────────────────────────────
 
