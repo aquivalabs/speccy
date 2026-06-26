@@ -206,6 +206,8 @@ Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec p
 
 When it completes, brief the user on the approach, key decisions, and risks from `.speccy/<run-id>/plan.md` — point them there for the full text rather than dumping it inline. Update state.json with `planPath` and `phase: "plan-critique"`.
 
+**If the plan flags a contradicted spec assumption**, stop before the plan-critique loop and put it to the user as a blocking choice: accept the adjusted scope, or revise the spec and re-plan. A falsified assumption can invalidate scope, so this gate fires even when `engagementChecks` is off (see **Steering away from cognitive surrender**).
+
 ### 2a. Adversarial plan critique
 
 The spec has already been hardened. Now the plan gets an independent review. This loop runs autonomously — the user reviews the final hardened plan in 2b. Read `prompts/plan-critique.md` (relative to this SKILL.md's directory).
@@ -261,6 +263,6 @@ When all phases complete, report concisely:
 1. **Summary** — what was built, how many critique/review rounds ran, what changed, and that the branch is ready for review.
 2. **ADR, co-authored** — distil key decisions from the critique rounds into `specs/<slug>-adrs.md`. Each entry: what was proposed, what was decided, why. Before writing it, ask the user to restate the rationale for one or two of those decisions in their own words, and build the entry from their account where they have one (see **Steering away from cognitive surrender**). A decision the user cannot reconstruct is the surrender signal worth catching here, while the code is fresh and they are about to own it. Commit the ADR.
 3. **Deferred feedback** — any substantial feedback the user chose to skip
-4. **Retrospective** — if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns
+4. **Retrospective** — if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns. If it has a `## Repo-doc suggestions (CLAUDE.md / ADR)` section, present those for the user to accept or decline, never auto-applied.
 
 If the pipeline exited early (implementation failure), report what's done and what remains. The user has a branch with partial progress.

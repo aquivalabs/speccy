@@ -88,4 +88,6 @@ Synthesize friction logs from a multi-task execution run into a retrospective.
 
 Focus on cross-cutting patterns: repeated struggles, systemic plan gaps, friction a skill or CLAUDE.md update could eliminate. Note positives too. Individual one-off difficulties: mention briefly.
 
+Collect any finding that points at a project-level doc gap (a CLAUDE.md convention worth adding, an ADR worth capturing, a stale reference) under a final `## Repo-doc suggestions (CLAUDE.md / ADR)` heading, so the orchestrator can surface them at wrap-up.
+
 Be concise and actionable.

@@ -190,3 +190,18 @@ The checks are **on by default** — the default should be to make the user thin
 The opt-out is a calculated trade, not a free one. Susceptibility is not uniform: higher trust in AI predicts more surrender, while higher need-for-cognition and fluid intelligence predict resistance. The people most likely to find the prompts grating and switch them off — high trust, low appetite for effortful checking — are the same people most prone to surrender. It is still the right call: the paper's own design recommendation is "customizable modes that align with user preferences for autonomy versus assistance", and forcing friction on someone determined to skip it only trains them to click past it. Keeping uncertainty-flagging on even when the prompts are off preserves the one cue that costs the user nothing.
 
 The skill itself refers to "cognitive surrender" as a plain concept without attribution; the source is credited here and in the README.
+
+### Assumptions checked against the codebase, with a contradicted-assumption gate (2026-06-26)
+
+The "prove load-bearing mechanisms" work (above) covers *feasibility* assumptions — platform/timing/API capabilities. But the spec's `## Assumptions` section is broader: it holds the quieter premises chosen where the description was ambiguous ("this table is append-only", "callers always pass a resolved ID"). Those are never tested against reality, yet a false one can invalidate scope just as a forbidden DML does — only it surfaces at build time instead of review.
+
+Planning research is the first phase positioned to test them against the live codebase, so the check lands there:
+
+- **`plan-research.md`** — the planner marks each spec assumption `confirmed` / `contradicted` / `still-open` against what it finds, records the verdicts in an **Assumptions check** plan section with evidence, and flags any contradiction explicitly in the briefing summary.
+- **`SKILL.md` Phase 2** — a contradicted assumption is a blocking confirm-or-revise gate before the autonomous plan-critique loop: the user either accepts the adjusted scope or revises the spec and re-plans. The gate fires regardless of `engagementChecks`, because it surfaces genuine uncertainty — the one cue that stays on even when the active prompts are off (see the cognitive-surrender decision above).
+
+Deliberately not added: the PR's separate `traceability.md` (criterion→test→evidence table). The plan's test strategy already maps each completion criterion to a test, and the implementation review already checks that adherence, so the table would be formalisation without new signal.
+
+### Retrospective routes repo-doc gaps to the user at wrap-up (2026-06-26)
+
+The plan-execution retrospective already noted "friction a CLAUDE.md update could eliminate," but that signal had no fixed home and was easy to lose in prose. The retrospective prompt now collects such findings under a `## Repo-doc suggestions (CLAUDE.md / ADR)` heading, and speccy's wrap-up presents them as concrete suggestions framed as the user's call — never auto-applied, since CLAUDE.md and ADRs are human-reviewed.
