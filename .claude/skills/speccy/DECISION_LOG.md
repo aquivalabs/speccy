@@ -205,3 +205,9 @@ Deliberately not added: the PR's separate `traceability.md` (criterion→test→
 ### Retrospective routes repo-doc gaps to the user at wrap-up (2026-06-26)
 
 The plan-execution retrospective already noted "friction a CLAUDE.md update could eliminate," but that signal had no fixed home and was easy to lose in prose. The retrospective prompt now collects such findings under a `## Repo-doc suggestions (CLAUDE.md / ADR)` heading, and speccy's wrap-up presents them as concrete suggestions framed as the user's call — never auto-applied, since CLAUDE.md and ADRs are human-reviewed.
+
+### Haiku dropped from the implementation-review ladder (2026-06-30)
+
+Supersedes the implementation-review portions of "Round cap raised from three to four" and "Spec and plan critique run all-opus" (both 2026-06-22). Implementation review now climbs `sonnet → opus → opus` over up to **3** rounds, rather than `haiku → sonnet → opus → opus` over 4.
+
+The haiku round was pulling its weight in theory — cheap-first on a large, mechanical diff — but in practice never surfaced anything worth keeping; its findings were noise that cost more triage than they saved. Dropping it makes sonnet the cheap first pass. The doubled-opus rationale survives intact: round 3 is still a fresh-context Opus re-reviewing the code after round 2's fixes, just one round earlier. With haiku gone the cap falls to 3, matching spec and plan critique.

@@ -40,7 +40,7 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 Models are per-phase, defaulting to a `"ladder"` scheme:
 
 - **Spec and plan critique** — opus every round (both the adversary and the revise agent), up to 3 rounds. These artifacts are short and high-leverage; on knowledge-heavy domains the durable findings cluster in the opus passes, so the whole loop runs on opus rather than escalating cheaper tiers that mostly add triage churn.
-- **Implementation review** — escalating `haiku → sonnet → opus → opus`, up to 4 rounds. The diff is large and many findings mechanical, so cheap-first pays off; the doubled opus is a fresh-context final pass over the prior round's fixes.
+- **Implementation review** — escalating `sonnet → opus → opus`, up to 3 rounds. The diff is large and many findings mechanical, so a cheaper first pass pays off; the doubled opus is a fresh-context final pass over the prior round's fixes.
 
 The **builder** (execute/integrate/verify inside plan-execution) defaults to sonnet; plan-execution's breakdown agent always uses opus. The user may pin a single adversary model — then use it for every round of every loop — or raise the builder to opus for high-stakes work.
 
@@ -69,7 +69,7 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
 }
 ```
 
-`adversaryModel` is `"ladder"` by default — the per-phase scheme described under **Getting started** (spec/plan critique: opus every round, up to 3; implementation review: `haiku → sonnet → opus → opus`, up to 4). If the user pinned a single adversary model, store that model name here instead and use it for every critique round.
+`adversaryModel` is `"ladder"` by default — the per-phase scheme described under **Getting started** (spec/plan critique: opus every round, up to 3; implementation review: `sonnet → opus → opus`, up to 3). If the user pinned a single adversary model, store that model name here instead and use it for every critique round.
 
 On trigger, read `.speccy/.current-runid` — a pointer to the most recent run, written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase. A resumed run skips the precondition checks, so if the recorded phase is anything past the spec interview, suggest auto-accept mode (shift+tab) first — the rest of the run is autonomous tool calls.
 
@@ -247,12 +247,12 @@ After implementation is complete, the code gets an adversarial review. Read `pro
 
 The implementation review focuses on quality, design, and spec fidelity — the task execution skill has already verified completeness. The human is _on_ the loop (observing), not _in_ it — design decisions were settled in earlier phases, so implementation fixes are mechanical.
 
-For each round (up to 4):
+For each round (up to 3):
 
-1. **Review.** Spawn an adversary subagent with the implementation review prompt, the spec path, and instructions to run `git diff <base-branch>...HEAD` for the full implementation diff. Instruct it to read key files for deeper understanding and write its review to `.speccy/<run-id>/review-round-N.md`. Use the implementation-review ladder for the model override: round 1 → haiku, round 2 → sonnet, round 3 → opus, round 4 → opus (or the user's pinned model, if they set one).
+1. **Review.** Spawn an adversary subagent with the implementation review prompt, the spec path, and instructions to run `git diff <base-branch>...HEAD` for the full implementation diff. Instruct it to read key files for deeper understanding and write its review to `.speccy/<run-id>/review-round-N.md`. Use the implementation-review ladder for the model override: round 1 → sonnet, round 2 → opus, round 3 → opus (or the user's pinned model, if they set one).
 2. **Fix.** Read `.speccy/<run-id>/review-round-N.md` (N from state.json) to triage. If no legitimate flaws found, the review is done. Otherwise, read `prompts/implementation-fix.md` and spawn a subagent with that prompt, the review file path, the spec path, and the plan path. The subagent makes the code changes and commits. After it commits, re-run the load-bearing gates yourself and confirm the actual output before starting the next round — never advance on the fix agent's claim that the gates pass.
 
-After 4 rounds, proceed regardless. Update state.json after each round (`reviewRounds`) and set `phase: "complete"` when done.
+After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`) and set `phase: "complete"` when done.
 
 ## Wrap-up
 
