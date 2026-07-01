@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Speccy banner — ZX Spectrum rainbow flash + wordmark + a rotating quote.
+# Speccy banner — ZX Spectrum rainbow (as emoji) + wordmark + a rotating quote.
 # A programmer/writer quote is picked at random each run (writing maxims earn
 # their place: they apply to code too). Every quote is attribution-verified
 # against a primary or authoritative source.
 #
-# Line budget: Claude Code's Bash output preview folds everything past the
-# first three lines. Line 1 is the wordmark + pipeline (one row, ~60 cols), so
-# the quote owns the remaining two rows. Quotes are capped so the
-# `"quote" —Author` line stays ≤ ~140 chars — at most one soft-wrap on an
-# 80-column terminal, keeping the whole banner within three rows.
-R=$'\033[91m'; Y=$'\033[93m'; G=$'\033[92m'; B=$'\033[94m'; X=$'\033[0m'; D=$'\033[2m'; BD=$'\033[1m'
+# Output is two Markdown lines. The orchestrator runs this script, then
+# reproduces those lines verbatim in its own reply so the banner shows by
+# default: the harness collapses Bash tool output behind ctrl+o and strips ANSI
+# colour, so the old in-terminal ANSI banner was invisible. Colour now comes
+# from the rainbow emoji, which render wherever the reply is shown.
+#
+# Quotes are capped so the `"quote" —Author` line stays ≤ ~140 chars, keeping
+# it to roughly one row on a normal terminal.
 
 quotes=(
   "Talk is cheap. Show me the code.|Linus Torvalds"
@@ -75,5 +77,5 @@ q="${quotes[RANDOM % ${#quotes[@]}]}"
 text="${q%|*}"; who="${q#*|}"
 
 printf "%s\n" \
-"  ${R}██${Y}██${G}██${B}██${X}  ${BD}SPECCY${X}   ${D}spec → critique → plan → build → review${X}" \
-"  ${D}\"${text}\" —${who}${X}"
+"🟥🟨🟩🟦 **SPECCY** — spec → critique → plan → build → review" \
+"_\"${text}\" —${who}_"

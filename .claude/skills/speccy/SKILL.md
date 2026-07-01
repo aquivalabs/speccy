@@ -13,13 +13,15 @@ The orchestrator runs in the main conversation. Heavy work — adversarial criti
 
 ## Getting started
 
-When the skill triggers, **print the Speccy banner first**, on every invocation. Run `banner.sh` from this skill's own directory (alongside this SKILL.md), using its **absolute path** so it resolves no matter what the Bash tool's current directory is — the working directory persists across calls and may have drifted, and a plugin install lives outside the project tree entirely. Don't prepend `cd` and don't use command substitution; both break the pre-approved permission match.
+When the skill triggers, **show the Speccy banner first**, on every invocation. Run `banner.sh` from this skill's own directory (alongside this SKILL.md), using its **absolute path** so it resolves no matter what the Bash tool's current directory is — the working directory persists across calls and may have drifted, and a plugin install lives outside the project tree entirely. Don't prepend `cd` and don't use command substitution; both break the pre-approved permission match.
 
 ```bash
 bash <skill-dir>/banner.sh
 ```
 
-The banner is cosmetic. If it fails or would prompt, just proceed without it — never block the run on it.
+The script prints two Markdown lines. **Reproduce them verbatim at the top of your reply** — that is what the user sees. Running the script alone is not enough: the harness collapses Bash tool output behind ctrl+o and strips ANSI colour, so a banner that only prints through the tool is invisible. Reproducing it in your reply renders the rainbow emoji in colour by default.
+
+The banner is cosmetic. If the script fails or would prompt, just proceed without it — never block the run on it.
 
 Then check for an in-progress run (see **Resuming a run** below). If one exists, offer to resume before starting fresh.
 
