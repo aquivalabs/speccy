@@ -234,6 +234,8 @@ This is the highest-stakes human gate, so engage it deliberately (see **Steering
 - **Then present, candidly.** Have them read the plan file directly rather than re-dumping it into the conversation. Walk through the two or three load-bearing decisions, and for each surface the alternative the plan rejected and its best argument. Flag where the plan is genuinely uncertain, and don't let a confident passage stand in for a verified one.
 - **Name what convinced you.** On the single most consequential decision, ask the user to say what persuaded them, and whether they checked it or are trusting the plan's confidence.
 
+**Recommend a builder.** With the plan's shape now clear, tell the user whether Sonnet (the default) or Opus suits this build, and why — weigh complexity and novelty, how much is left to build-time judgment versus mechanical execution, and how tightly the plan pins down each task. They set `builderModel`.
+
 The adversary has already cleaned up obvious issues; this is the user's chance to raise concerns it missed, adjust the approach on their own knowledge, or approve as-is. Iterate until the user is satisfied. When approved, set `phase: "implementation"` in state.json.
 
 Before starting implementation, verify all run state is in files: state.json current, spec and plan committed, review decisions reflected in the plan. The main clear already happened after the spec, so this is conditional: if plan critique and review accumulated heavy context, suggest the user `/clear` and re-invoke to resume at implementation; if planning stayed lean, just proceed.
