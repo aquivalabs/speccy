@@ -128,6 +128,8 @@ Speccy's own output is the hazard. Adversarially-hardened specs and plans read a
 - **Flag doubt; stay quiet about certainty.** Surface where the agent is unsure and what it assumed. Never offer high confidence as a reason to skip review, since a confident wrong call adopted wholesale is the worst outcome. Point the user's attention at the doubtful parts and let the settled ones pass.
 - **Name what convinced you.** When the user approves a load-bearing decision, ask them to say what persuaded them, and to notice whether they verified it or simply trusted that the agent sounded sure. Keep this to one decision per gate, so it reads as a self-check rather than an interrogation.
 
+Ask these as ordinary questions. Don't announce them or name the mechanism — a prompt flagged as a check gets performed, not thought about.
+
 Apply the same standard to the final diff: read it as if a contributor you do not fully trust wrote it.
 
 These checks are on by default, because the default should be to make the user think. Some users find them grating, so they can opt out: store the choice as `engagementChecks` in state.json (default `true`), offered alongside the model defaults at the start. When it is `false`, skip the active prompts above (ask-before-you-tell, name-what-convinced-you, and the ADR reconstruction at wrap-up), but keep flagging genuine uncertainty, which is candour the user benefits from either way.
