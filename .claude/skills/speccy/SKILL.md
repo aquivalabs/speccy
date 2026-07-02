@@ -204,7 +204,7 @@ Before diving in, briefly orient the user on why planning is a separate step: th
 
 Planning research happens in a subagent to keep the codebase-reading noise out of the main context. Read `prompts/plan-research.md`.
 
-Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec path, and the target plan path (`.speccy/<run-id>/plan.md`). If the spec recorded external context (docs, standards, related projects), pass those references too — read them from the spec rather than relying on conversation memory, since planning may run in a freshly cleared context.
+Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec path, the target plan path (`.speccy/<run-id>/plan.md`), and the path to `prompts/plan-spike.md` so the planner can prove any load-bearing mechanism (preferably by spawning a spike subagent, or inline). If the spec recorded external context (docs, standards, related projects), pass those references too — read them from the spec rather than relying on conversation memory, since planning may run in a freshly cleared context.
 
 When it completes, brief the user on the approach, key decisions, and risks from `.speccy/<run-id>/plan.md` — point them there for the full text rather than dumping it inline. Update state.json with `planPath` and `phase: "plan-critique"`.
 
@@ -217,7 +217,10 @@ The spec has already been hardened. Now the plan gets an independent review. Thi
 For each round (up to 3):
 
 1. **Critique.** Spawn an adversary subagent with the plan critique prompt, the path to the plan, and the path to the spec (for context — the spec itself should not be re-reviewed). Instruct it to **write its review to `.speccy/<run-id>/plan-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one). Read the critique file (N from state.json) to triage. If no legitimate flaws found, exit the loop.
-2. **Revise.** Spawn a revise subagent **on opus** with `prompts/revise.md`, the plan path, the critique file path, and instructions to incorporate every finding in the critique. When it completes, the revised plan file is the truth — don't depend on its return.
+2. **Spike, if the critique flags an unproven load-bearing mechanism.** The critic judges the plan's evidence but does not spike; when it flags a mechanism whose feasibility the plan hasn't proven, prove it before revising. Spawn a spike subagent with `prompts/plan-spike.md` and the mechanism to prove, writing its verdict to `.speccy/<run-id>/spike-round-N.md`. Read the verdict:
+   - `confirmed` → carry its evidence into the revise step so the plan records it in the Assumptions check.
+   - `refuted` or `unproven` → a load-bearing mechanism that can't be proven can invalidate scope, so treat it like a contradicted spec assumption: stop the loop and put a blocking choice to the user — accept a redesign around a mechanism that works, or revise the spec and re-plan. This gate fires regardless of `engagementChecks` (see **Steering away from cognitive surrender**).
+3. **Revise.** Spawn a revise subagent **on opus** with `prompts/revise.md`, the plan path, the critique file path, and instructions to incorporate every finding in the critique. When it completes, the revised plan file is the truth — don't depend on its return.
 
 After 3 rounds, exit the loop regardless. Update state.json after each round (`planCritiqueRounds`). When the loop exits, surface a one-line note of how many rounds ran and what changed, then proceed to 2b.
 
