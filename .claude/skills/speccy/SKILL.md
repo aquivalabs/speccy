@@ -172,11 +172,7 @@ The **Assumptions** section is important — it captures the reasonable defaults
 
 Let the user review and edit until satisfied.
 
-Create a feature branch before committing anything:
-
-```
-git checkout -b speccy/<slug>
-```
+Create a feature branch before committing anything. Pick a short, descriptive name for the work; if it collides with an existing branch, adjust it. Then `git checkout -b <branch>`.
 
 Save to `specs/<slug>.md`. Commit the spec.
 
