@@ -33,7 +33,7 @@ For a new run, give a one-sentence introduction: this skill walks through writin
    - **Plan** (autonomous loop) — a subagent researches the codebase and drafts a plan; an independent reviewer critiques and a revise agent applies findings until the plan is clean.
    - **Plan review** (user decides) — the user reviews the hardened plan, raises concerns, approves.
    - **Implementation** (autonomous loop) — the skill builds to the plan; an independent reviewer checks the code against the spec and fixes issues directly.
-   - **Wrap-up** — summary, ADR, retrospective. The user reviews the final diff on the branch.
+   - **Wrap-up** — summary, decision log, retrospective. The user reviews the final diff on the branch.
 
    Also mention: state is saved after every phase boundary, so the user can `/clear` and re-invoke the skill at any point to resume with a fresh context. Useful for long runs where the main conversation has grown.
 
@@ -132,7 +132,7 @@ Ask these as ordinary questions. Don't announce them or name the mechanism — a
 
 Apply the same standard to the final diff: read it as if a contributor you do not fully trust wrote it.
 
-These checks are on by default, because the default should be to make the user think. Some users find them grating, so they can opt out: store the choice as `engagementChecks` in state.json (default `true`), offered alongside the model defaults at the start. When it is `false`, skip the active prompts above (ask-before-you-tell, name-what-convinced-you, and the ADR reconstruction at wrap-up), but keep flagging genuine uncertainty, which is candour the user benefits from either way.
+These checks are on by default, because the default should be to make the user think. Some users find them grating, so they can opt out: store the choice as `engagementChecks` in state.json (default `true`), offered alongside the model defaults at the start. When it is `false`, skip the active prompts above (ask-before-you-tell, name-what-convinced-you, and the decision-log reconstruction at wrap-up), but keep flagging genuine uncertainty, which is candour the user benefits from either way.
 
 ## Phase 1 — Specification
 
@@ -266,7 +266,7 @@ A completed run is a handoff. Speccy has built and self-reviewed the work; the v
 When all phases complete, report concisely:
 
 1. **Summary** — what was built, how many critique/review rounds ran, what changed, and that the branch is ready for review.
-2. **ADR, co-authored** — distil key decisions from the critique rounds into `specs/<slug>-adrs.md`. Each entry: what was proposed, what was decided, why. Before writing it, ask the user to restate the rationale for one or two of those decisions in their own words, and build the entry from their account where they have one (see **Steering away from cognitive surrender**). A decision the user cannot reconstruct is the surrender signal worth catching here, while the code is fresh and they are about to own it. Commit the ADR.
+2. **Decision log, co-authored** — distil key decisions from the critique rounds into `specs/<slug>-decision-log.md`. These are usually implementation-specific choices, not the durable architecture decisions an ADR captures for the wider team. Each entry: what was proposed, what was decided, why. Before writing it, ask the user to restate the rationale for one or two of those decisions in their own words, and build the entry from their account where they have one (see **Steering away from cognitive surrender**). A decision the user cannot reconstruct is the surrender signal worth catching here, while the code is fresh and they are about to own it. Commit the decision log.
 3. **Deferred feedback** — any substantial feedback the user chose to skip
 4. **Retrospective** — if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns. If it has a `## Repo-doc suggestions (CLAUDE.md / ADR)` section, present those for the user to accept or decline, never auto-applied.
 

@@ -231,3 +231,9 @@ Fix: the spike becomes a first-class, shared step with its own prompt.
 - **Plan critique (`SKILL.md` Phase 2a)** — a new step between critique and revise: when a round flags an unproven mechanism, the orchestrator spawns a spike agent with `plan-spike.md`. `confirmed` feeds the evidence to the revise pass; `refuted` / `unproven` routes to the blocking user gate that already exists for a contradicted spec assumption (2026-06-26), since an unprovable load-bearing mechanism can invalidate scope the same way. The gate fires regardless of `engagementChecks`.
 
 The critic stays a pure reviewer — the change gives its finding somewhere to go. A subagent is preferred for the spike (its own context, live-environment work isolated from the reviewer) but not mandatory.
+
+### Wrap-up artefact is a decision log, not an ADR (2026-07-03)
+
+Amends the wrap-up description in "Steering away from cognitive surrender" (2026-06-26). The co-authored wrap-up artefact was called an ADR and written to `specs/<slug>-adrs.md`. That name overclaimed: the decisions distilled from the critique rounds are usually implementation-specific choices, whereas an ADR records the durable architecture decisions a team keeps for the wider audience. Renamed to a **decision log** at `specs/<slug>-decision-log.md`; the co-authoring, restate-the-rationale prompt, and commit step are unchanged.
+
+Left as ADR: the retrospective's `## Repo-doc suggestions (CLAUDE.md / ADR)` heading (2026-06-26). That routes findings to the repo's *own* durable docs, which is exactly the end-user ADR territory the rename is drawing a line against.
