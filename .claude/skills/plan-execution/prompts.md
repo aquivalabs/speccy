@@ -8,9 +8,15 @@ Prompt templates for each subagent role. The SKILL.md instructs Claude to read t
 
 Decompose this implementation plan into an ordered list of steps for execution by subagents in separate git worktrees.
 
-Each step contains one or more tasks. Return steps in execution order.
+Each step contains one or more tasks; tasks within a step run in parallel (isolated worktrees), and steps run in order. Return steps in execution order.
 
-**Default to sequential steps** (one task per step). Only group tasks into a parallel step when they are obviously independent — e.g. touching completely separate files and features with no interaction.
+**Favour parallelism — optimise for wall-clock.** Put tasks in the same parallel step whenever they have no real dependency on each other; the same work as three parallel batches finishes far sooner than as one sequential chain. Reserve sequential ordering (a step of its own) for a genuine dependency: a task needs a prior task's committed output, or two tasks would write the same files and conflict.
+
+**Decide the verification cadence.** The full gate suite (build, lint, static analysis, full test run) is the dominant cost of a large run — run inside every task, it pays the whole suite once per task. Distribute it deliberately:
+
+- Mark ordinary feature tasks **scoped**: they run only fast checks (typecheck/compile plus the tests covering what they touched) before committing — enough not to hand broken code downstream.
+- Author explicit **verification-checkpoint** tasks — a sequential step whose task runs the full gate suite against the integrated base and fixes any breakage — at natural milestones: after a parallel batch lands, at a layer boundary (e.g. server complete before client begins), and always once at the end. Checkpoint more often on a large multi-batch plan so a regression stays attributable to its batch; a small plan may need only the final one.
+- State in each task which level it runs (scoped vs checkpoint). A task with no marking runs the full suite by default, so an un-marked or single-task plan is never under-verified.
 
 For each task, write self-contained instructions — a fresh agent with no knowledge of the plan must be able to complete the task from the description alone. Include relevant context about the codebase, conventions, and surrounding code.
 
@@ -26,7 +32,7 @@ Execute this task in your worktree. Do NOT merge or modify other branches.
 
 The plan and spec are authoritative — treat them as read-only. Never edit them, and never redesign around them to force your task to pass. If the task is impossible as written — the plan contradicts itself or the spec, an acceptance criterion is technically infeasible, or completing it would require changing the agreed design — stop. Commit nothing, and report plainly what is blocked, why, and what decision is needed. Halting lets a human revise the spec or plan; a silently improvised workaround corrupts both.
 
-Before committing, run the project's verification tools (build, lint, static analysis, tests) as documented in CLAUDE.md. If none are documented, note this under `suggestions` in your friction log.
+Before committing, run the verification level your task specifies. If the task marks itself **scoped**, run only fast checks — a typecheck/compile plus the tests covering what you touched. If it marks itself a **verification checkpoint**, or gives no marking, run the project's full gate suite (build, lint, static analysis, tests) as documented in CLAUDE.md and fix any breakage — a checkpoint's footprint is the whole integrated base, so it may repair regressions wherever they surface, not only in files it introduced. Either way, never hand broken code downstream. If CLAUDE.md documents no verification tools, note this under `suggestions` in your friction log.
 
 When satisfying an enforced completion gate forces violating a softer CLAUDE.md preference, satisfy the gate and log the friction. An enforced gate is a rule whose violation blocks "done" — a failing lint / static-analysis check or a required test. If the only way to clear it conflicts with a CLAUDE.md *style or aesthetic* preference (e.g. a rule requiring doc comments vs. "comment only the non-obvious"), clear the gate and record the trade under `harder_than_expected` in your friction log. This carve-out is for style preferences only: an enforced gate must never override a CLAUDE.md *safety or correctness* rule (e.g. "never log PII") — there, stop and report it as a blocker rather than complying.
 

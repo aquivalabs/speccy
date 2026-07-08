@@ -98,6 +98,26 @@ The fix consolidates teardown in `workflow.js`:
 
 `workflow-simple.js` is unaffected — it runs a single task on the main checkout with no worktrees or integration.
 
+### Breakdown favours parallelism (2026-07-08)
+
+The breakdown prompt defaulted to sequential steps — "only group tasks into a parallel step when they are obviously independent." In practice that decomposed real plans into long sequential chains, so wall-clock was the *sum* of per-task times rather than the max. A 14-task run (`taskray-ent` full-page-portfolio) ran largely serially and took hours, most of it waiting on tasks that had no true dependency on each other.
+
+The conservative default was buying little: worktree isolation (`baseRef: head`) plus the prior-work summaries injected into downstream prompts already make parallel batches safe, and squash-merge integration has proven low-conflict across runs. So the cost of the caution (serialised wall-clock) outweighed its benefit (avoiding conflicts that rarely materialise).
+
+The fix: the breakdown prompt now **favours parallelism** — tasks share a parallel step unless there is a genuine dependency (a task needs a prior task's committed output, or two tasks would write the same files and conflict). "When in doubt, parallelise." This is a disposition change only; the mechanism ("Sequential on base, parallel in worktrees") is unchanged — it just gets exercised toward more concurrency. Integration remains the backstop; if aggressive parallelism ever produces real conflicts, the integrate stage surfaces them.
+
+### Breakdown owns the verification cadence (2026-07-08)
+
+The `execute` prompt told every task to run the project's full gate suite (build, lint, static analysis, full test run) before committing. On a large run that pays the whole suite once *per task* — the same full-page-portfolio run above ran it 11+ times, and that repetition, not orchestration overhead, was the dominant wall-clock cost. Running the suite only once at the very end is the opposite failure: a regression surfaces late and is hard to attribute to the batch that caused it.
+
+The fix distributes verification, and hands the decision to breakdown (the phase with the whole dependency graph in view). This refines "Verification via CLAUDE.md, not discovery" — CLAUDE.md still defines *what* the tools are; this governs *how often* the full set runs:
+
+- Breakdown marks ordinary feature tasks **scoped** — they run only fast checks (typecheck/compile plus the tests covering what they touched) before committing.
+- Breakdown authors explicit **verification-checkpoint** tasks — a sequential step whose task runs the full suite against the integrated base and fixes any breakage — at milestones it chooses: after a parallel batch lands, at a layer boundary, and always once at the end. More checkpoints on a large multi-batch plan so a regression stays attributable to its batch.
+- `execute` honours the per-task level, with a safe default: an **unmarked** task runs the full suite. So `workflow-simple` (a single un-marked task) and any un-marked plan are never under-verified — the speedup is opt-in via breakdown's markings.
+
+Trade-off recorded deliberately: a scoped task that commits can pass a regression to a later checkpoint rather than catching it at once. Accepted to reclaim wall-clock on large runs, bounded by how frequently breakdown checkpoints. Evidence for the change: the full-page-portfolio retrospective (per-task full-suite runs dominated the clock) and the ultracode/Workflow research confirming the platform ships no cadence guidance — the project owns this policy.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
