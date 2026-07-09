@@ -250,3 +250,17 @@ Fix, in two prompts:
 - **`implementation-review.md`** — a new review lens: a comment, suppression, or design note explaining *why* a workaround exists is an assertion, and the more machinery it unlocks the more it must be independently checked. A load-bearing justification the reviewer cannot confirm is itself a finding.
 
 The guidance is written as a principle. The domain-specific example that first prompted it (a SOQL `GROUP BY` limitation) was deliberately kept out of the prompts so the discipline reads as language-agnostic.
+
+### Prompt examples stay language-agnostic (2026-07-09)
+
+The pipeline runs on any stack, but the examples in the planning and review prompts had drifted into Salesforce vocabulary (SOQL, DML, an Apex trigger firing, PMD / Code Analyzer) because the runs that motivated the guidance were Salesforce work. A reader pattern-matches the domain from the examples, so provider-specific terms quietly narrow how the guidance reads. Each was neutralised to a generic equivalent (a query, a write, a hook firing, ruleset-based analyzers) with the example structure left intact, across `plan-research.md`, `plan-critique.md`, and `plan-spike.md`.
+
+The line holds for the live prompts only. This decision log keeps its specific references, since those record the real cases that prompted each rule and stripping them would erase the evidence.
+
+### The plan splits into a decision body and a no-decision appendix (2026-07-09)
+
+`plan-research.md` now asks for a plan in two parts: an implementation plan where every decision lives, for human and agent review; and a **Build reference** appendix of concrete touchpoints (files, classes, integration points, test surface) for the build agents, holding no decisions. Reasons:
+
+- **The reviewer's surface stays short.** The choices a human must weigh no longer sit buried among file-by-file mechanics. Anything the reviewer must judge belongs in the body; if an appendix entry turns out to be a judgment call, it gets promoted, and needing to promote it is the tell that it was a real decision.
+- **Structural misfit becomes visible.** The implementation approach is described as shifts in responsibility and shape, anchored to real classes but above the edit level, so a design that strains its host shows up where a flat edit list would hide it. A fit-against-host lens on Architecture decisions (the Nth method on a per-resource family, a feature-specific field on a shared type) surfaces the cost as an explicit choice for plan review rather than a silent default to the largest option.
+- **The appendix is a map, not a script.** No method bodies or prescriptive diffs, since the build agents read the codebase themselves. This keeps the earlier "how to build, not the build itself" rule intact while giving the agents the touchpoints they need.
