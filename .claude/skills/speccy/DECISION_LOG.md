@@ -237,3 +237,16 @@ The critic stays a pure reviewer — the change gives its finding somewhere to g
 Amends the wrap-up description in "Steering away from cognitive surrender" (2026-06-26). The co-authored wrap-up artefact was called an ADR and written to `specs/<slug>-adrs.md`. That name overclaimed: the decisions distilled from the critique rounds are usually implementation-specific choices, whereas an ADR records the durable architecture decisions a team keeps for the wider audience. Renamed to a **decision log** at `specs/<slug>-decision-log.md`; the co-authoring, restate-the-rationale prompt, and commit step are unchanged.
 
 Left as ADR: the retrospective's `## Repo-doc suggestions (CLAUDE.md / ADR)` heading (2026-06-26). That routes findings to the repo's *own* durable docs, which is exactly the end-user ADR territory the rename is drawing a line against.
+
+### False constraints are proven before the design works around them (2026-07-09)
+
+Extends "Plans must prove load-bearing mechanisms" (2026-06-23) and "Feasibility spikes are a formal, shared step" (2026-07-01), which proved *capability* claims like "this API returns Y" or "this DML is allowed here". The mirror case had no coverage: a design that works *around* a constraint asserted but never checked ("this field can't be queried here, so resolve it in a second pass"), building an extra query and a resolution layer to accommodate a limitation that turns out not to exist. The layer is then avoidable bloat.
+
+The asymmetry is the point. A false "can" fails loudly at build time, because the call errors or the DML throws, so it gets caught. A false "can't" never fails: the workaround works, the tests pass, and it ships as permanent machinery that reads as justified by the very constraint that isn't real. That makes a false constraint more dangerous than a false capability, and the most expensive kind of assumption to survive review.
+
+Fix, in two prompts:
+
+- **`plan-research.md`** — the "prove load-bearing mechanisms" bullet now also covers a constraint the design works around, not only a capability it leans on. When the design adds a layer to accommodate a limitation, spike the limitation itself; if it proves false, the direct approach usually deletes the layer.
+- **`implementation-review.md`** — a new review lens: a comment, suppression, or design note explaining *why* a workaround exists is an assertion, and the more machinery it unlocks the more it must be independently checked. A load-bearing justification the reviewer cannot confirm is itself a finding.
+
+The guidance is written as a principle. The domain-specific example that first prompted it (a SOQL `GROUP BY` limitation) was deliberately kept out of the prompts so the discipline reads as language-agnostic.
