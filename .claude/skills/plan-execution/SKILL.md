@@ -69,16 +69,16 @@ Right after launching the workflow, arm a `Monitor` as a watchdog (best-effort �
 
 Two tiers, deliberately asymmetric — they serve both a present user (who can correct on a warning) and an absent user (e.g. an overnight run, who is better served by a completed run than one killed out from under them):
 
-- **Tier 1 — warn, do NOT stop.** Trips on corrective-task escalation (**≥2** corrective tasks) or a soft wall-clock cap (**~25 min**). The run may be struggling but is still making progress. Emit the warning and send a `PushNotification` so an absent user is reached — then **let the workflow continue**. A present user can judge and `TaskStop` manually; an absent user gets a finished run. (With the build's read-only and halt-on-impossibility rules, a genuinely stuck build halts itself, so this tier means "slow / many passes," not "redesigning around the spec.")
+- **Tier 1 — warn, do NOT stop.** Two triggers, neither stops the run. Corrective-task escalation (**≥2** corrective tasks) fires **once** and may mean the build is struggling; emit it and send a `PushNotification` so an absent user is reached. The soft wall-clock cap is a **recurring health check-in**, firing every **~25 min** the run is still going: not a sign of trouble but a periodic, visible beat that the run is watched and progressing, which a human observer values and which forces the orchestrator to do a real state check each time. A present user can judge and `TaskStop` manually; an absent user gets a finished run. (With the build's read-only and halt-on-impossibility rules, a genuinely stuck build halts itself, so this tier means "slow, many passes, or just long," not "redesigning around the spec.")
 - **Tier 2 — auto-stop.** Trips on a hard stall: **no new commit AND no transcript activity (newest `agent-*.jsonl` mtime) for >5 min**. Nothing is being accomplished, so stopping loses no progress whether the user is present or absent. Before stopping, confirm no tool is in flight (see below) — then `TaskStop` the workflow, send a `PushNotification` (an auto-stopped overnight run is exactly when an absent user needs reaching), and report what it was last doing (last commit, journal tail) and where to resume.
 
-When any line lands, first confirm before acting — a slow `sf` deploy or test run is not a hang, and transcript mtime only ticks when a tool *returns*, so a single long-running tool call looks identical to a stall. Tail the newest `agent-*.jsonl`: if its last entry is a `tool_use` with no matching `tool_result`, a tool is still running — the build is working, not stalled, so leave it alone. The Monitor command should emit each distinct warning at most once (track a flag per tier) so it isn't auto-stopped for noise — except the stall flag, which re-arms once activity resumes so a confirmed-benign stall doesn't blind the watchdog to a later real one. `TaskStop` the Monitor once the workflow's completion notification arrives so it doesn't linger.
+When any line lands, first confirm before acting — a slow `sf` deploy or test run is not a hang, and transcript mtime only ticks when a tool *returns*, so a single long-running tool call looks identical to a stall. Tail the newest `agent-*.jsonl`: if its last entry is a `tool_use` with no matching `tool_result`, a tool is still running — the build is working, not stalled, so leave it alone. Emit each signal sparingly so the Monitor isn't auto-stopped for noise: the corrective-task warning fires once (a flag); the stall flag re-arms once activity resumes so a confirmed-benign stall doesn't blind the watchdog to a later real one; and the soft-cap health check-in recurs on its ~25-min interval (bump the threshold rather than flag it). The ~25-min interval keeps even a multi-hour run to a handful of beats, well under the noise-stop threshold. `TaskStop` the Monitor once the workflow's completion notification arrives so it doesn't linger.
 
 Sketch of the poll loop (adapt paths; `stat -f %m` is macOS, use `-c %Y` on Linux):
 
 ```bash
 BASE=<base-branch>; TDIR=<transcript-dir>
-START=$(git rev-parse HEAD); START_TS=$(date +%s); w_ct=0; w_cap=0; w_stall=0
+START=$(git rev-parse HEAD); START_TS=$(date +%s); w_ct=0; cap=1500; w_stall=0   # cap = next soft-cap beat threshold (s)
 while true; do
   now=$(date +%s); el=$(( now - START_TS ))
   ct=$(git log "$START"..HEAD --format='%s' 2>/dev/null | grep -cE '^CT-')
@@ -88,7 +88,7 @@ while true; do
   if [ "$idle" -le 300 ]; then w_stall=0; fi   # re-arm once it's moving again
   if [ "$idle" -gt 300 ] && [ "$w_stall" -eq 0 ]; then echo "STALL: idle $((idle/60))m (elapsed $((el/60))m, $ct corrective)"; w_stall=1; fi
   if [ "$ct" -ge 2 ] && [ "$w_ct" -eq 0 ]; then echo "WARN: $ct corrective tasks — may be struggling (elapsed $((el/60))m)"; w_ct=1; fi
-  if [ "$el" -gt 1500 ] && [ "$w_cap" -eq 0 ]; then echo "WARN: elapsed $((el/60))m over soft cap"; w_cap=1; fi
+  if [ "$el" -gt "$cap" ]; then echo "HEARTBEAT: elapsed $((el/60))m, still running ($ct corrective) — health check-in"; cap=$(( cap + 1500 )); fi   # recurring ~25m beat
   sleep 75
 done
 ```
