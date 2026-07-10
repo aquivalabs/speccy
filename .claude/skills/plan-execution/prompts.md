@@ -24,6 +24,8 @@ Read the files referenced in the plan and their immediate dependencies to unders
 
 Write each task description to `.tasks/{run-id}/{task-id}.md`, using the run ID provided below. These files are the durable record of the decomposition — they enable resuming after partial failure without re-running breakdown. Ensure `.tasks/` is in `.gitignore`.
 
+When a task's instructions reference its own task file (or another task file), give the **absolute** path: prepend the repository root (`git rev-parse --show-toplevel`) to `.tasks/{run-id}/{task-id}.md`. `.tasks/` is gitignored, so a parallel task's worktree does not contain it. An absolute path lets a worktree agent read its instructions from the main checkout directly, with no discovery step.
+
 ---
 
 ## execute

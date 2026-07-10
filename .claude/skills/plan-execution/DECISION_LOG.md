@@ -118,6 +118,14 @@ The fix distributes verification, and hands the decision to breakdown (the phase
 
 Trade-off recorded deliberately: a scoped task that commits can pass a regression to a later checkpoint rather than catching it at once. Accepted to reclaim wall-clock on large runs, bounded by how frequently breakdown checkpoints. Evidence for the change: the full-page-portfolio retrospective (per-task full-suite runs dominated the clock) and the ultracode/Workflow research confirming the platform ships no cadence guidance — the project owns this policy.
 
+### Task-file references are absolute paths for worktree agents (2026-07-10)
+
+`.tasks/` is gitignored, so a parallel task's worktree does not contain it. Breakdown wrote each task's file reference as a repo-relative path (`.tasks/{run-id}/{task-id}.md`), which resolves in the main checkout but not in a worktree. Worktree execute agents (parallel and corrective tasks) could not find their own instructions at the given path and detoured to locate the main checkout on every task, seen across the `taskray-ent` full-page-portfolio parallel batches.
+
+The fix: breakdown now references each task file by its absolute path (the repository root from `git rev-parse --show-toplevel`, prepended). The file is still written under `.tasks/{run-id}/`; only the reference handed to an execute agent becomes absolute, so a worktree agent reads its instructions from the main checkout directly with no discovery step.
+
+Chosen over copying the task file into each worktree (the pattern used for other gitignored state via worktree init). That alternative would need the workflow to inject a per-task copy step, and `workflow.js` is fixed; the absolute-path reference is a single-source, zero-copy change living entirely in the breakdown prompt. It assumes the worktree shares a filesystem with the main checkout, which holds for local git worktrees. If worktrees ever run remotely or in isolated containers, revisit with the copy approach. This narrows the residual case under Known limitations ("Worktrees lose per-checkout state").
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
