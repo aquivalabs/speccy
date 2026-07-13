@@ -13,13 +13,13 @@ The orchestrator runs in the main conversation. Heavy work — adversarial criti
 
 ## Getting started
 
-When the skill triggers, **show the Speccy banner first**, on every invocation. Run `banner.sh` from this skill's own directory (alongside this SKILL.md), using its **absolute path** so it resolves no matter what the Bash tool's current directory is — the working directory persists across calls and may have drifted, and a plugin install lives outside the project tree entirely. Don't prepend `cd` and don't use command substitution; both break the pre-approved permission match.
+When the skill triggers, **show the Speccy banner first**, on every invocation. Run `banner.sh` from this skill's own directory (alongside this SKILL.md) by its **absolute path** — a relative path breaks when the Bash cwd has drifted or the skill is installed as a plugin. Don't prepend `cd` and don't use command substitution; both break the pre-approved permission match.
 
 ```bash
 bash <skill-dir>/banner.sh
 ```
 
-The script prints two Markdown lines. **Reproduce them verbatim at the top of your reply** — that is what the user sees. Running the script alone is not enough: the harness collapses Bash tool output behind ctrl+o and strips ANSI colour, so a banner that only prints through the tool is invisible. Reproducing it in your reply renders the rainbow emoji in colour by default.
+The script prints two Markdown lines. **Reproduce them verbatim at the top of your reply** — that is what the user sees. Running the script alone isn't enough; its tool output is hidden by default.
 
 The banner is cosmetic. If the script fails or would prompt, just proceed without it — never block the run on it.
 
@@ -41,7 +41,7 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 
 Models are per-phase, defaulting to a `"ladder"` scheme:
 
-- **Spec and plan critique** — opus every round (both the adversary and the revise agent), up to 3 rounds. These artifacts are short and high-leverage; on knowledge-heavy domains the durable findings cluster in the opus passes, so the whole loop runs on opus rather than escalating cheaper tiers that mostly add triage churn.
+- **Spec and plan critique** — opus every round (both the adversary and the revise agent), up to 3 rounds. These are short, high-leverage artifacts where cheaper tiers cost more in false-positive triage than they save.
 - **Implementation review** — parallel review lenses, up to 3 rounds (see Phase 4). The four judgment lenses (spec fidelity, tests, codebase fit, local-doc adherence) run on opus and the suppressions lens on sonnet; the built-in `code-review` skill runs alongside them at `high` effort and manages its own models.
 
 The **builder** (execute/integrate/verify inside plan-execution) defaults to sonnet; plan-execution's breakdown agent always uses opus. The user may pin a single adversary model — then use it for every round of every loop — or raise the builder to opus for high-stakes work.
@@ -71,13 +71,13 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
 }
 ```
 
-`adversaryModel` is `"ladder"` by default — the per-phase scheme described under **Getting started** (spec/plan critique: opus every round, up to 3; implementation review: the bespoke lenses on opus alongside the `code-review` skill, up to 3). If the user pinned a single adversary model, store that model name here instead and use it for every critique round and bespoke review lens.
+`adversaryModel` is `"ladder"` by default — the per-phase scheme described under **Getting started**. If the user pinned a single adversary model, store that model name here instead and use it for every critique round and bespoke review lens.
 
 On trigger, read `.speccy/.current-runid` — a pointer to the most recent run, written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase. A resumed run skips the precondition checks, so if the recorded phase is anything past the spec interview, suggest auto-accept mode (shift+tab) first — the rest of the run is autonomous tool calls.
 
 After completing each phase, update state.json and continue to the next phase. The user can `/clear` and re-invoke the skill at any point to resume from the recorded phase — no need to ask permission at phase boundaries.
 
-Read and write `.speccy/` state with the Read/Write tools — these paths are pre-approved in this skill's `allowed-tools`, so they won't prompt. Do **not** rely on the Glob tool: it isn't available in every session. Run discovery uses the `.current-runid` pointer above precisely so resume needs only Read, never an enumeration. The pointer tracks the latest run; earlier runs remain in `.speccy/` if the user wants to revisit one.
+Read and write `.speccy/` state with the Read/Write tools — these paths are pre-approved in this skill's `allowed-tools`, so they won't prompt. Do **not** rely on the Glob tool: it isn't available in every session, which is why run discovery uses the `.current-runid` pointer. The pointer tracks the latest run; earlier runs remain in `.speccy/` if the user wants to revisit one.
 
 ## Preconditions
 
@@ -240,7 +240,7 @@ Before starting implementation, verify all run state is in files: state.json cur
 
 Invoke the `plan-execution` skill directly via the Skill tool from the main conversation, passing the plan path as `args.planPath` (not the full plan text — the workflow reads the file itself, which keeps the orchestration call small and the plan editable mid-run) and the builder model as `args.model` (from state.json's `builderModel`, default sonnet). The breakdown agent inside plan-execution always uses Opus regardless; only execute/integrate/verify pick up the override.
 
-Do _not_ wrap this in an Agent subagent. Plan-execution drives a `Workflow` tool, which already isolates the orchestration — breakdown, execute, integrate, and verify all run backgrounded, and only the final result returns. Wrapping it in an Agent adds no isolation and breaks the call (Agent subagents lack `Workflow`).
+Do _not_ wrap this in an Agent subagent — Agent subagents lack `Workflow`, so the call breaks. Plan-execution already backgrounds its own work (breakdown, execute, integrate, verify); only the final result returns.
 
 When the workflow reports complete, do not advance on its "gates pass" / "0 violations" summary — a build agent can satisfy a gate by fabricating or inverting a rule and still report green. Re-run the project's load-bearing gates yourself (the build, lint / static-analysis, and test commands from CLAUDE.md) and confirm the actual tool output. If a gate fails, the run isn't done: carry the real tool output into a fix round (the Phase 4 implementation-fix agent handles exactly this), re-run the gates after it, and repeat until you have seen them pass. Only then set `phase: "review"` in state.json and continue.
 
