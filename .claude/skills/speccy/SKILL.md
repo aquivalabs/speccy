@@ -32,7 +32,7 @@ For a new run, give a one-sentence introduction: this skill walks through writin
    - **Spec critique** (user-in-the-loop) — an independent reviewer critiques the spec each round. The user decides what feedback to incorporate.
    - **Plan** (autonomous loop) — a subagent researches the codebase and drafts a plan; an independent reviewer critiques and a revise agent applies findings until the plan is clean.
    - **Plan review** (user decides) — the user reviews the hardened plan, raises concerns, approves.
-   - **Implementation** (autonomous loop) — the skill builds to the plan; an independent reviewer checks the code against the spec and fixes issues directly.
+   - **Implementation** (autonomous loop) — the skill builds to the plan; parallel reviewers check the code across several lenses (correctness and quality via the built-in `code-review` skill, plus spec fidelity, tests, codebase fit, local-doc adherence, and strict scrutiny of linter/analysis suppressions); fixes are applied directly, or deferred as future work.
    - **Wrap-up** — summary, decision log, retrospective. The user reviews the final diff on the branch.
 
    Also mention: state is saved after every phase boundary, so the user can `/clear` and re-invoke the skill at any point to resume with a fresh context. Useful for long runs where the main conversation has grown.
@@ -42,7 +42,7 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 Models are per-phase, defaulting to a `"ladder"` scheme:
 
 - **Spec and plan critique** — opus every round (both the adversary and the revise agent), up to 3 rounds. These artifacts are short and high-leverage; on knowledge-heavy domains the durable findings cluster in the opus passes, so the whole loop runs on opus rather than escalating cheaper tiers that mostly add triage churn.
-- **Implementation review** — escalating `sonnet → opus → opus`, up to 3 rounds. The diff is large and many findings mechanical, so a cheaper first pass pays off; the doubled opus is a fresh-context final pass over the prior round's fixes.
+- **Implementation review** — parallel review lenses, up to 3 rounds (see Phase 4). The four judgment lenses (spec fidelity, tests, codebase fit, local-doc adherence) run on opus and the suppressions lens on sonnet; the built-in `code-review` skill runs alongside them at `high` effort and manages its own models.
 
 The **builder** (execute/integrate/verify inside plan-execution) defaults to sonnet; plan-execution's breakdown agent always uses opus. The user may pin a single adversary model — then use it for every round of every loop — or raise the builder to opus for high-stakes work.
 
@@ -71,7 +71,7 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
 }
 ```
 
-`adversaryModel` is `"ladder"` by default — the per-phase scheme described under **Getting started** (spec/plan critique: opus every round, up to 3; implementation review: `sonnet → opus → opus`, up to 3). If the user pinned a single adversary model, store that model name here instead and use it for every critique round.
+`adversaryModel` is `"ladder"` by default — the per-phase scheme described under **Getting started** (spec/plan critique: opus every round, up to 3; implementation review: the bespoke lenses on opus alongside the `code-review` skill, up to 3). If the user pinned a single adversary model, store that model name here instead and use it for every critique round and bespoke review lens.
 
 On trigger, read `.speccy/.current-runid` — a pointer to the most recent run, written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase. A resumed run skips the precondition checks, so if the recorded phase is anything past the spec interview, suggest auto-accept mode (shift+tab) first — the rest of the run is autonomous tool calls.
 
@@ -248,16 +248,33 @@ If the implementation workflow exits incomplete, stop the pipeline. Report what'
 
 ## Phase 4 — Implementation review
 
-After implementation is complete, the code gets an adversarial review. Read `prompts/implementation-review.md` (relative to this SKILL.md's directory).
+After implementation is complete, the code gets an independent review across several lenses, run in parallel. Completeness is already verified by the task execution skill, so this phase is about quality, spec fidelity, and fit.
 
-The implementation review focuses on quality, design, and spec fidelity — the task execution skill has already verified completeness. The human is _on_ the loop (observing), not _in_ it — design decisions were settled in earlier phases, so implementation fixes are mechanical.
+### The lenses
 
-For each round (up to 3):
+Each round spawns these reviewers as **parallel** subagents (one message, one Agent call each), all **read-only** — none edits code. Each writes its findings to its own file `.speccy/<run-id>/review-round-N-<lens>.md`. Pass each the base branch so it can diff `<base-branch>...HEAD`. All prompt paths are relative to this SKILL.md's directory.
 
-1. **Review.** Spawn an adversary subagent with the implementation review prompt, the spec path, and instructions to run `git diff <base-branch>...HEAD` for the full implementation diff. Instruct it to read key files for deeper understanding and write its review to `.speccy/<run-id>/review-round-N.md`. Use the implementation-review ladder for the model override: round 1 → sonnet, round 2 → opus, round 3 → opus (or the user's pinned model, if they set one).
-2. **Fix.** Read `.speccy/<run-id>/review-round-N.md` (N from state.json) to triage. If no legitimate flaws found, the review is done. Otherwise, read `prompts/implementation-fix.md` and spawn a subagent with that prompt, the review file path, the spec path, and the plan path. The subagent makes the code changes and commits. After it commits, re-run the load-bearing gates yourself and confirm the actual output before starting the next round — never advance on the fix agent's claim that the gates pass.
+- **Code review** — spawn a subagent that invokes the built-in `code-review` skill (via the `Skill` tool) targeting `<base-branch>...HEAD` at `high` effort, with no `--fix` and no `--comment`. It covers correctness and general code quality, so the bespoke lenses handle only what it can't. Run it every round. Parse its findings tolerantly — the output shape may change. Have the subagent write them to the lens file.
+- **Spec fidelity** — `prompts/review-spec-fidelity.md`, with the spec path. Does the code satisfy the spec's completion criteria and intent?
+- **Tests** — `prompts/review-tests.md`, with the spec and plan paths. Test-strategy adherence, test quality, and consolidation of new tests against the existing suite.
+- **Codebase fit** — `prompts/review-codebase-fit.md`. Does this change worsen an already-imperfect area or repeat an existing smell? Judged against the touched files' current state, not the diff alone.
+- **Local-doc adherence** — `prompts/review-local-docs.md`. Violations of the repo's governing docs, including CLAUDE.md — which it deliberately re-checks even though code-review covers it too.
+- **Suppressions** — `prompts/review-suppressions.md`. Extremely harsh on any linter/analysis/type/test-gate suppression the change adds or leans on. Each must be watertight or it is a finding.
 
-After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`) and set `phase: "complete"` when done.
+Run the bespoke lenses on **opus**, except suppressions on **sonnet** (a mechanical scan). A pinned adversary model overrides all of them; code-review manages its own.
+
+### The loop (up to 3 rounds)
+
+1. **Review.** Spawn all lenses in parallel. From round 2 on, pass each lens the `.speccy/<run-id>/deferred.md` list, telling it those are accepted decisions it must not re-raise. When they complete, read each lens's file (N from state.json) — never branch on the returned summaries (see **Subagent results: trust files, not returns**).
+2. **Triage & merge.** Consolidate the findings across lenses yourself — drop false positives, de-duplicate overlaps, and resolve contradictory suggestions. Don't spawn a separate agent for this. As a backstop for anything the lenses re-raised despite being told not to, drop findings already in `.speccy/<run-id>/deferred.md`; a deferred finding must not churn back into the fix set. Then give each surviving finding a disposition:
+   - **Fix** — route it to the fixer this round. Where the finding is a copied smell, tell the fixer whether to diverge (fix cleanly here) or fix wider (also fix the existing instance); a wider fix grows the diff, so choose it deliberately.
+   - **Defer** — legitimate but out of scope for this PR. Append it to `.speccy/<run-id>/deferred.md`: what, and why deferred.
+   A suppression finding is effectively never Defer — remove it or make it watertight, this round. **Exit the loop when nothing is dispositioned Fix.**
+
+   You make these disposition calls yourself as the loop runs — the review is autonomous. But surface them to the human at wrap-up so they still review the judgment: deferrals in the deferred list, and any divergence-from-pattern or wider-than-the-diff fix in the summary and decision log.
+3. **Fix.** If nothing is dispositioned Fix, skip to the next round's review (or exit). Otherwise read `prompts/implementation-fix.md` and spawn a fix subagent with that prompt, the Fix findings (point it at the lens files, and state any diverge / fix-wider instruction), the spec path, and the plan path. It makes the changes and commits. After it commits, re-run the load-bearing gates yourself and confirm the actual output before the next round — never advance on the fix agent's claim that the gates pass. (Gates passing doesn't prove coverage held — a dropped test still passes.)
+
+After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`) and set `phase: "complete"` when done. Any `deferred.md` items surface at wrap-up.
 
 ## Wrap-up
 
@@ -266,8 +283,8 @@ A completed run is a handoff. Speccy has built and self-reviewed the work; the v
 When all phases complete, report concisely:
 
 1. **Summary** — what was built, how many critique/review rounds ran, what changed, and that the branch is ready for review.
-2. **Decision log, co-authored** — distil key decisions from the critique rounds into `specs/<slug>-decision-log.md`. These are usually implementation-specific choices, not the durable architecture decisions an ADR captures for the wider team. Each entry: what was proposed, what was decided, why. Before writing it, ask the user to restate the rationale for one or two of those decisions in their own words, and build the entry from their account where they have one (see **Steering away from cognitive surrender**). A decision the user cannot reconstruct is the surrender signal worth catching here, while the code is fresh and they are about to own it. Commit the decision log.
-3. **Deferred feedback** — any substantial feedback the user chose to skip
+2. **Decision log, co-authored** — distil key decisions from the critique and review rounds into `specs/<slug>-decision-log.md` (including any review-phase divergence from an existing pattern). These are usually implementation-specific choices, not the durable architecture decisions an ADR captures for the wider team. Each entry: what was proposed, what was decided, why. Before writing it, ask the user to restate the rationale for one or two of those decisions in their own words, and build the entry from their account where they have one (see **Steering away from cognitive surrender**). A decision the user cannot reconstruct is the surrender signal worth catching here, while the code is fresh and they are about to own it. Commit the decision log.
+3. **Deferred feedback** — substantial feedback set aside for later: findings the user skipped at spec critique, plus any review findings deferred to future work in `.speccy/<run-id>/deferred.md` (with the why). These are candidates for follow-up issues outside this PR.
 4. **Retrospective** — if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns. If it has a `## Repo-doc suggestions (CLAUDE.md / ADR)` section, present those for the user to accept or decline, never auto-applied.
 
 If the pipeline exited early (implementation failure), report what's done and what remains. The user has a branch with partial progress.
