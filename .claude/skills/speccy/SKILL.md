@@ -286,7 +286,7 @@ After 3 rounds, proceed regardless. Update state.json after each round (`reviewR
 
 A completed run is a handoff. Speccy has built and self-reviewed the work; the verdict is the user's, reached through the diff, the artefacts below, CI, E2E, or running it themselves. Speccy stops at a reviewable PR — it does not merge, certify, or run end-to-end verification. Report what was built and leave the review to the user. When pointing them at the diff, suggest they read it as if a contributor they do not fully trust wrote it: the same standard they would apply to any other author's code (see **Steering away from cognitive surrender**).
 
-When all phases complete, report concisely:
+When all phases complete, report concisely — both in the chat and written to `.speccy/<run-id>/summary.md`, so the handoff survives a context clear and sits alongside the run's other artefacts. Cover:
 
 1. **Summary** — what was built, how many critique/review rounds ran, what changed, and that the branch is ready for review.
 2. **Decision log, co-authored** — distil key decisions from the critique and review rounds into `specs/<slug>-decision-log.md` (including any review-phase divergence from an existing pattern). These are usually implementation-specific choices, not the durable architecture decisions an ADR captures for the wider team. Each entry: what was proposed, what was decided, why. Before writing it, ask the user to restate the rationale for one or two of those decisions in their own words, and build the entry from their account where they have one (see **Steering away from cognitive surrender**). A decision the user cannot reconstruct is the surrender signal worth catching here, while the code is fresh and they are about to own it. Commit the decision log.
