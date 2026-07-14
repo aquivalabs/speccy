@@ -15,4 +15,4 @@ AI builds only ever add tests — each task wrote its own in a fresh context, so
 
 The contract on every consolidation finding: **reduce redundancy without reducing behavioural coverage.** Name the surviving test that still covers the behaviour, and confirm any merge keeps each distinct case and edge. When unsure whether two tests truly overlap, keep both and say so — a wrong cut is silent coverage loss that still passes every gate, far more expensive than a surviving near-duplicate. Cutting the test count is not the goal.
 
-Write findings to the file you are given. List every issue you're confident of, not just the clearest — but only what you're confident of, no hypotheticals to pad the list. For each: the issue, its mechanism (how a bug would slip past the tests, or what the duplication costs), the concrete change, and — for any cut — the surviving coverage that makes it safe. If the tests are sound and lean, say so.
+Follow the shared review output contract you were given for the finding shape and the write guarantee. For any consolidation cut, name the surviving test that still covers the behaviour — a cut with no named surviving coverage is not allowed.

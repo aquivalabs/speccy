@@ -16,4 +16,4 @@ The change copies an existing bad pattern, matching the local habit rather than 
 
 **Anchor every finding to the diff.** Name the pre-existing state and how _this change_ worsens or perpetuates it. A mess the diff leaves untouched is out of scope — you are reviewing the change, not cataloguing the repo. For each finding, name the smaller, deeper, or divergent change that would have fit better.
 
-Write findings to the file you are given. List every issue you're confident of, not just the clearest — but only what you're confident of, no hypotheticals to pad the list; for each, state the mechanism — the cost the drift imposes or the failure it invites. If the change sits cleanly in its host, say so.
+Follow the shared review output contract you were given for the finding shape and the write guarantee. For each finding, name the smaller, deeper, or divergent change that would have fit better.

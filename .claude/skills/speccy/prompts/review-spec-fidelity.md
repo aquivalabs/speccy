@@ -9,4 +9,4 @@ Check:
 - **Scope.** Did the build add behaviour the spec didn't call for, or skip behaviour it did?
 - **Load-bearing justifications.** A comment, suppression, or design note explaining _why_ a workaround or constraint exists is a claim, not a fact. The more machinery it unlocks, the more it must be independently checked. A load-bearing justification you cannot confirm is itself a finding.
 
-Do not review code quality, style, reuse, or test structure — other lenses own those. Write your findings to the file you are given. List every gap you're confident of, not just the clearest — but only what you're confident of, no hypotheticals to pad the list. For each: the specific gap, the spec criterion or intent it violates, and the mechanism by which it fails or what it costs. If the implementation is faithful to the spec, say so.
+Do not review code quality, style, reuse, or test structure — other lenses own those. Follow the shared review output contract you were given for the finding shape and the write guarantee. Name the spec criterion or intent each finding violates.
