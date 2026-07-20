@@ -120,6 +120,12 @@ Subagents run in the background, and their completion notifications are unreliab
 
 So for every spawned agent: you know what it was spawned to do and the exact file it writes, and the round number comes from state.json, not the notification. When a completion arrives, read that file and act only on its contents — never branch control flow (early-exit, round counting, commit messages, what you tell the user) on a returned summary or a notification's label. Don't narrate or diagnose misrouting; read the right file and carry on.
 
+## Propagate the session's voice to subagents
+
+The main session may be governed by a behavioural or output style a fresh agent context does **not** inherit — a house-voice hook (e.g. one injected at session start), a configured output style, or communication conventions that live beyond the project's `CLAUDE.md`. A subagent starts clean and never sees the main session's system prompt, so unless you carry that style across, every critic, revise agent, planner, review lens, and fixer speaks in a default voice that clashes with how this session talks — and the artifacts they write (critiques, plan, review notes) read in a different register from the rest of the run.
+
+So **before spawning any subagent, restate the active style concisely at the top of its prompt** — enough that both its reasoning and its written output match the session's voice. Two things are out of reach and don't need carrying: conventions already in `CLAUDE.md` (subagents read it anyway), and the built-in `code-review` skill run inline (it manages its own prompt — the orchestrator just applies the session's voice when it normalises those findings into the lens file). This rule applies to every spawn site in the phases below; it is stated once here rather than repeated at each. Speccy's own narration back to the user follows the same style as a matter of course.
+
 ## Steering away from cognitive surrender
 
 Speccy's own output is the hazard. Adversarially-hardened specs and plans read as authoritative, and the more authoritative they read, the stronger the pull for the user to approve without understanding (cognitive surrender: borrowed confidence, surface correctness hiding deeper flaws). The pipeline already hardens its artifacts. These habits guard the user's engagement, which nothing else does. Apply them at every human gate:
