@@ -170,6 +170,8 @@ Produce a first-draft spec from the interview answers using the template in `pro
 
 The **Assumptions** section is important — it captures the reasonable defaults chosen where the user's description was ambiguous. Unstated assumptions can't be challenged during critique, so surface them here.
 
+The **Decisions & rationale** section is equally load-bearing — every spec makes choices, and a choice whose reasoning isn't written down reads as an arbitrary default and can't be challenged. For each meaningful decision the spec commits to (a scope call, an approach, a contract or deliverable shape), record what was chosen, the viable alternative(s) weighed, and the deciding factor — *why this and not that*. Draw the reasoning out during the interview: whenever a choice has a real alternative, ask why the user leans the way they do rather than recording the pick silently. This is not an assumption (a guess under ambiguity); a decision is a deliberate pick among options. Keep it spec-level — the "why" behind *what* to build, not code-level *how* (that is the plan's decision body). This section is also the up-front source the wrap-up co-authored decision log distils from, so capturing rationale now means the user isn't reconstructing it from memory later.
+
 Let the user review and edit until satisfied.
 
 Create a feature branch before committing anything. Pick a short, descriptive name for the work; if it collides with an existing branch, adjust it. Then `git checkout -b <branch>`.

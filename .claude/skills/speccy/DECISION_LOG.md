@@ -322,3 +322,11 @@ What the run confirmed worth keeping, unchanged: the read-only-lenses / orchestr
 ### Wrap-up report is persisted, not just streamed (2026-07-14)
 
 The wrap-up report was only shown in the chat, while its sibling artefacts (decision log, `deferred.md`, retrospective) each landed in a file. So the one document that ties the run together vanished on a context clear. It now also writes to `.speccy/<run-id>/summary.md`, alongside the run's other semi-ephemeral state — the handoff survives a clear and can be reopened in an editor rather than scrolled back to.
+
+### The spec records decisions with rationale, not just assumptions (2026-07-20)
+
+The spec template had an Assumptions section but no home for *decisions*. The two are different: an assumption is a guess made under ambiguity; a decision is a deliberate pick among options that were actually weighed. A spec always makes scope, approach, and contract-shape choices, and when the reasoning behind one isn't written down it reads as an arbitrary default — the critic can't challenge it, and it silently commits the build to a path no one argued for.
+
+So the template gains a **Decisions & rationale** section (what was chosen, the viable alternative(s), the deciding factor — *why this and not that*), Phase 1c instructs the interview to draw the reasoning out rather than record picks silently, and `spec-critique.md` gains a matching lens: flag a decision recorded without a reason, one that names no alternative when one plainly exists, one whose rationale doesn't defeat the rejected alternative, or one presented as inevitable that was really a choice.
+
+This is deliberately kept **spec-level** — the "why" behind *what* to build — to stay clear of the plan's decision body ("The plan splits into a decision body and a no-decision appendix", 2026-07-09), which owns the "why" behind *how*. The two are symmetric: spec decisions justify the shape, plan decisions justify the approach. `plan-critique.md` gets the same "hold every decision to its rationale" instruction pointed at the plan's decision body. The up-front spec section also gives the wrap-up co-authored decision log a real source to distil from instead of reconstructing rationale from memory.

@@ -14,6 +14,14 @@
 
 <!-- What this spec deliberately does not cover. Prevents gold-plating and scope creep. -->
 
+## Decisions & rationale
+
+<!-- The load-bearing choices that shaped this spec, and WHY each was made — why this and not the alternative. One entry per meaningful decision:
+     - **Decision** — what was chosen (a scope call, an approach, a contract/deliverable shape).
+     - **Alternatives** — the viable option(s) considered and rejected.
+     - **Why** — the deciding factor that made the chosen option win over those alternatives.
+     Keep this spec-level: choices about WHAT to build and the shape of it, not code-level HOW (that belongs in the plan's decision body). Record a decision only when a real alternative existed — a forced move with one option is not a decision. This differs from Assumptions: an assumption is a guess made under ambiguity; a decision is a deliberate pick among options you actually weighed. An undocumented decision reads as an arbitrary default and cannot be challenged during critique. -->
+
 ## Constraints
 
 <!-- Technical, organisational, or business constraints specific to THIS feature: performance budgets, security considerations, platform-specific rules, compatibility requirements. Do NOT restate project-wide standards already in CLAUDE.md (logging, comments, naming conventions, testing policy, code style) — the builder reads CLAUDE.md anyway. Reference a rule by file/section only when this feature's constraints turn on it, and spell one out only where this feature deliberately diverges from it. -->
