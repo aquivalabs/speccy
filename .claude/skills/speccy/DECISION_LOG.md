@@ -322,3 +322,11 @@ What the run confirmed worth keeping, unchanged: the read-only-lenses / orchestr
 ### Wrap-up report is persisted, not just streamed (2026-07-14)
 
 The wrap-up report was only shown in the chat, while its sibling artefacts (decision log, `deferred.md`, retrospective) each landed in a file. So the one document that ties the run together vanished on a context clear. It now also writes to `.speccy/<run-id>/summary.md`, alongside the run's other semi-ephemeral state — the handoff survives a clear and can be reopened in an editor rather than scrolled back to.
+
+### The interview trusts the intake and may ask nothing (2026-07-21)
+
+The spec interview (Phase 1b) drifted into two failure modes: re-asking things the user's own intake already answered, and asking clarifying questions at all when the intake left nothing worth asking. Both erode trust in the interview and cost the user friction before the spec even exists.
+
+The intake is the user's decision, so the interview now treats it as settled: don't re-ask what it answers, don't seek reconfirmation of a stated choice, and only reopen a settled point on a re-raise or a serious, specific doubt. A reasonable default is recorded in the spec's Assumptions section rather than turned into a question — the critique loop challenges it there anyway. An empty interview is now an explicit valid outcome; clarifying questions exist to close real gaps, not to justify the phase. The engagement-check prompts (see "Engagement checks guard the human against cognitive surrender", 2026-06-24) are exempt — they are deliberate friction, not gap-closing questions.
+
+The prompt already said not to ask what the codebase can answer, but the behaviour recurred, so that line was strengthened from a trailing aside to a leading imperative: never ask what a quick look at the repo, config, or tooling would settle — look, don't ask.

@@ -148,7 +148,9 @@ The user may or may not have provided a starting description alongside the trigg
 
 ### 1b. Interview
 
-Ask clarifying questions to fill gaps:
+**Treat the intake as settled.** Take what the user gave you at face value: don't re-ask what it answers, don't ask them to reconfirm a stated choice, and only reopen a settled point if they re-raise it or you have a serious, specific doubt. Prefer recording a reasonable default in the spec's Assumptions section over asking; the critique loop challenges it there.
+
+Ask only about gaps the intake leaves genuinely open and that materially change the spec:
 
 - Scope boundaries — what's in, what's out
 - Edge cases and error scenarios
@@ -156,11 +158,11 @@ Ask clarifying questions to fill gaps:
 - Integration points with existing code
 - Non-functional requirements
 
-Research the codebase where it helps clarify requirements ("there's an existing X — should we use it?"). Questions that need deeper codebase research to answer: mark as open and defer to planning.
-
 Identify external context that would improve the spec or plan — documentation, other projects with relevant patterns, standards, API references. Ask the user about anything you can't access directly. This is worth doing early: missing context discovered mid-build is expensive. Record the references that matter in the spec itself (under Open questions, or a short references note) so they survive the context clear before planning — anything left only in conversation is lost when the user `/clear`s.
 
-Keep the interview focused. Don't ask questions the codebase can answer — save those for planning.
+**Never ask what code or the environment can answer.** If a quick look at the repo, config, or tooling would settle it, look — don't ask. Questions needing deeper codebase research: mark open and defer to planning.
+
+**Asking nothing is fine.** If the intake settles what you need, write the draft and skip the interview. (Clarifying questions only; the engagement-check prompts under **Steering away from cognitive surrender** still apply.)
 
 ### 1c. Structured spec
 
