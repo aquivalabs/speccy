@@ -20,7 +20,8 @@
      - **Decision** — what was chosen (a scope call, an approach, a contract/deliverable shape).
      - **Alternatives** — the viable option(s) considered and rejected.
      - **Why** — the deciding factor that made the chosen option win over those alternatives.
-     Keep this spec-level: choices about WHAT to build and the shape of it, not code-level HOW (that belongs in the plan's decision body). Record a decision only when a real alternative existed — a forced move with one option is not a decision. This differs from Assumptions: an assumption is a guess made under ambiguity; a decision is a deliberate pick among options you actually weighed. An undocumented decision reads as an arbitrary default and cannot be challenged during critique. -->
+     Keep this spec-level: choices about WHAT to build and the shape of it, not code-level HOW (that belongs in the plan's decision body). Record a decision only when a real alternative existed — a forced move with one option is not a decision. This differs from Assumptions: an assumption is a guess made under ambiguity; a decision is a deliberate pick among options you actually weighed. An undocumented decision reads as an arbitrary default and cannot be challenged during critique.
+     A decision the input already settles — a stated user preference, a mandate, an existing project convention — is still worth recording so it's visible, but its Why is simply that: "chosen because the input specified it" is a complete rationale. Don't manufacture a merit argument for a settled choice that isn't obviously wrong. -->
 
 ## Constraints
 
