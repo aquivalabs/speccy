@@ -156,6 +156,14 @@ Scope makes this the right line. Speccy targets scoped changes on live repos, wh
 
 This extends the philosophy that already puts the human at the spec and plan-review gates: review accountability sits with the initiating human, and Speccy's job is to make that review time well spent.
 
+### Worktree init resolves a default in-skill instead of blocking (2026-07-22)
+
+The Worktree-init precondition previously did one of: use the CLAUDE.md `## Worktree init` section if present, else "note the gap, offer to draft it, have the user review and commit before proceeding." On a real run the project had neither `worktree.baseRef` nor the section, the user was away, and the only non-blocking option was to force the whole run sequential — losing all parallelism for a purely mechanical reason.
+
+Fix: the precondition now **resolves a sensible default in-skill and carries on** rather than prompting or silently serialising. `worktree.baseRef` missing → ensure `head`. `## Worktree init` missing → synthesise a minimal `worktreeInit` from `.gitignore` + the verify commands (idempotently symlink the gitignored dependency/config dirs — `node_modules`, `.venv`, `vendor`, `target`, generated config — from the main checkout via `ln -snf`, resolving the checkout with `git rev-parse --show-toplevel`) and pass it to plan-execution. Sequential-only fallback survives, but only for the genuinely-undeterminable case (no recognisable lockfile/manifest). Drafting the section into CLAUDE.md becomes an after-the-fact convenience the user may accept, never a gate.
+
+Rationale: almost every worktree just needs its ignored dependency dir linked in; that default is safe and derivable, so a missing section shouldn't cost parallelism or an interactive prompt. Keeps an unattended fan-out run moving.
+
 A corollary follows. Since the verdict is the human's, a completed run is a handoff — the wrap-up reports what was built and self-reviewed, then leaves the call to the user. Announcing "done" would invite a rubber stamp and undermine that. The Wrap-up section of SKILL.md is worded accordingly.
 
 ### Gate reports are re-verified, not trusted; hard gates beat soft style preferences (2026-06-23)
