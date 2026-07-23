@@ -375,6 +375,14 @@ Fix: `spec-critique.md` and `plan-critique.md` each gain a mandatory pass that w
 
 The 3-round general critique cap already tolerates a round finding nothing; the exit gate makes this specific pass non-skippable regardless, because bootstrap contradictions are exactly the kind that survive every other round and still ship.
 
+### Phase 3 build guidance: parallelism, verified gates via the documented harness, and test-rerun scope (2026-07-22)
+
+Phase 3 as written left three costs on the table. Plan-execution's breakdown defaults to sequential steps even when tasks touch disjoint files with no data dependency, so a run pays full serial wall-clock for authoring that could overlap. The gate-trust rule said "re-run the project's load-bearing gates yourself" without saying *how* — on a project that names a specific MCP tool for deploy/test in CLAUDE.md, that gap invites a raw-CLI shortcut instead of the harness the project actually documents. And nothing bounded how often a fix loop re-runs the test suite, so a one-line fix in one test could trigger a full remote re-run every round.
+
+Fix, three parts: the Phase 3 instruction to plan-execution now asks breakdown to parallelize genuinely independent authoring, with the caveat stated up front — a single shared verify environment (one scratch org, one CI runner) still serialises the deploy/test step, so parallelism buys authoring time, not the shared-resource round-trip. The trust rule now says to use the project's documented harness the way CLAUDE.md specifies it (an MCP tool named there beats a raw-CLI wrapper, which is a fallback only). And a hard test-rerun-scope rule caps the fix loop: only the touched/failing test(s) re-run while fixing, and the full suite runs exactly once, at the very end, as the completeness gate — never per-fix.
+
+Together these keep Phase 3's round-trip cost proportional to what actually changed, instead of paying full serial and full-suite cost by default.
+
 ### A comment-discipline lens, deletion-only (2026-07-27)
 
 AI-worked codebases accrete comment noise — restatement of the code, edit-history narration ("changed X to Y", "as requested"), commented-out code, padding — and no existing lens catches it. `code-review` treats it as out of remit (it isn't a correctness bug), and codebase-fit is already loaded; the suppressions and spec-fidelity lenses point the *other* way, wanting justification comments to be *more* thorough. So a new bespoke lens, `prompts/review-comments.md`, owns comment discipline alone.
