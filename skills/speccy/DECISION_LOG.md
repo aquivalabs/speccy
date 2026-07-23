@@ -359,6 +359,14 @@ The multi-lens panel (2026-07-13) runs speccy's generic lenses plus the built-in
 
 So it becomes an extra lens, in the same category as `code-review` rather than a bespoke prompt: run it the way the repo documents (its own agents, models, thresholds — not overridden), invoke it **directly in the main conversation** because a project gate is usually itself multi-agent (same reasoning as running `code-review` inline, 2026-07-14), normalise its findings into the shared shape, and merge with the triage step deduping its overlap with `code-review`, codebase fit, and local-doc adherence. It is **spec-blind**, so it complements the spec-fidelity lens rather than replacing it. Absent in a repo → the lens is skipped cleanly. The accepted cost is coupling to the repo gate's output shape, the same trade already accepted for `code-review`.
 
+### The full spec ships with a one-page human-reading digest (2026-07-22)
+
+The hardened full spec is dense by design — the critique loop grows it into an implementation reference, not something a human reads to grasp the work at the review gate. Pointing the user at the full spec makes them re-derive the shape of the change from prose meant for the build.
+
+Fix: Phase 1c now also writes `specs/<slug>-digest.md`, a colocated one-page entry point — the goal in a few lines, the load-bearing decisions each with a one-line *why*, the build order, and the open spikes/risks, with every item pointing back into the full spec by section so it stays the derived view rather than a second source of truth. Regenerate it whenever the spec materially changes, at minimum once the critique loop converges. The user-review gate now leads with the digest and keeps the full spec for depth.
+
+The bilingual rule is inlined at the point of use rather than cross-referenced: the digest, like every doc, is English and git-tracked; a translated copy for the user's own reading is written only under a gitignored `.users-files/` zone and never becomes the canonical copy — on conflict the tracked English digest wins.
+
 ### A comment-discipline lens, deletion-only (2026-07-27)
 
 AI-worked codebases accrete comment noise — restatement of the code, edit-history narration ("changed X to Y", "as requested"), commented-out code, padding — and no existing lens catches it. `code-review` treats it as out of remit (it isn't a correctness bug), and codebase-fit is already loaded; the suppressions and spec-fidelity lenses point the *other* way, wanting justification comments to be *more* thorough. So a new bespoke lens, `prompts/review-comments.md`, owns comment discipline alone.
