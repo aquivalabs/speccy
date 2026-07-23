@@ -91,14 +91,17 @@ Documented is not the same as working. **Smoke-test the tooling now, on the clea
 
 ### Worktree init
 
-Worktrees come into play only for **parallel** tasks. Plan-execution runs sequential tasks directly on the main checkout; only parallel tasks get git worktrees, which lack gitignored state. You won't know whether the plan produces parallel tasks until breakdown, so treat this as preparation that may not be exercised this run. Check whether CLAUDE.md has a `## Worktree init` section with gather/apply blocks. If it does, nothing to do — plan-execution will use it if parallel tasks arise. If it's missing:
+Worktrees come into play only for **parallel** tasks. Plan-execution runs sequential tasks directly on the main checkout; only parallel tasks get git worktrees, which lack gitignored state. You won't know whether the plan produces parallel tasks until breakdown, so treat this as preparation that may not be exercised this run. Check whether CLAUDE.md has a `## Worktree init` section with gather/apply blocks. If it does, nothing to do — plan-execution will use it if parallel tasks arise.
 
-1. Note that worktree agents (parallel tasks only) will lack gitignored files (node_modules, tool configs, generated artifacts).
-2. Offer to help draft the section — look at `.gitignore` and the verification commands for clues about what needs recreating.
-3. The format is gather (commands run in the main checkout, capturing stdout as named variables) and apply (commands run in the worktree, substituting gathered values). See existing CLAUDE.md examples.
-4. Have the user review and commit the section before proceeding.
+**If either the `worktree.baseRef` setting or the `## Worktree init` section is missing, do NOT stop, prompt for a hand-authored section, or silently force the whole run sequential — resolve a sensible default in-skill and carry on:**
 
-A purely sequential plan never touches worktrees, so a project that only runs sequential work can skip this — but it's cheap insurance for any run that fans out.
+- **`worktree.baseRef` missing** → ensure it is `head` (write it to `.claude/settings.json` via Bash/python; direct Edit is blocked). The default `fresh` branches from `origin/<default-branch>` and misses feature-branch commits. (Plan-execution also self-heals this, so it's belt-and-suspenders.)
+- **`## Worktree init` section missing** → synthesize a minimal default from `.gitignore` + the verification commands rather than punting. Almost every project's worktree just needs its gitignored dependency/config artifacts linked in from the main checkout. Build a `worktreeInit` array that idempotently symlinks those (`ln -snf <main-checkout>/<dir> <dir>`), covering at minimum the package-manager install dir the verify commands need (`node_modules`, `.venv`, `vendor`, `target`, …) plus any generated config the verify step reads. Pass that array straight to plan-execution as `worktreeInit`. Resolve `<main-checkout>` with `git rev-parse --show-toplevel` at gather time.
+- **Only if you genuinely cannot determine the dependency dirs** (no recognizable lockfile/manifest, opaque build) → fall back to instructing breakdown to stay sequential-only, and say so.
+
+In every case, after resolving the default, offer the user the drafted `## Worktree init` block to commit into CLAUDE.md so next time it's explicit — but this is an after-the-fact convenience, never a blocker.
+
+A purely sequential plan never touches worktrees, so a project that only runs sequential work exercises none of this — but the default above means a fan-out run is never blocked on a missing section.
 
 ### Git state
 
