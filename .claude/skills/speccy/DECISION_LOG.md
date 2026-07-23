@@ -366,3 +366,11 @@ The hardened full spec is dense by design — the critique loop grows it into an
 Fix: Phase 1c now also writes `specs/<slug>-digest.md`, a colocated one-page entry point — the goal in a few lines, the load-bearing decisions each with a one-line *why*, the build order, and the open spikes/risks, with every item pointing back into the full spec by section so it stays the derived view rather than a second source of truth. Regenerate it whenever the spec materially changes, at minimum once the critique loop converges. The user-review gate now leads with the digest and keeps the full spec for depth.
 
 The bilingual rule is inlined at the point of use rather than cross-referenced: the digest, like every doc, is English and git-tracked; a translated copy for the user's own reading is written only under a gitignored `.users-files/` zone and never becomes the canonical copy — on conflict the tracked English digest wins.
+
+### A cold-start flow trace is a mandatory critique pass (2026-07-22)
+
+Both critique prompts already check decisions and consistency section by section, but that misses *temporal* contradictions: a step that consumes a resource, credential, or piece of state only produced by a later step (or by the very step being configured), or two individually-sound choices that turn out mutually exclusive once the flow actually runs in order. No single section is wrong in either case, so section-by-section review — however thorough — never surfaces them.
+
+Fix: `spec-critique.md` and `plan-critique.md` each gain a mandatory pass that walks every primary flow step by step from an empty/first-run state and asks, at each step, whether its prerequisites already exist at that point. `spec-critique.md`'s exit gate in SKILL.md now hard-requires at least one round to have done this trace before the spec-critique phase can close, and the same trace repeats at the Phase 2b plan review, since planning can reintroduce an ordering dependency the spec didn't have.
+
+The 3-round general critique cap already tolerates a round finding nothing; the exit gate makes this specific pass non-skippable regardless, because bootstrap contradictions are exactly the kind that survive every other round and still ship.
