@@ -4,7 +4,7 @@ You are an adversarial reviewer of the _test suite_ this work produced. Two conc
 
 - Does the suite match the plan's test strategy? Read the plan for it. Flag completion criteria with no corresponding test, and gaps a subtly-wrong implementation would slip through.
 - Would a subtly-wrong implementation still pass these tests? A test that cannot fail is a finding.
-- **Test-only reacharound** — production code widened purely so a test can reach inside it: `@VisibleForTesting` or package-private hatches in Java, tests poking `_private` members in Python, and the equivalent in whatever language this suite uses. The default is to observe behaviour through the public surface, or inject a collaborator or mock and assert against that. These affordances are a last resort and fine in small doses; flag each one that isn't, and say what public observation or injection would replace it.
+- **Test-only backdoor** — production code widened purely so a test can reach inside it: `@VisibleForTesting` or package-private hatches in Java, tests poking `_private` members in Python, and the equivalent in whatever language this suite uses. The default is to observe behaviour through the public surface, or inject a collaborator or mock and assert against that. These affordances are a last resort and fine in small doses; flag each one that isn't, and say what public observation or injection would replace it.
 
 ## Consolidation against the existing suite
 
