@@ -361,3 +361,11 @@ Two design choices carry it:
 - **Calibration is priority-ordered:** CLAUDE.md and grounding docs first, then speccy's standard (concise, relevant, explanatory, no history), then the surrounding code as a tie-breaker for neutral conventions *only*. The third is deliberately demoted: much existing code has already drifted, so matching neighbouring comment style would launder the very noise the lens exists to stop.
 
 Runs on **sonnet** — a focused style pass, cheaper like suppressions. **Minor** severity by nature (cosmetic), so it never blocks a round. The SKILL.md prose stopped hard-coding a lens count with this addition, so the panel can grow without a stale number to chase.
+
+### The tests lens flags test-only backdoors into production code (2026-07-27)
+
+On real runs speccy would let a build widen production visibility for the sake of a test — an `@TestVisible` method in Apex, the same move in any language — and then propagate that pattern across the suite, rather than stepping back to a better option. Widening the production API so a test can reach inside it couples the test to internals and leaves a permanent hole in the encapsulation, and no lens named the smell, so it read as normal.
+
+`prompts/review-tests.md` gains a bullet in its test-strategy section: production code widened purely so a test can reach inside it (Java's `@VisibleForTesting` or package-private hatches, Python's `_private` poking, the equivalent elsewhere) is a finding. The default it points back to is observing behaviour through the public surface or injecting a collaborator or mock. The affordance is legitimate in small doses as a last resort, so the lens flags each instance that isn't watertight and names the public observation or injection that would replace it, rather than banning it outright.
+
+It lives in the tests lens, not codebase-fit or suppressions: it is a property of how a test reaches its subject, which is squarely the tests lens's remit. The examples are Java and Python despite speccy's Salesforce-heavy use, keeping with "Prompt examples stay language-agnostic" (2026-07-09) — the smell is universal and the two largest languages carry it best. The term "backdoor" was chosen over "reacharound" (crude), "bypass" (reads as skipping logic), and "reach-in": it is the established term of art for exactly this test-to-internals access.
