@@ -136,9 +136,9 @@ The fix: the soft cap recurs. Instead of a one-shot flag, the sketch tracks a `c
 
 Two task-authoring rules added to the breakdown prompt, both from friction reported in a speccy run.
 
-**Shared-type edits ripple past the Files list.** A task that edits a shared type, interface, or fixture forces edits in downstream files it doesn't name — a consumer that won't compile against the new shape must change too. The task's Files list read as an exhaustive footprint, so those downstream fixes looked like scope creep and got left or queried. Breakdown now authors the task to say the ripple is expected. This works *with* the execute footprint fence ("only create or modify files your task requires"), which already permits a required edit; the gap was that the authored task never said the edit was required, so the fix lives in authoring, not the fence.
+The first covers a task that edits a shared type, interface, or fixture: its downstream consumers must change too, but they sit outside the task's Files list, which read as an exhaustive footprint — so the required compile fixes looked like scope creep and got left or queried. The rule has breakdown flag the ripple. It works *with* the execute footprint fence, which already permits a required edit; the gap was only that the authored task never said the edit was required, so the fix lives in authoring, not the fence.
 
-**Conform to the target file's convention; don't prescribe one.** A task instruction that asserted a concrete convention value — a metadata element, a field or key name, a file layout — from the plan rather than the real sibling files was wrong when it differed from what the code actually uses, and dead (read by nothing) when it matched nothing. Breakdown now tells the task to match whatever sibling files use, so the convention is discovered at build time against ground truth rather than frozen into the task from a template.
+The second covers a task that hard-codes a convention value from the plan rather than checking the real sibling files. Such a value is wrong when it differs from what the code uses, and dead when it matches nothing. The rule has the task discover the convention against the real files at build time instead of freezing a template value.
 
 ## Known limitations
 
