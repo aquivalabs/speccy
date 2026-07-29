@@ -37,7 +37,7 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 
    Also mention: state is saved after every phase boundary, so the user can `/clear` and re-invoke the skill at any point to resume with a fresh context. Useful for long runs where the main conversation has grown.
 
-2. **Defaults you can change.** Note the per-phase model defaults (just below) and that they're overridable. Also flag the engagement checks: at the spec, plan, and wrap-up gates the skill will ask the user to commit a view before seeing the agent's, and to say what convinced them (see **Steering away from cognitive surrender**). These are on by default and can be turned off for a run. No need to ask about any of this — just flag that the options exist.
+2. **Defaults you can change.** Note the per-phase model defaults (just below) and that they're overridable. No need to ask — just flag that the options exist.
 
 Each phase has its own model default:
 
@@ -62,7 +62,6 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
   "baseBranch": "develop",
   "adversaryModel": "opus",
   "builderModel": "sonnet",
-  "engagementChecks": true,
   "phase": "planning" | "spec-critique" | "plan-critique" | "implementation" | "review" | "complete",
   "specPath": "specs/auth-refactor.md",
   "planPath": ".speccy/auth-refactor-20260609-1430/plan.md",
@@ -135,12 +134,9 @@ Speccy's own output is the hazard. Adversarially-hardened specs and plans read a
 - **Flag doubt; stay quiet about certainty.** Surface where the agent is unsure and what it assumed. Never offer high confidence as a reason to skip review, since a confident wrong call adopted wholesale is the worst outcome. Point the user's attention at the doubtful parts and let the settled ones pass.
 - **Name what convinced you.** When the user approves a load-bearing decision, ask them to say what persuaded them, and to notice whether they verified it or simply trusted that the agent sounded sure. Keep this to one decision per gate, so it reads as a self-check rather than an interrogation.
 
-Ask these as ordinary questions. Don't announce them or name the mechanism — a prompt flagged as a check gets performed, not thought about.
+Ask these as ordinary questions inside the flow of the gate; never announce that you're doing them and never give them a label to the user (not "engagement check", not "cognitive surrender") — a prompt flagged as a check gets performed, not thought about. A user who would rather not be asked can simply decline, or say so at the start; honour that, and you need not advertise the possibility.
 
 Apply the same standard to the final diff: read it as if a contributor you do not fully trust wrote it.
-
-These checks are on by default, because the default should be to make the user think. Some users find them grating, so they can opt out: store the choice as `engagementChecks` in state.json (default `true`), offered alongside the model defaults at the start. When it is `false`, skip the active prompts above (ask-before-you-tell, name-what-convinced-you, and the decision-log reconstruction at wrap-up), but keep flagging genuine uncertainty, which is candour the user benefits from either way.
-
 ## Phase 1 — Specification
 
 Build a structured spec through interview.
@@ -169,7 +165,7 @@ Identify external context that would improve the spec or plan — documentation,
 
 **Never ask what code or the environment can answer.** If a quick look at the repo, config, or tooling would settle it, look — don't ask. Questions needing deeper codebase research: mark open and defer to planning.
 
-**Asking nothing is fine.** If the intake settles what you need, write the draft and skip the interview. (Clarifying questions only; the engagement-check prompts under **Steering away from cognitive surrender** still apply.)
+**Asking nothing is fine.** If the intake settles what you need, write the draft and skip the interview. (Clarifying questions only; the habits under **Steering away from cognitive surrender** still apply.)
 
 ### 1c. Structured spec
 
@@ -187,7 +183,7 @@ Create a feature branch before committing anything. Pick a short, descriptive na
 
 Save to `specs/<slug>.md`. Commit the spec.
 
-Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, engagementChecks, specPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
+Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, specPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
 
 Tell the user about the directory — critique rounds, the plan, review notes, and run state will be saved there so they can open them in their editor rather than scrolling terminal output. Mention the path once here; don't repeat it at every save.
 
@@ -217,7 +213,7 @@ Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec p
 
 When it completes, brief the user on the approach, key decisions, and risks from `.speccy/<run-id>/plan.md` — point them there for the full text rather than dumping it inline. Update state.json with `planPath` and `phase: "plan-critique"`.
 
-**If the plan flags a contradicted spec assumption**, stop before the plan-critique loop and put it to the user as a blocking choice: accept the adjusted scope, or revise the spec and re-plan. A falsified assumption can invalidate scope, so this gate fires even when `engagementChecks` is off (see **Steering away from cognitive surrender**).
+**If the plan flags a contradicted spec assumption**, stop before the plan-critique loop and put it to the user as a blocking choice: accept the adjusted scope, or revise the spec and re-plan. A falsified assumption can invalidate scope, so this blocking gate always fires.
 
 ### 2a. Adversarial plan critique
 
@@ -228,7 +224,7 @@ For each round (up to 3):
 1. **Critique.** Spawn an adversary subagent with the plan critique prompt, the path to the plan, and the path to the spec (for context — the spec itself should not be re-reviewed). Instruct it to **write its review to `.speccy/<run-id>/plan-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one). Read the critique file (N from state.json) to triage. If no legitimate flaws found, exit the loop.
 2. **Spike, if the critique flags an unproven load-bearing mechanism.** The critic judges the plan's evidence but does not spike; when it flags a mechanism whose feasibility the plan hasn't proven, prove it before revising. Spawn a spike subagent with `prompts/plan-spike.md` and the mechanism to prove, writing its verdict to `.speccy/<run-id>/spike-round-N.md`. Read the verdict:
    - `confirmed` → carry its evidence into the revise step so the plan records it in the Assumptions check.
-   - `refuted` or `unproven` → a load-bearing mechanism that can't be proven can invalidate scope, so treat it like a contradicted spec assumption: stop the loop and put a blocking choice to the user — accept a redesign around a mechanism that works, or revise the spec and re-plan. This gate fires regardless of `engagementChecks` (see **Steering away from cognitive surrender**).
+   - `refuted` or `unproven` → a load-bearing mechanism that can't be proven can invalidate scope, so treat it like a contradicted spec assumption: stop the loop and put a blocking choice to the user — accept a redesign around a mechanism that works, or revise the spec and re-plan. Like the contradicted-assumption gate, this one always fires.
 3. **Revise.** Spawn a revise subagent **on opus** with `prompts/revise.md`, the plan path, the critique file path, and instructions to incorporate every finding in the critique. When it completes, the revised plan file is the truth — don't depend on its return.
 
 After 3 rounds, exit the loop regardless. Update state.json after each round (`planCritiqueRounds`). When the loop exits, surface a one-line note of how many rounds ran and what changed, then proceed to 2b.
