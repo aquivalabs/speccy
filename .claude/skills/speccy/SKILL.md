@@ -39,12 +39,13 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 
 2. **Defaults you can change.** Note the per-phase model defaults (just below) and that they're overridable. Also flag the engagement checks: at the spec, plan, and wrap-up gates the skill will ask the user to commit a view before seeing the agent's, and to say what convinced them (see **Steering away from cognitive surrender**). These are on by default and can be turned off for a run. No need to ask about any of this — just flag that the options exist.
 
-Models are per-phase, defaulting to a `"ladder"` scheme:
+Each phase has its own model default:
 
 - **Spec and plan critique** — opus every round (both the adversary and the revise agent), up to 3 rounds. These are short, high-leverage artifacts where cheaper tiers cost more in false-positive triage than they save.
 - **Implementation review** — parallel review lenses, up to 3 rounds (see Phase 4). The four judgment lenses (spec fidelity, tests, codebase fit, local-doc adherence) run on opus and the suppressions lens on sonnet; the built-in `code-review` skill runs alongside them at `high` effort and manages its own models.
+- **Builder** (execute/integrate/verify inside plan-execution) — sonnet; plan-execution's breakdown agent always uses opus.
 
-The **builder** (execute/integrate/verify inside plan-execution) defaults to sonnet; plan-execution's breakdown agent always uses opus. The user may pin a single adversary model — then use it for every round of every loop — or raise the builder to opus for high-stakes work.
+Two overrides: pin a single adversary model (`adversaryModel`), then used for every critique round and review lens; and raise the builder (`builderModel`), commonly to opus for high-stakes work.
 
 Each loop restarts at round 1 and early-exits when a round surfaces no valuable criticism.
 
@@ -59,7 +60,7 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
   "runId": "auth-refactor-20260609-1430",
   "slug": "auth-refactor",
   "baseBranch": "develop",
-  "adversaryModel": "ladder",
+  "adversaryModel": "opus",
   "builderModel": "sonnet",
   "engagementChecks": true,
   "phase": "planning" | "spec-critique" | "plan-critique" | "implementation" | "review" | "complete",
@@ -71,7 +72,7 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
 }
 ```
 
-`adversaryModel` is `"ladder"` by default — the per-phase scheme described under **Getting started**. If the user pinned a single adversary model, store that model name here instead and use it for every critique round and bespoke review lens.
+`adversaryModel` defaults to `"opus"` — the tier for every critique round and the review panel's judgment lenses (the suppressions and comment lenses run a tier below; see **Getting started**). If the user pinned a different adversary model, store that name here instead and use it for every critique round and review lens.
 
 On trigger, read `.speccy/.current-runid` — a pointer to the most recent run, written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase. A resumed run skips the precondition checks, so if the recorded phase is anything past the spec interview, suggest auto-accept mode (shift+tab) first — the rest of the run is autonomous tool calls.
 
