@@ -20,6 +20,10 @@ Each step contains one or more tasks; tasks within a step run in parallel (isola
 
 For each task, write self-contained instructions — a fresh agent with no knowledge of the plan must be able to complete the task from the description alone. Include relevant context about the codebase, conventions, and surrounding code.
 
+**Shared-type edits ripple past the Files list.** When a task edits a type, interface, or fixture that other files consume (a shared schema, a reducer map, a common test fixture), say so in the task: expect literal/fixture updates across the repo, outside the Files list. A downstream file that won't compile against the new shape is a required edit, not scope creep.
+
+**Conform to the target file's convention; don't prescribe one.** When a task names a concrete convention (a metadata element, a field or key name, a file layout), tell it to match what sibling files actually use, not a value asserted here. A prescribed value that differs from the real convention is wrong at worst, dead at best.
+
 Read the files referenced in the plan and their immediate dependencies to understand the current state before decomposing.
 
 Write each task description to `.tasks/{run-id}/{task-id}.md`, using the run ID provided below. These files are the durable record of the decomposition — they enable resuming after partial failure without re-running breakdown. Ensure `.tasks/` is in `.gitignore`.

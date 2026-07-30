@@ -37,14 +37,15 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 
    Also mention: state is saved after every phase boundary, so the user can `/clear` and re-invoke the skill at any point to resume with a fresh context. Useful for long runs where the main conversation has grown.
 
-2. **Defaults you can change.** Note the per-phase model defaults (just below) and that they're overridable. Also flag the engagement checks: at the spec, plan, and wrap-up gates the skill will ask the user to commit a view before seeing the agent's, and to say what convinced them (see **Steering away from cognitive surrender**). These are on by default and can be turned off for a run. No need to ask about any of this — just flag that the options exist.
+2. **Defaults you can change.** Note the per-phase model defaults (just below) and that they're overridable. No need to ask — just flag that the options exist.
 
-Models are per-phase, defaulting to a `"ladder"` scheme:
+Each phase has its own model default:
 
 - **Spec and plan critique** — opus every round (both the adversary and the revise agent), up to 3 rounds. These are short, high-leverage artifacts where cheaper tiers cost more in false-positive triage than they save.
 - **Implementation review** — parallel review lenses, up to 3 rounds (see Phase 4). The four judgment lenses (spec fidelity, tests, codebase fit, local-doc adherence) run on opus and the suppressions lens on sonnet; the built-in `code-review` skill runs alongside them at `high` effort and manages its own models.
+- **Builder** (execute/integrate/verify inside plan-execution) — sonnet; plan-execution's breakdown agent always uses opus.
 
-The **builder** (execute/integrate/verify inside plan-execution) defaults to sonnet; plan-execution's breakdown agent always uses opus. The user may pin a single adversary model — then use it for every round of every loop — or raise the builder to opus for high-stakes work.
+Two overrides: pin a single adversary model (`adversaryModel`), then used for every critique round and review lens; and raise the builder (`builderModel`), commonly to opus for high-stakes work.
 
 Each loop restarts at round 1 and early-exits when a round surfaces no valuable criticism.
 
@@ -59,9 +60,8 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
   "runId": "auth-refactor-20260609-1430",
   "slug": "auth-refactor",
   "baseBranch": "develop",
-  "adversaryModel": "ladder",
+  "adversaryModel": "opus",
   "builderModel": "sonnet",
-  "engagementChecks": true,
   "phase": "planning" | "spec-critique" | "plan-critique" | "implementation" | "review" | "complete",
   "specPath": "specs/auth-refactor.md",
   "planPath": ".speccy/auth-refactor-20260609-1430/plan.md",
@@ -71,7 +71,7 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
 }
 ```
 
-`adversaryModel` is `"ladder"` by default — the per-phase scheme described under **Getting started**. If the user pinned a single adversary model, store that model name here instead and use it for every critique round and bespoke review lens.
+`adversaryModel` defaults to `"opus"` — the tier for every critique round and the review panel's judgment lenses (the suppressions and comment lenses run a tier below; see **Getting started**). If the user pinned a different adversary model, store that name here instead and use it for every critique round and review lens.
 
 On trigger, read `.speccy/.current-runid` — a pointer to the most recent run, written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase. A resumed run skips the precondition checks, so if the recorded phase is anything past the spec interview, suggest auto-accept mode (shift+tab) first — the rest of the run is autonomous tool calls.
 
@@ -133,16 +133,15 @@ So **before spawning any subagent, restate the active style concisely at the top
 
 Speccy's own output is the hazard. Adversarially-hardened specs and plans read as authoritative, and the more authoritative they read, the stronger the pull for the user to approve without understanding (cognitive surrender: borrowed confidence, surface correctness hiding deeper flaws). The pipeline already hardens its artifacts. These habits guard the user's engagement, which nothing else does. Apply them at every human gate:
 
-- **Ask before you tell.** Draw out the user's own expectations or concerns before presenting the agent's findings or recommendation. This forestalls anchoring and breaks the path dependency where one nodded-through gate makes the next easier.
+- **Ask before you tell, then reveal.** Before showing the agent's findings, have the user commit a *prediction*, not an open judgment: the one thing they'd bet the critique flags, or the part they'd defend least confidently. An open "where is it weakest?" is too easy to shrug off; predicting forces the user to build their own model of the artifact first, which is the anti-anchoring point. If they genuinely have nothing, offer to look together at one thing *you* find risky — but only if a real one exists (many artifacts are straightforward; don't manufacture one), drawn from your own read rather than the critique you are holding, which would leak it early. Then when you present the critique, close the loop against their prediction — "you expected X; it flagged Y — surprised?". The consequence is what makes the question land; without the reveal it decays to a shrug.
 - **Flag doubt; stay quiet about certainty.** Surface where the agent is unsure and what it assumed. Never offer high confidence as a reason to skip review, since a confident wrong call adopted wholesale is the worst outcome. Point the user's attention at the doubtful parts and let the settled ones pass.
 - **Name what convinced you.** When the user approves a load-bearing decision, ask them to say what persuaded them, and to notice whether they verified it or simply trusted that the agent sounded sure. Keep this to one decision per gate, so it reads as a self-check rather than an interrogation.
 
-Ask these as ordinary questions. Don't announce them or name the mechanism — a prompt flagged as a check gets performed, not thought about.
+Ask these as ordinary questions inside the flow of the gate; never announce that you're doing them and never give them a label to the user (not "engagement check", not "cognitive surrender") — a prompt flagged as a check gets performed, not thought about. A user who would rather not be asked can simply decline, or say so at the start; honour that, and you need not advertise the possibility.
+
+**Each of these questions is a stop.** Ask it as the last thing in the turn and wait — the question is the failure point precisely because the orchestrator tends to ask, then keep thinking and running tool calls until it scrolls off unanswered. Nothing follows the question until the user replies, and a pre-question never reveals the critique in the same turn (which would pre-empt the answer and lose the anti-anchoring). Put it on its own line at the end of the reply.
 
 Apply the same standard to the final diff: read it as if a contributor you do not fully trust wrote it.
-
-These checks are on by default, because the default should be to make the user think. Some users find them grating, so they can opt out: store the choice as `engagementChecks` in state.json (default `true`), offered alongside the model defaults at the start. When it is `false`, skip the active prompts above (ask-before-you-tell, name-what-convinced-you, and the decision-log reconstruction at wrap-up), but keep flagging genuine uncertainty, which is candour the user benefits from either way.
-
 ## Phase 1 — Specification
 
 Build a structured spec through interview.
@@ -171,7 +170,7 @@ Identify external context that would improve the spec or plan — documentation,
 
 **Never ask what code or the environment can answer.** If a quick look at the repo, config, or tooling would settle it, look — don't ask. Questions needing deeper codebase research: mark open and defer to planning.
 
-**Asking nothing is fine.** If the intake settles what you need, write the draft and skip the interview. (Clarifying questions only; the engagement-check prompts under **Steering away from cognitive surrender** still apply.)
+**Asking nothing is fine.** If the intake settles what you need, write the draft and skip the interview. (Clarifying questions only; the habits under **Steering away from cognitive surrender** still apply.)
 
 ### 1c. Structured spec
 
@@ -191,7 +190,7 @@ Save to `specs/<slug>.md`. Commit the spec.
 
 **Always ship a short human-reading digest alongside the full spec.** The full spec is the implementation reference and it hardens (and grows dense) through the critique rounds — it is NOT what a busy human reads to understand the work. So maintain a **one-page digest** next to it (`specs/<slug>-digest.md`): the goal in 2–3 lines, the load-bearing decisions as a scannable list (each with a one-line *why*), what gets built and in what order, and the open spikes/risks. Every item **references the full spec's section** (e.g. "(§ Auth)") so the reader drills in only where needed — the full spec stays canonical, the digest never restates it in full or diverges. Regenerate the digest whenever the spec materially changes (after the critique loop converges, at minimum). At the user-review gate, point the user at the **digest first**, the full spec for depth. (Bilingual note — the rule, inline: the canonical digest, like every doc, is **English and git-tracked** in the repo's normal docs location — never a non-English copy in a tracked path. If the user reads or edits in their own language, ALSO write a translated copy, kept ONLY in a **gitignored `.users-files/`** zone; never put a translation in a tracked path, and never put the canonical doc inside `.users-files/`. Keep the two in sync — **on conflict the English git-tracked copy wins** — and leave the section references in the canonical English so they don't drift.)
 
-Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, engagementChecks, specPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
+Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, specPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
 
 Tell the user about the directory — critique rounds, the plan, review notes, and run state will be saved there so they can open them in their editor rather than scrolling terminal output. Mention the path once here; don't repeat it at every save.
 
@@ -204,7 +203,7 @@ Run the loop to exhaustion before offering to clear or move on. The user is in t
 For each round (up to 3):
 
 1. **Critique.** Spawn an adversary subagent (Agent tool) with the spec critique prompt and the path to the spec. Instruct it to **write its review to `.speccy/<run-id>/spec-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one).
-2. **Present.** Before showing the critique, ask the user where they think the spec is weakest, so their read isn't anchored to the adversary's (see **Steering away from cognitive surrender**). Then read `.speccy/<run-id>/spec-critique-round-N.md` (N from state.json) and present its findings. Point the user to the file for the full text. Ask which findings to incorporate, and on the most consequential accept-or-reject call, ask what convinced them. If the round surfaced no valuable criticism, the loop is done — exit it.
+2. **Present.** Before showing the critique, ask the user to predict it — the finding they'd bet the reviewer raises, or the part of the spec they'd defend least confidently (see **Steering away from cognitive surrender**). If they have none and you can see a genuine soft spot, offer to look at it together; if the spec is solid, let it go. Then read `.speccy/<run-id>/spec-critique-round-N.md` (N from state.json), present its findings, and close the loop against their prediction ("you expected X; it flagged Y — surprised?"). Point the user to the file for the full text. Ask which findings to incorporate, and on the most consequential accept-or-reject call, ask what convinced them. If the round surfaced no valuable criticism, the loop is done — exit it.
 3. **Revise.** Spawn a revise subagent (Agent tool) **on opus** with `prompts/revise.md`, the spec path, the critique file path, and the list of accepted findings. The subagent rewrites the spec in place. Once it completes, commit the updated spec with a message summarising the accepted findings you incorporated — you already have that list, so build the message from it rather than from the agent's return. Then run the next round to check the revisions and probe deeper.
 
 After 3 rounds, proceed regardless, noting any unaddressed feedback. Update state.json after each round (`specCritiqueRounds`). When the critique loop exits, set `phase: "planning"`.
@@ -223,7 +222,7 @@ Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec p
 
 When it completes, brief the user on the approach, key decisions, and risks from `.speccy/<run-id>/plan.md` — point them there for the full text rather than dumping it inline. Update state.json with `planPath` and `phase: "plan-critique"`.
 
-**If the plan flags a contradicted spec assumption**, stop before the plan-critique loop and put it to the user as a blocking choice: accept the adjusted scope, or revise the spec and re-plan. A falsified assumption can invalidate scope, so this gate fires even when `engagementChecks` is off (see **Steering away from cognitive surrender**).
+**If the plan flags a contradicted spec assumption**, stop before the plan-critique loop and put it to the user as a blocking choice: accept the adjusted scope, or revise the spec and re-plan. A falsified assumption can invalidate scope, so this blocking gate always fires.
 
 ### 2a. Adversarial plan critique
 
@@ -234,7 +233,7 @@ For each round (up to 3):
 1. **Critique.** Spawn an adversary subagent with the plan critique prompt, the path to the plan, and the path to the spec (for context — the spec itself should not be re-reviewed). Instruct it to **write its review to `.speccy/<run-id>/plan-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one). Read the critique file (N from state.json) to triage. If no legitimate flaws found, exit the loop.
 2. **Spike, if the critique flags an unproven load-bearing mechanism.** The critic judges the plan's evidence but does not spike; when it flags a mechanism whose feasibility the plan hasn't proven, prove it before revising. Spawn a spike subagent with `prompts/plan-spike.md` and the mechanism to prove, writing its verdict to `.speccy/<run-id>/spike-round-N.md`. Read the verdict:
    - `confirmed` → carry its evidence into the revise step so the plan records it in the Assumptions check.
-   - `refuted` or `unproven` → a load-bearing mechanism that can't be proven can invalidate scope, so treat it like a contradicted spec assumption: stop the loop and put a blocking choice to the user — accept a redesign around a mechanism that works, or revise the spec and re-plan. This gate fires regardless of `engagementChecks` (see **Steering away from cognitive surrender**).
+   - `refuted` or `unproven` → a load-bearing mechanism that can't be proven can invalidate scope, so treat it like a contradicted spec assumption: stop the loop and put a blocking choice to the user — accept a redesign around a mechanism that works, or revise the spec and re-plan. Like the contradicted-assumption gate, this one always fires.
 3. **Revise.** Spawn a revise subagent **on opus** with `prompts/revise.md`, the plan path, the critique file path, and instructions to incorporate every finding in the critique. When it completes, the revised plan file is the truth — don't depend on its return.
 
 After 3 rounds, exit the loop regardless. Update state.json after each round (`planCritiqueRounds`). When the loop exits, surface a one-line note of how many rounds ran and what changed, then proceed to 2b.
@@ -243,7 +242,7 @@ After 3 rounds, exit the loop regardless. Update state.json after each round (`p
 
 This is the highest-stakes human gate, so engage it deliberately (see **Steering away from cognitive surrender**):
 
-- **Draw out the user first.** Before walking through the plan's decisions, ask what they expect the hard parts or risky choices to be. Let them commit a view before the agent frames one.
+- **Draw out the user first.** Before walking the plan, ask them to predict it: the choice they'd bet the critique loop pushed hardest on, or the decision they'd defend least confidently. If they have none and you can see a genuinely shaky or load-bearing decision, offer to look at that one together — only if a real one exists. When you then walk the plan, close the loop against their prediction and what the 2a critique actually changed ("you flagged the retry design; the critique reworked the idempotency key instead — surprised?").
 - **Then present, candidly.** Have them read the plan file directly rather than re-dumping it into the conversation. Walk through the two or three load-bearing decisions, and for each surface the alternative the plan rejected and its best argument. Flag where the plan is genuinely uncertain, and don't let a confident passage stand in for a verified one.
 - **Name what convinced you.** On the single most consequential decision, ask the user to say what persuaded them, and whether they checked it or are trusting the plan's confidence.
 
@@ -281,7 +280,7 @@ After implementation is complete, the code gets an independent review across sev
 
 Each round spawns these reviewers as **parallel** subagents (one message, one Agent call each), all **read-only** — none edits code. Each writes its findings to its own file `.speccy/<run-id>/review-round-N-<lens>.md`. Pass each the base branch so it can diff `<base-branch>...HEAD`. All prompt paths are relative to this SKILL.md's directory.
 
-Pass each of the five bespoke lenses `prompts/review-output-contract.md` alongside its own prompt. It standardises the finding shape across lenses so triage is mechanical, and makes writing the file a hard contract — a lens that runs out of room mid-verification still leaves a file, marking the unconfirmed candidate `PLAUSIBLE`, rather than returning nothing. `code-review` is a built-in skill that won't read the contract; the orchestrator applies the same shape itself when it normalises `code-review`'s findings into the code-review lens file.
+Pass each bespoke lens `prompts/review-output-contract.md` alongside its own prompt. It standardises the finding shape across lenses so triage is mechanical, and makes writing the file a hard contract — a lens that runs out of room mid-verification still leaves a file, marking the unconfirmed candidate `PLAUSIBLE`, rather than returning nothing. `code-review` is a built-in skill that won't read the contract; the orchestrator applies the same shape itself when it normalises `code-review`'s findings into the code-review lens file.
 
 - **Code review** — the built-in `code-review` skill, targeting `<base-branch>...HEAD` at `high` effort, with no `--fix` and no `--comment`. It covers correctness and general code quality, so the bespoke lenses handle only what it can't. Run it every round.
 
@@ -292,14 +291,15 @@ Pass each of the five bespoke lenses `prompts/review-output-contract.md` alongsi
 - **Codebase fit** — `prompts/review-codebase-fit.md`. Does this change worsen an already-imperfect area or repeat an existing smell? Judged against the touched files' current state, not the diff alone.
 - **Local-doc adherence** — `prompts/review-local-docs.md`. Violations of the repo's governing docs, including CLAUDE.md — which it deliberately re-checks even though code-review covers it too.
 - **Suppressions** — `prompts/review-suppressions.md`. Extremely harsh on any linter/analysis/type/test-gate suppression the change adds or leans on. Each must be watertight or it is a finding.
+- **Comments** — `prompts/review-comments.md`. Comments the change adds or edits that restate the code, narrate edit history, or pad a real point. Proposes deletions only; the fixer mends any seam.
 
-Run the bespoke lenses on **opus**, except suppressions on **sonnet** (a mechanical scan). A pinned adversary model overrides all of them; `code-review` and any project review gate manage their own.
+Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet** (a mechanical scan, and a focused style pass). A pinned adversary model overrides all of them; `code-review` and any project review gate manage their own.
 
 ### The loop (up to 3 rounds)
 
-1. **Review.** Spawn the five bespoke lenses as parallel subagents in one message, and invoke the inline gates in the main conversation (see above) — `code-review` every round, and the project review gate if the repo ships one — their own fan-out overlaps with the spawned lenses. Round 1 is a cold review. **Rounds 2+ are fix-verification:** re-point each lens at "verify the round-(N-1) fixes hold, and catch any regression they introduced" rather than a fresh cold pass, and always pass it the `.speccy/<run-id>/deferred.md` list as accepted decisions it must not re-raise. Run all lenses every round by default; you may drop a lens only when the fix round provably didn't touch its surface (e.g. skip local-doc adherence when nothing under a governing doc changed). Note any lens you drop and why.
+1. **Review.** Spawn the bespoke lenses as parallel subagents in one message, and invoke the inline gates in the main conversation (see above) — `code-review` every round, and the project review gate if the repo ships one — their own fan-out overlaps with the spawned lenses. Round 1 is a cold review. **Rounds 2+ are fix-verification:** re-point each lens at "verify the round-(N-1) fixes hold, and catch any regression they introduced" rather than a fresh cold pass, and always pass it the `.speccy/<run-id>/deferred.md` list as accepted decisions it must not re-raise. Run all lenses every round by default; you may drop a lens only when the fix round provably didn't touch its surface (e.g. skip local-doc adherence when nothing under a governing doc changed). Note any lens you drop and why.
 
-   For the spawned lenses, don't branch on a returned summary (see **Subagent results: trust files, not returns**) — confirm the file exists. **Self-heal a stalled lens:** if a spawned lens's file is missing after it reports complete, `SendMessage` that agent to write its findings file as its final action, marking anything unconfirmed `PLAUSIBLE`, rather than re-spawning it from scratch. Once every lens file is present — the five spawned files plus the inline-gate files you wrote (code-review, and the project gate if you ran one) — read them (N from state.json) and move to triage.
+   For the spawned lenses, don't branch on a returned summary (see **Subagent results: trust files, not returns**) — confirm the file exists. **Self-heal a stalled lens:** if a spawned lens's file is missing after it reports complete, `SendMessage` that agent to write its findings file as its final action, marking anything unconfirmed `PLAUSIBLE`, rather than re-spawning it from scratch. Once every lens file is present — the spawned lens files plus the inline-gate files you wrote (code-review, and the project gate if you ran one) — read them (N from state.json) and move to triage.
 2. **Triage & merge.** Consolidate the findings across lenses yourself — drop false positives, de-duplicate overlaps, and resolve contradictory suggestions. Don't spawn a separate agent for this. Every lens emits the shared finding shape, so merge on `file:line`: two lenses landing on the same anchor is a **convergence signal**, and independent lenses pointing at one spot raise confidence rather than being noise — weight those up instead of collapsing them to a lone finding. As a backstop for anything the lenses re-raised despite being told not to, drop findings already in `.speccy/<run-id>/deferred.md`; a deferred finding must not churn back into the fix set. Then give each surviving finding a disposition:
    - **Fix** — route it to the fixer this round. Where the finding is a copied smell, tell the fixer whether to diverge (fix cleanly here) or fix wider (also fix the existing instance); a wider fix grows the diff, so choose it deliberately.
    - **Defer** — legitimate but out of scope for this PR. Append it to `.speccy/<run-id>/deferred.md`: what, and why deferred.

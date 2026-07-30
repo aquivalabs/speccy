@@ -132,6 +132,14 @@ Tier-1's soft wall-clock cap originally fired once (a `w_cap` flag) at ~25 min. 
 
 The fix: the soft cap recurs. Instead of a one-shot flag, the sketch tracks a `cap` threshold that bumps by the interval (~25 min) on each fire, so beats land at 25, 50, 75… minutes. Each beat forces the orchestrator to do a real state check (commits, corrective count, transcript liveness) and report it. The corrective-task warning stays one-shot and the stall flag still re-arms; the ~25-min interval keeps even a multi-hour run to a few beats, well under the Monitor's noise-stop threshold. Cost is one orchestrator check-in turn per beat, cheap relative to the reassurance for a watching human.
 
+### Breakdown flags shared-type ripple and defers to file conventions (2026-07-29)
+
+Two task-authoring rules added to the breakdown prompt, both from friction reported in a speccy run.
+
+The first covers a task that edits a shared type, interface, or fixture: its downstream consumers must change too, but they sit outside the task's Files list, which read as an exhaustive footprint — so the required compile fixes looked like scope creep and got left or queried. The rule has breakdown flag the ripple. It works *with* the execute footprint fence, which already permits a required edit; the gap was only that the authored task never said the edit was required, so the fix lives in authoring, not the fence.
+
+The second covers a task that hard-codes a convention value from the plan rather than checking the real sibling files. Such a value is wrong when it differs from what the code uses, and dead when it matches nothing. The rule has the task discover the convention against the real files at build time instead of freezing a template value.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
