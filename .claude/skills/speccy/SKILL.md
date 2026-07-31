@@ -67,7 +67,10 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
   "planPath": ".speccy/auth-refactor-20260609-1430/plan.md",
   "specCritiqueRounds": 1,
   "planCritiqueRounds": 0,
-  "reviewRounds": 0
+  "reviewRounds": 0,
+  "engagementQuestions": [
+    { "gate": "spec-critique", "asked": "the finding you'd bet the reviewer raises" }
+  ]
 }
 ```
 
@@ -128,7 +131,9 @@ So **before spawning any subagent, restate the active style concisely at the top
 
 ## Steering away from cognitive surrender
 
-Speccy's own output is the hazard. Adversarially-hardened specs and plans read as authoritative, and the more authoritative they read, the stronger the pull for the user to approve without understanding (cognitive surrender: borrowed confidence, surface correctness hiding deeper flaws). The pipeline already hardens its artifacts. These habits guard the user's engagement, which nothing else does. Apply them at every human gate:
+Speccy's own output is the hazard. Adversarially-hardened specs and plans read as authoritative, and the more authoritative they read, the stronger the pull for the user to approve without understanding (cognitive surrender: borrowed confidence, surface correctness hiding deeper flaws). The pipeline already hardens its artifacts. These habits guard the user's engagement, which nothing else does.
+
+Apply these habits at the run's three human gates and nowhere else: the spec critique (1d), the plan review (2b), and the wrap-up decision log (Phase 5). The other interactive moments are not gates — the intake and interview gather requirements, the first-draft review (1c) is the user's turn to read and edit, and the build kickoff (Phase 3) is a handoff — so pose no pre-question there. The pre-question in particular assumes the user has read the artifact and is about to see it critiqued; asked before a draft is read, or after a decision is already made, it has no referent and reads as the ritual this section exists to prevent. The three habits:
 
 - **Ask before you tell, then reveal.** Before showing the agent's findings, have the user commit a *prediction*, not an open judgment: the one thing they'd bet the critique flags, or the part they'd defend least confidently. An open "where is it weakest?" is too easy to shrug off; predicting forces the user to build their own model of the artifact first, which is the anti-anchoring point. If they genuinely have nothing, offer to look together at one thing *you* find risky — but only if a real one exists (many artifacts are straightforward; don't manufacture one), drawn from your own read rather than the critique you are holding, which would leak it early. Then when you present the critique, close the loop against their prediction — "you expected X; it flagged Y — surprised?". The consequence is what makes the question land; without the reveal it decays to a shrug.
 - **Flag doubt; stay quiet about certainty.** Surface where the agent is unsure and what it assumed. Never offer high confidence as a reason to skip review, since a confident wrong call adopted wholesale is the worst outcome. Point the user's attention at the doubtful parts and let the settled ones pass.
@@ -136,7 +141,14 @@ Speccy's own output is the hazard. Adversarially-hardened specs and plans read a
 
 Ask these as ordinary questions inside the flow of the gate; never announce that you're doing them and never give them a label to the user (not "engagement check", not "cognitive surrender") — a prompt flagged as a check gets performed, not thought about. A user who would rather not be asked can simply decline, or say so at the start; honour that, and you need not advertise the possibility.
 
+**Vary the questions across gates.** The job repeats at each gate but the wording must not: the same pre-question framing heard three times decays into a ritual the user pattern-matches and shrugs past, which is the ritualization this whole section fights. Before posing a pre-question or a "what convinced you", read `engagementQuestions` from state.json to see what earlier gates already asked, and come at this one from a fresh angle — a different referent, a different way in — rather than reciting the template. After you ask, append a short paraphrase of what you actually posed (`{ gate, asked }`) to `engagementQuestions` and save state.json. The list starts empty and survives a `/clear`, so a resumed context still knows what framings are spent. This is about not repeating yourself, not about hunting for perfect wording — the engagement comes from the loop, and variation only keeps the loop from going stale.
+
 **Each of these questions is a stop.** Ask it as the last thing in the turn and wait — the question is the failure point precisely because the orchestrator tends to ask, then keep thinking and running tool calls until it scrolls off unanswered. Nothing follows the question until the user replies, and a pre-question never reveals the critique in the same turn (which would pre-empt the answer and lose the anti-anchoring). Put it on its own line at the end of the reply.
+
+**The long idle stretches are the other good moment.** The autonomous phases — plan critique (2a), the build (Phase 3), the review panel (Phase 4) — leave the user waiting on a subagent for a long while, and that idle time engages well with a different device from the gate habits: not a pre-question (there's no artifact to predict yet) but an offer to deepen understanding. Offer to walk through how a part of the system works relative to what's being built, or raise an implementation detail the plan left open and ask whether the user has a preference. Only when there's something genuine to say — manufactured filler trains the user to tune speccy out. Two rules keep it from backfiring, and both invert the gate question's "stop":
+
+- **It never blocks.** The job runs regardless, and a completion that lands mid-conversation is surfaced at once — the chat is opportunistic filler, never a reason to sit on a finished job.
+- **Any steer feeds forward** — into an upcoming task or the review — never expecting the running build to have already adopted it. A preference that would change approved scope is a re-plan, not a mid-build aside.
 
 Apply the same standard to the final diff: read it as if a contributor you do not fully trust wrote it.
 ## Phase 1 — Specification
@@ -179,7 +191,7 @@ The **Assumptions** section is important — it captures the reasonable defaults
 
 The **Decisions & rationale** section is equally load-bearing — every spec makes choices, and a choice whose reasoning isn't written down reads as an arbitrary default and can't be challenged. For each meaningful decision the spec commits to (a scope call, an approach, a contract or deliverable shape), record what was chosen, the viable alternative(s) weighed, and the deciding factor — *why this and not that*. Draw the reasoning out during the interview, but only where the user hasn't already given it: when a choice has a real alternative and the description doesn't explain the pick, ask why the user leans that way rather than recording it silently. Don't re-ask about a decision the input already settles — a stated preference, mandate, or existing convention is a complete rationale on its own. This is not an assumption (a guess under ambiguity); a decision is a deliberate pick among options. Keep it spec-level — the "why" behind *what* to build, not code-level *how* (that is the plan's decision body). This section is also the up-front source the wrap-up co-authored decision log distils from, so capturing rationale now means the user isn't reconstructing it from memory later.
 
-Let the user review and edit until satisfied.
+Let the user read and edit the draft until satisfied. This is their first read, not a gate — pose no engagement question here; the pre-question comes at the 1d critique, once they have the draft in hand.
 
 Create a feature branch before committing anything. Pick a short, descriptive name for the work; if it collides with an existing branch, adjust it. Then `git checkout -b <branch>`.
 
@@ -246,6 +258,8 @@ The adversary has already cleaned up obvious issues; this is the user's chance t
 Before starting implementation, verify all run state is in files: state.json current, spec and plan committed, review decisions reflected in the plan. The main clear already happened after the spec, so this is conditional: if plan critique and review accumulated heavy context, suggest the user `/clear` and re-invoke to resume at implementation; if planning stayed lean, just proceed.
 
 ## Phase 3 — Implementation
+
+The build kickoff is a handoff, not a gate (see **Steering away from cognitive surrender**): 2b was the engagement point, so pose no pre-question and announce no check here. If you frame the handoff at all, keep it to a passing line: the build now runs autonomously and the user stays **on** the loop — free to watch it work and step in — rather than walking away from it, which is the vibe-coding failure mode speccy exists to avoid. ("In the loop" is for the spec and plan gates, where the user decides each acceptance; the build is supervision, not decision-by-decision.) Then start the build.
 
 Invoke the `plan-execution` skill directly via the Skill tool from the main conversation, passing the plan path as `args.planPath` (not the full plan text — the workflow reads the file itself, which keeps the orchestration call small and the plan editable mid-run) and the builder model as `args.model` (from state.json's `builderModel`, default sonnet). The breakdown agent inside plan-execution always uses Opus regardless; only execute/integrate/verify pick up the override.
 
