@@ -92,6 +92,10 @@ Check that CLAUDE.md documents the project's verification tools (build, lint, st
 
 Documented is not the same as working. **Smoke-test the tooling now, on the clean tree, before investing in spec and plan** — a broken or pathological verification setup discovered at implementation has already cost a spec, several critique rounds, and a plan. Run each documented command once and confirm it completes, passes (or note its baseline failures), and returns in a reasonable time. Surface anything that hangs, errors, or floods output before proceeding.
 
+### Project capabilities
+
+Discover the project's own capabilities now and hold the manifest — skills, specialized subagents, governing docs, and any explicit routing hints (see **Lead with the project's own capabilities** for what to probe and how each phase uses it). This is discovery only: it never blocks, and a project that exposes none of it just runs the generic pipeline. Doing it here, before the spec, means every downstream phase reads one manifest instead of re-probing. The run directory doesn't exist yet, so keep the manifest in context now; you persist it to `.speccy/<run-id>/capabilities.md` when the run is created in Phase 1c.
+
 ### Worktree init
 
 Worktrees come into play only for **parallel** tasks. Plan-execution runs sequential tasks directly on the main checkout; only parallel tasks get git worktrees, which lack gitignored state. You won't know whether the plan produces parallel tasks until breakdown, so treat this as preparation that may not be exercised this run. Check whether CLAUDE.md has a `## Worktree init` section with gather/apply blocks. If it does, nothing to do — plan-execution will use it if parallel tasks arise.
@@ -131,6 +135,31 @@ So for every spawned agent: you know what it was spawned to do and the exact fil
 The main session may be governed by a behavioural or output style a fresh agent context does **not** inherit — a house-voice hook (e.g. one injected at session start), a configured output style, or communication conventions that live beyond the project's `CLAUDE.md`. A subagent starts clean and never sees the main session's system prompt, so unless you carry that style across, every critic, revise agent, planner, review lens, and fixer speaks in a default voice that clashes with how this session talks — and the artifacts they write (critiques, plan, review notes) read in a different register from the rest of the run.
 
 So **before spawning any subagent, restate the active style concisely at the top of its prompt** — enough that both its reasoning and its written output match the session's voice. Two things are out of reach and don't need carrying: conventions already in `CLAUDE.md` (subagents read it anyway), and the built-in `code-review` skill run inline (it manages its own prompt — the orchestrator just applies the session's voice when it normalises those findings into the lens file). This rule applies to every spawn site in the phases below; it is stated once here rather than repeated at each. Speccy's own narration back to the user follows the same style as a matter of course.
+
+## Lead with the project's own capabilities
+
+A project often ships capabilities that beat speccy's generic defaults for *this* codebase: **skills** (house conventions, domain rules, verification harnesses), **specialized subagents** (read-only research / "hunter" agents that answer where-does-this-live / how-does-X-work / does-Y-already-exist, plus the project's own review agents), **governing docs** (CLAUDE.md and what it points to), and sometimes an explicit **review gate**. A generic pipeline that ignores these re-derives — worse — what the repo already maintains, and only catches the divergence at review, a whole fix-round late. So **discover them once, up front, and prefer them at every phase.**
+
+Nothing here is required. Each signal is optional and its absence degrades cleanly to the generic path — a project that exposes none of this just runs the pipeline as written. Do not depend on any one artifact existing (there is no mandatory config file); probe whatever the project actually exposes.
+
+**Discover once (a precondition).** Probe, in layers, only what the project has:
+
+- **Skills** — the skills available in this session. Each self-describes its trigger in its own description ("use when …").
+- **Specialized subagents** — read `.claude/agents/*.md` and any subagent types this session offers. From each one's description and tools, tag it *research* (read-only — answers where / how / exists), *reviewer* (a project review agent), or *other*, and note read-only vs mutating.
+- **Governing docs** — CLAUDE.md / AGENTS.md and the docs they point to.
+- **Explicit routing hints, opportunistic** — if the project happens to expose a skill→area map (a `.claude/review.config.json`, a skills table in CLAUDE.md, zone globs in a skill's own frontmatter), keep it as an accelerator. Its absence changes nothing.
+
+Record the result in `.speccy/<run-id>/capabilities.md` so it survives a `/clear` and every phase reads one manifest. Found nothing? Record that and run the generic pipeline unchanged.
+
+**Route by relevance — the base mechanism needs no map.** Because skills self-describe their triggers, the default router is judgment: match the task in front of a subagent to the skills whose trigger text fits, and name them. An explicit skill→area map, where one exists, only accelerates this — it is never a precondition for it.
+
+**Inject per phase.** Before spawning a subagent, prepend a short "Project capabilities — prefer these over generic approaches" block scoped to that phase's slice (format in `prompts/project-capabilities.md`):
+
+- **Spec & plan research** — the *research* subagents and governing docs. Have the planner delegate discovery to a project hunter (architecture / frontend / docs) before any generic codebase sweep, and cite what it returns.
+- **Build** — the skills whose triggers match each task's files, attached to that task as "consult these first"; plus, for any placement / existence question, an answer pre-resolved by a project research agent and baked in (a build agent runs inside the workflow and cannot spawn its own subagents).
+- **Review** — the project review gate is already a lens (Phase 4); also pass the skill catalog to the local-doc and codebase-fit lenses so they judge against house rules, not generic taste.
+
+**Project capabilities are project truth.** A hunter's finding or a house skill's rule reflects how this repo actually works — treat it as authoritative context, the same standing the project review gate already has, not a claim to adversarially re-verify.
 
 ## Steering away from cognitive surrender
 
@@ -182,6 +211,8 @@ Ask only about gaps the intake leaves genuinely open and that materially change 
 
 Identify external context that would improve the spec or plan — documentation, other projects with relevant patterns, standards, API references. Ask the user about anything you can't access directly. This is worth doing early: missing context discovered mid-build is expensive. Record the references that matter in the spec itself (under Open questions, or a short references note) so they survive the context clear before planning — anything left only in conversation is lost when the user `/clear`s.
 
+**Gather in-repo context through the project's own research agents first.** If the capability manifest found read-only research / hunter agents (architecture / frontend / docs), dispatch the relevant one to answer where a thing lives, how an existing flow works, or whether something already exists — it knows the repo better than a cold grep. Fall back to a generic Explore only when none fits. Feed what it returns into the spec's references so it survives the clear.
+
 **Never ask what code or the environment can answer.** If a quick look at the repo, config, or tooling would settle it, look — don't ask. Questions needing deeper codebase research: mark open and defer to planning.
 
 **Asking nothing is fine.** If the intake settles what you need, write the draft and skip the interview. (Clarifying questions only; the habits under **Steering away from cognitive surrender** still apply.)
@@ -204,7 +235,7 @@ Save to `specs/<slug>.md`. Commit the spec.
 
 **Always ship a short human-reading digest alongside the full spec.** The full spec is the implementation reference and it hardens (and grows dense) through the critique rounds — it is NOT what a busy human reads to understand the work. So maintain a **one-page digest** next to it (`specs/<slug>-digest.md`): the goal in 2–3 lines, the load-bearing decisions as a scannable list (each with a one-line *why*), what gets built and in what order, and the open spikes/risks. Every item **references the full spec's section** (e.g. "(§ Auth)") so the reader drills in only where needed — the full spec stays canonical, the digest never restates it in full or diverges. Regenerate the digest whenever the spec materially changes (after the critique loop converges, at minimum). At the user-review gate, point the user at the **digest first**, the full spec for depth. (Bilingual note — the rule, inline: the canonical digest, like every doc, is **English and git-tracked** in the repo's normal docs location — never a non-English copy in a tracked path. If the user reads or edits in their own language, ALSO write a translated copy, kept ONLY in a **gitignored `.users-files/`** zone; never put a translation in a tracked path, and never put the canonical doc inside `.users-files/`. Keep the two in sync — **on conflict the English git-tracked copy wins** — and leave the section references in the canonical English so they don't drift.)
 
-Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, specPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
+Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, specPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing. Now persist the capability manifest discovered in preconditions to `.speccy/<run-id>/capabilities.md`, so every downstream phase — and a resumed context — reads it from disk rather than conversation memory.
 
 Tell the user about the directory — critique rounds, the plan, review notes, and run state will be saved there so they can open them in their editor rather than scrolling terminal output. Mention the path once here; don't repeat it at every save.
 
@@ -233,6 +264,8 @@ Before diving in, briefly orient the user on why planning is a separate step: th
 Planning research happens in a subagent to keep the codebase-reading noise out of the main context. Read `prompts/plan-research.md`.
 
 Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec path, the target plan path (`.speccy/<run-id>/plan.md`), and the path to `prompts/plan-spike.md` so the planner can prove any load-bearing mechanism (preferably by spawning a spike subagent, or inline). If the spec recorded external context (docs, standards, related projects), pass those references too — read them from the spec rather than relying on conversation memory, since planning may run in a freshly cleared context.
+
+Pass the capability manifest (`.speccy/<run-id>/capabilities.md`) as well, with the phase preamble (`prompts/project-capabilities.md`): instruct the planner to delegate codebase discovery to the project's research / hunter agents before any generic sweep, to consult the skills whose triggers match the area it's planning, and to cite what each returns — so the plan is grounded in how the repo actually works, not a generic reading of it.
 
 When it completes, brief the user on the approach, key decisions, and risks from `.speccy/<run-id>/plan.md` — point them there for the full text rather than dumping it inline. Update state.json with `planPath` and `phase: "plan-critique"`.
 
@@ -276,6 +309,8 @@ Do _not_ wrap this in an Agent subagent — Agent subagents lack `Workflow`, so 
 
 **Push for parallelism where the plan allows.** Plan-execution's breakdown defaults to sequential steps; a purely serial run is the single biggest wall-clock cost. When invoking plan-execution, augment the breakdown instruction to **parallelize genuinely independent work** — group tasks that touch disjoint files with no data dependency into parallel steps (each maps to a spec/plan acceptance criterion). Authoring independent units concurrently (e.g. a test class per production class, or separate feature files) is the clearest win. **Caveat, state it to the breakdown:** if the project verifies against a single shared environment (one scratch org, one database), the *deploy/test* step of parallel tasks contends on that resource and effectively serialises — so parallelism cuts authoring time, not the shared-environment round-trip. Only parallelise the authoring, and let integration/verification funnel through the shared resource.
 
+**Route the project's capabilities into each task.** Also instruct breakdown to attach to every task the skills whose triggers match that task's files — an explicit "consult these before writing" list the build agent activates itself (it can invoke a Skill; it cannot dispatch an Agent). Placement and existence questions are different — "where does this belong", "does a primitive for this already exist" — and a build agent inside the workflow can't spawn a research agent to settle them, so resolve those up front with the project's hunter agents and bake the answer into the task description. Pass the capability manifest path (`.speccy/<run-id>/capabilities.md`) so breakdown has the roster; if the manifest is empty, this augmentation is a no-op and breakdown proceeds as usual.
+
 When the workflow reports complete, do not advance on its "gates pass" / "0 violations" summary — a build agent can satisfy a gate by fabricating or inverting a rule and still report green. Re-run the project's load-bearing gates yourself (the build, lint / static-analysis, and test commands from CLAUDE.md) and confirm the actual tool output. **Use the project's documented harness the way CLAUDE.md specifies it** — if CLAUDE.md names an MCP tool for a gate (e.g. a deploy/test MCP), invoke that MCP tool rather than shelling out to the raw CLI; a raw-CLI wrapper is a fallback, not the default. If a gate fails, the run isn't done: carry the real tool output into a fix round (the Phase 4 implementation-fix agent handles exactly this), re-run the gates after it, and repeat until you have seen them pass. Only then set `phase: "review"` in state.json and continue.
 
 **Economise the round-trips** (the dominant wall-clock cost when the gate hits a remote environment — a scratch org, a CI runner, a container). The trust rule (see it pass yourself) is non-negotiable; what's negotiable is not paying for the full remote round-trip on every intermediate step.
@@ -305,7 +340,7 @@ Pass each bespoke lens `prompts/review-output-contract.md` alongside its own pro
 - **Spec fidelity** — `prompts/review-spec-fidelity.md`, with the spec path. Does the code satisfy the spec's completion criteria and intent?
 - **Tests** — `prompts/review-tests.md`, with the spec and plan paths. Test-strategy adherence, test quality, and consolidation of new tests against the existing suite.
 - **Codebase fit** — `prompts/review-codebase-fit.md`. Does this change worsen an already-imperfect area or repeat an existing smell? Judged against the touched files' current state, not the diff alone.
-- **Local-doc adherence** — `prompts/review-local-docs.md`. Violations of the repo's governing docs, including CLAUDE.md — which it deliberately re-checks even though code-review covers it too.
+- **Local-doc adherence** — `prompts/review-local-docs.md`. Violations of the repo's governing docs, including CLAUDE.md — which it deliberately re-checks even though code-review covers it too. Pass it the capability manifest so it judges against the project's actual skills and governing docs, not a generic reading; where a house skill states a rule, a violation of that rule is a finding.
 - **Suppressions** — `prompts/review-suppressions.md`. Extremely harsh on any linter/analysis/type/test-gate suppression the change adds or leans on. Each must be watertight or it is a finding.
 - **Comments** — `prompts/review-comments.md`. Comments the change adds or edits that restate the code, narrate edit history, or pad a real point. Proposes deletions only; the fixer mends any seam.
 
