@@ -24,6 +24,8 @@ For each task, write self-contained instructions — a fresh agent with no knowl
 
 **Conform to the target file's convention; don't prescribe one.** When a task names a concrete convention (a metadata element, a field or key name, a file layout), tell it to match what sibling files actually use, not a value asserted here. A prescribed value that differs from the real convention is wrong at worst, dead at best.
 
+**Attach the project's own capabilities to each task.** If a project-capability manifest is provided (or the project's skills and agents are otherwise visible to you), give each task the skills whose triggers match its files as an explicit "consult these before writing" list — the executing agent can invoke a Skill, so naming them makes it apply the house convention instead of re-deriving it. For a task that turns on where-something-belongs or whether-something-already-exists, resolve it *now* against the project's read-only research / hunter agents and bake the answer into the task description: the executing agent runs in an isolated worktree and cannot dispatch an agent of its own. Absent any such capabilities, author the task as usual.
+
 Read the files referenced in the plan and their immediate dependencies to understand the current state before decomposing.
 
 Write each task description to `.tasks/{run-id}/{task-id}.md`, using the run ID provided below. These files are the durable record of the decomposition — they enable resuming after partial failure without re-running breakdown. Ensure `.tasks/` is in `.gitignore`.
@@ -35,6 +37,8 @@ When a task's instructions reference its own task file (or another task file), g
 ## execute
 
 Execute this task in your worktree. Do NOT merge or modify other branches.
+
+**Use the project's own conventions first.** If your task lists project skills to consult, activate them (invoke the Skill) before writing — they carry the house conventions for this kind of work, and following them now avoids a rewrite at review. Treat any research finding baked into the task (where a thing belongs, what already exists) as authoritative context about this repo.
 
 The plan and spec are authoritative — treat them as read-only. Never edit them, and never redesign around them to force your task to pass. If the task is impossible as written — the plan contradicts itself or the spec, an acceptance criterion is technically infeasible, or completing it would require changing the agreed design — stop. Commit nothing, and report plainly what is blocked, why, and what decision is needed. Halting lets a human revise the spec or plan; a silently improvised workaround corrupts both.
 
