@@ -140,6 +140,12 @@ The first covers a task that edits a shared type, interface, or fixture: its dow
 
 The second covers a task that hard-codes a convention value from the plan rather than checking the real sibling files. Such a value is wrong when it differs from what the code uses, and dead when it matches nothing. The rule has the task discover the convention against the real files at build time instead of freezing a template value.
 
+### Breakdown attaches project capabilities; execute consults them first (2026-08-04)
+
+Execute agents run in fresh, isolated contexts and were re-deriving house conventions a project already ships as skills — and getting caught only at review. Worse, a task hinging on where-something-belongs or whether-something-already-exists had no way to ask: an executing agent inside the workflow can invoke a Skill but cannot dispatch an Agent, so a project's read-only research/hunter agents were unreachable exactly when they were needed.
+
+Two prompt rules close this, split by who can act. Breakdown (which runs where agents CAN be dispatched) attaches to each task the skills whose triggers match its files as an explicit "consult these before writing" list, and resolves placement/existence questions against the project's hunter agents up front, baking the answer into the task description. Execute activates the listed skills before writing and treats the baked-in research findings as authoritative context about the repo. Absent any such capabilities, both prompts fall through to authoring and executing as before — the mechanism is additive, never required.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
