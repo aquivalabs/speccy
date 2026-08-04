@@ -456,6 +456,14 @@ The fix is discover-once-then-inject. A new precondition probes what the project
 
 Two boundaries were chosen deliberately. Nothing is required: every signal is optional and its absence degrades cleanly to the generic pipeline — there is no mandatory config artifact, because projects differ in what they ship. And the base router needs no map: skills self-describe their triggers ("use when …"), so matching a task to a skill is judgment over trigger text; an explicit skill→area map, where one exists, only accelerates. Capabilities are treated as project truth — the same standing the project review gate already has — not claims to adversarially re-verify.
 
+### The prose is rewritten to a readability standard (2026-08-04)
+
+The skill's text is dense by necessity — nearly every paragraph carries a rule an orchestrator must execute — but the *sentences* had grown expensive: 40-word constructions with nested parenthetical asides, points buried mid-paragraph, condition sets folded into prose. That shape taxes both executors, the model following the instructions and the human auditing them.
+
+So the prose is held to a standard: the point leads each section, one idea per sentence, sentences past roughly 25 words split, parenthetical asides unfolded into their own sentences, enumerable conditions turned into bullets. This is a language-only change. An independent fresh-context audit compared old against new file by file and confirmed every behavioral rule, threshold, ordering, path, model assignment, gate, and exception survives — nothing lost, weakened, or invented. Code blocks, JSON schemas, and frontmatter are untouched, so trigger behavior is unchanged.
+
+The rationale stays inline. Much of this skill's density is compressed why — the boundary conditions live inside the reasons — so the rewrite shortens wording, not justification. Word count drops only a few percent; the gain is per-sentence cost, not length.
+
 ### Packaged as a Claude Code plugin (2026-08-05)
 
 Speccy shipped as two skills under a project's `.claude/skills/`, which meant every user hand-copied both directories and kept them in sync. It was always meant to travel as a unit — an earlier banner-path fix already reasoned about the plugin cache layout — so the repo now *is* the plugin: skills moved to a root `skills/`, a `.claude-plugin/plugin.json` manifest bundles them, and a `.claude-plugin/marketplace.json` makes the repo self-installable (`/plugin marketplace add aquivalabs/speccy`). Both skills install together, which matters because speccy hard-depends on plan-execution.

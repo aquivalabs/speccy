@@ -1,18 +1,18 @@
 # Project capabilities — manifest & injection block
 
-Speccy discovers a project's own capabilities once (see the SKILL's **Lead with the project's own capabilities**) and prefers them over generic defaults at every phase. This file holds the two reusable pieces: the manifest shape, and the preamble to prepend to a spawned subagent's prompt.
+Speccy discovers a project's own capabilities once — see the SKILL's **Lead with the project's own capabilities** — and prefers them over generic defaults at every phase. This file holds the two reusable pieces: the manifest shape, and the preamble to prepend to a spawned subagent's prompt.
 
-Everything here is optional. Probe only what the project actually exposes; omit whatever came up empty. If all of it is empty, the manifest says so and the pipeline runs generically — never invent a capability to fill a slot.
+Everything here is optional. Probe only what the project actually exposes; omit whatever came up empty. If all of it is empty, the manifest says so and the pipeline runs generically. Never invent a capability to fill a slot.
 
 ## Manifest shape (`.speccy/<run-id>/capabilities.md`)
 
 A short, human-readable inventory. One line per entry.
 
 - **Skills** — `id` + its trigger ("use when …"), copied from the skill's own description. This is the routing key: a skill self-describes when it applies.
-- **Research agents** — read-only "hunter" agents: `name · what it answers · how to dispatch`. These gather in-repo context — where things live, how an existing flow works, whether something already exists.
+- **Research agents** — read-only "hunter" agents: `name · what it answers · how to dispatch`. These gather in-repo context: where things live, how an existing flow works, whether something already exists.
 - **Reviewer agents / review gate** — the project's own review agents or `/review`-style gate, if any. Used as a Phase 4 lens, not re-derived.
 - **Governing docs** — CLAUDE.md / AGENTS.md and the key docs they point to.
-- **Routing hints** — any explicit skill→area map found (a review-config's zones, a CLAUDE.md skills table, zone globs in a skill's frontmatter). A convenience accelerator over trigger-text matching, never a requirement.
+- **Routing hints** — any explicit skill→area map found: a review-config's zones, a CLAUDE.md skills table, zone globs in a skill's frontmatter. An accelerator over trigger-text matching, never a requirement.
 
 ## Injection preamble (prepend to a subagent prompt, scoped to the phase)
 
@@ -26,5 +26,5 @@ A short, human-readable inventory. One line per entry.
 Include only the slice that fits the phase, and drop any line the manifest has nothing for:
 
 - **Spec / plan research** — research agents + governing docs. The planner delegates discovery to a hunter before a generic sweep.
-- **Build task** — the skills whose triggers match the task's files, plus any placement/existence answer already resolved by a hunter and baked in (a build agent inside the workflow can't dispatch one itself).
-- **Review lens** — the skill catalog, so local-doc / codebase-fit judge against house rules rather than generic taste.
+- **Build task** — the skills whose triggers match the task's files, plus any placement or existence answer already resolved by a hunter and baked in. A build agent inside the workflow can't dispatch one itself.
+- **Review lens** — the skill catalog, so local-doc and codebase-fit judge against house rules rather than generic taste.
