@@ -40,7 +40,7 @@ Read the files referenced in the plan and their immediate dependencies to unders
 
 Write each task description to `.tasks/{run-id}/{task-id}.md`, using the run ID provided below. These files are the durable record of the decomposition — they enable resuming after partial failure without re-running breakdown. Ensure `.tasks/` is in `.gitignore`.
 
-When a task's instructions reference its own task file, or another task file, give the **absolute** path: prepend the repository root (`git rev-parse --show-toplevel`) to `.tasks/{run-id}/{task-id}.md`. `.tasks/` is gitignored, so a parallel task's worktree does not contain it. An absolute path lets a worktree agent read its instructions from the main checkout directly, with no discovery step.
+When a task's instructions reference its own task file, or another task file, give the **absolute** path: prepend the repository root (`git rev-parse --show-toplevel`) to `.tasks/{run-id}/{task-id}.md`. `.tasks/` is gitignored, so a parallel task's worktree does not contain it. An absolute path lets a worktree agent read its instructions from the main checkout directly, with no discovery step. That is the ONLY place a task file states a main-checkout absolute path: never present the main checkout's root as the task's working root — the executor's workspace is its own worktree, and the two trees share a layout, so a wrong-root edit looks successful until commit.
 
 ---
 
@@ -55,6 +55,8 @@ When a task's instructions reference its own task file, or another task file, gi
 - ↩ a false premise halts the task (HARD) or reports under `## Deviations` (SOFT); an impossible task halts.
 
 Execute this task in your worktree. Do NOT merge or modify other branches.
+
+**Your worktree is your only workspace.** Use paths relative to your own cwd. An absolute repo-root path from the task file or the project docs points at the MAIN checkout — editing there corrupts other agents' work, and your commit will report "nothing to commit". The one sanctioned absolute path is reading task files under the main checkout's `.tasks/`.
 
 **Use the project's own conventions first.** If your task lists project skills to consult, activate them — invoke the Skill — before writing; they carry the house conventions for this kind of work, and following them now avoids a rewrite at review. Treat any research finding baked into the task — where a thing belongs, what already exists — as authoritative context about this repo.
 
