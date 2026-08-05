@@ -56,10 +56,12 @@ Call the Workflow tool with the chosen workflow's `scriptPath` and these `args`:
 - `plan` — full plan text. Only when the plan isn't on disk (rare). Mutually exclusive with `planPath`; one must be set.
 - `baseBranch` — current branch
 - `runId` — from above
-- `prompts` — the parsed prompts object
+- `prompts` — the parsed prompts object. When the caller supplied a deviations path, append it to `prompts.retrospective` here.
 - `model` (optional) — when set, execute/integrate/verify agents use it, and breakdown sizes tasks accordingly. Breakdown always uses opus. When omitted, non-breakdown agents inherit the session model.
-- `retrospective` (optional, default true) — when false, skips friction-log synthesis
+- `retrospective` (optional, default true) — when false, skips friction-log synthesis. When a deviations path is supplied, keep the retrospective enabled — the deviations pass-through depends on it. With no deviations path, the flag behaves as before.
 - `worktreeInit` (optional) — array of resolved shell commands run at the start of every worktree agent (parallel and corrective tasks only). Assembled from the gather/apply blocks in CLAUDE.md's `## Worktree init` section (see Prerequisites). Pass fully-substituted commands — no unresolved `${VAR}` references. Sequential tasks run on the main checkout and don't need this.
+
+Assembly boundary: append the deviations path to `prompts.retrospective` here, not in the caller. This is the one place the orchestrator builds the prompts, and an instruction anchored a skill away gets dropped at the skill boundary. No supplied path means nothing is appended — the retrospective agent then writes no `deviations.md` and produces only a friction synthesis.
 
 ## While the workflow runs: watchdog
 
@@ -115,3 +117,5 @@ To resume a failed run:
 2. Check `git log` on the base branch to identify which tasks were already integrated
 3. Build a reduced plan containing only the remaining tasks
 4. Run the workflow with that plan
+
+This reduced-plan re-run is also the **amend-and-resume** path after a plan-premise deviation: revise the plan, then re-run with the remaining tasks. Re-running the workflow re-runs breakdown, so the remaining work may re-decompose into different tasks. That is acceptable.

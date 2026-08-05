@@ -6,16 +6,26 @@ Prompt templates for each subagent role. The SKILL.md instructs Claude to read t
 
 ## breakdown
 
+**Gate.**
+- Entry: an approved plan in hand, with its Order of operations and checkpoint milestones.
+- Exit — all must hold:
+  - [ ] an ordered list of steps
+  - [ ] every task self-contained
+  - [ ] each marked scoped or checkpoint
+- ↩ a plan that contradicts itself, or a task infeasible from the plan alone, halts breakdown — report the conflict, decompose nothing.
+
 Decompose this implementation plan into an ordered list of steps for execution by subagents in separate git worktrees.
 
 Each step contains one or more tasks. Tasks within a step run in parallel, in isolated worktrees; steps run in order. Return steps in execution order.
 
 **Favour parallelism — optimise for wall-clock.** Put tasks in the same parallel step whenever they have no real dependency on each other; the same work as three parallel batches finishes far sooner than as one sequential chain. Reserve a sequential step for a genuine dependency: a task needs a prior task's committed output, or two tasks would write the same files and conflict.
 
-**Decide the verification cadence.** The full gate suite — build, lint, static analysis, full test run — is the dominant cost of a large run; run inside every task, it pays the whole suite once per task. Distribute it deliberately:
+**Translate the plan's checkpoint milestones into verification-checkpoint tasks.** The plan's Order of operations names natural verification milestones — layer boundaries, integration seams. Read them and translate them; do not invent a cadence of your own. This supersedes any self-authored cadence. The plan says *where*; you say *how*. If the plan names no Checkpoint milestones, fall back to deciding the intermediate cadence yourself, as before. Either way, always author the final checkpoint — it is mandatory.
+
+The full gate suite — build, lint, static analysis, full test run — is the dominant cost of a large run. Distribute it by the plan's milestones:
 
 - Mark ordinary feature tasks **scoped**: they run only fast checks — a typecheck/compile plus the tests covering what they touched — before committing. Enough not to hand broken code downstream.
-- Author explicit **verification-checkpoint** tasks — a sequential step whose task runs the full gate suite against the integrated base and fixes any breakage — at natural milestones: after a parallel batch lands, at a layer boundary (server complete before client begins), and always once at the end. Checkpoint more often on a large multi-batch plan, so a regression stays attributable to its batch; a small plan may need only the final one.
+- At each milestone the plan names, author an explicit **verification-checkpoint** task: a sequential step whose task runs the full gate suite against the integrated base and fixes any breakage. Always author one final checkpoint at the end, even when the plan omits it.
 - State in each task which level it runs, scoped or checkpoint. A task with no marking runs the full suite by default, so an un-marked or single-task plan is never under-verified.
 
 For each task, write self-contained instructions — a fresh agent with no knowledge of the plan must be able to complete the task from the description alone. Include relevant context about the codebase, conventions, and surrounding code.
@@ -36,11 +46,24 @@ When a task's instructions reference its own task file, or another task file, gi
 
 ## execute
 
+**Gate.**
+- Entry: a self-contained task with its files, premises, and verification level.
+- Exit — all must hold:
+  - [ ] work committed on the task branch
+  - [ ] the scoped or checkpoint gate run
+  - [ ] a prose report returned
+- ↩ a false premise halts the task (HARD) or reports under `## Deviations` (SOFT); an impossible task halts.
+
 Execute this task in your worktree. Do NOT merge or modify other branches.
 
 **Use the project's own conventions first.** If your task lists project skills to consult, activate them — invoke the Skill — before writing; they carry the house conventions for this kind of work, and following them now avoids a rewrite at review. Treat any research finding baked into the task — where a thing belongs, what already exists — as authoritative context about this repo.
 
-The plan and spec are authoritative — treat them as read-only. Never edit them, and never redesign around them to force your task to pass. If the task is impossible as written — the plan contradicts itself or the spec, an acceptance criterion is technically infeasible, or completing it would require changing the agreed design — stop. Commit nothing, and report plainly what is blocked, why, and what decision is needed. Halting lets a human revise the spec or plan; a silently improvised workaround corrupts both.
+The plan and spec are authoritative — treat them as read-only. Never edit them, and never redesign around them to force your task to pass. If the task is impossible as written — the plan contradicts itself or the spec, an acceptance criterion is technically infeasible, or completing it would require changing the agreed design — stop. Commit nothing, and report plainly what is blocked, why, and what decision is needed. Halting lets a human revise the spec or plan; a silently improvised workaround corrupts both. You never write a shared file, and you never edit the plan or spec.
+
+**Run a preflight premise check before writing code.** The task asserts premises about the current state — which files exist, their shapes, the integration points. Verify them first. Two outcomes, by severity:
+
+- **HARD mismatch** — a premise so false the task cannot be done. This fires the halt-on-impossibility rule above: halt, commit nothing, report what is blocked and what decision is needed.
+- **SOFT discrepancy** — a premise false, but you adapted and finished. Report it in your prose report under a fixed `## Deviations` heading. One entry each, shaped `plan expected X / found Y / done thus`. Omit the heading when there are no deviations.
 
 Before committing, run the verification level your task specifies. If the task marks itself **scoped**, run only fast checks: a typecheck/compile plus the tests covering what you touched. If it marks itself a **verification checkpoint**, or gives no marking, run the project's full gate suite — build, lint, static analysis, tests — as documented in CLAUDE.md and fix any breakage. A checkpoint's footprint is the whole integrated base, so it may repair regressions wherever they surface, not only in files it introduced. Either way, never hand broken code downstream. If CLAUDE.md documents no verification tools, note this under `suggestions` in your friction log.
 
@@ -60,6 +83,14 @@ You do not need to return a structured result — a concise prose report is enou
 
 ## integrate
 
+**Gate.**
+- Entry: a completed task branch and the base branch.
+- Exit — all must hold:
+  - [ ] the branch squash-merged
+  - [ ] the project builds
+  - [ ] the merge committed
+- ↩ a build that fails after merge resets to base (`git reset --hard HEAD`) and reports failure.
+
 Integrate a completed task branch onto the base branch via squash merge.
 
 Steps:
@@ -77,6 +108,12 @@ If the build fails after merge, run `git reset --hard HEAD` to restore the base 
 ---
 
 ## verify
+
+**Gate.**
+- Entry: the integrated base and the original plan.
+- Exit — all must hold:
+  - [ ] every plan deliverable has concrete evidence, or is classified as a gap
+- ↩ a fillable gap spawns a corrective task; a blocked requirement ends the loop and reports incomplete.
 
 Verify implementation completeness against the original plan.
 
@@ -100,9 +137,32 @@ This is a gap check, not a quality review.
 
 ## retrospective
 
-Synthesize friction logs from a multi-task execution run into a retrospective.
+**Gate.**
+- Entry: every task's report collected; the deviations path injected by the caller, or absent.
+- Exit — all must hold:
+  - [ ] the friction synthesis returned
+  - [ ] every `## Deviations` entry transcribed to the injected path — or no write when no path was injected
+- ↩ none — synthesis only; a malformed report is noted in the synthesis, never repaired.
+
+Synthesize **build-phase friction** from the executor reports of a multi-task run. This is your existing job, now scoped to the build phase — the executors' friction logs, nothing wider.
 
 Focus on cross-cutting patterns: repeated struggles, systemic plan gaps, friction a skill or CLAUDE.md update could eliminate. Note positives too. Mention individual one-off difficulties briefly.
+
+**Serialize the reported SOFT deviations into `deviations.md`.** Each task report may carry a `## Deviations` heading. Extract its entries by that fixed anchor — transcribe them, do not hunt semantically for deviations elsewhere.
+
+Gate the write on the injected path. The orchestrator appends an absolute `deviations.md` path to this prompt at assembly time.
+
+- With a supplied path, write `deviations.md` there in the Record-file format below.
+- With no supplied path, write no file; produce only the friction synthesis.
+
+Use only the injected path; never derive one from a shared pointer file. When written, this file is read by the orchestrator at workflow completion.
+
+Record-file format for `deviations.md` — the compact restatement; speccy's SKILL.md **Record-file format** section is canonical:
+
+- Fixed filename under `.speccy/<run-id>/` — `deviations.md`. No per-round suffix.
+- Append-only. A new round appends its entries; nothing overwrites a prior round's.
+- One entry per deviation: a single-line header plus a few detail lines. The header carries a stable id, the source (round N / task id), and — once decided — the disposition. An undecided item leaves the disposition slot empty.
+- Absent or empty is valid. It reads as "no deviations", never a crash.
 
 Collect any finding that points at a project-level doc gap — a CLAUDE.md convention worth adding, an ADR worth capturing, a stale reference — under a final `## Repo-doc suggestions (CLAUDE.md / ADR)` heading, so the orchestrator can surface them at wrap-up.
 

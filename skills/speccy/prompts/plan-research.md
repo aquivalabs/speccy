@@ -18,11 +18,20 @@ Produce a plan with two parts:
 2. The appendix of file detail, for the build agents. No decisions here.
 
 - **Implementation approach** — describe the change as shifts in responsibility and shape: what role each part plays, which seams it crosses, what abstraction is missing or misused. Name the classes and types you touch, so the plan stays anchored to real code. But describe the *change* in these terms, not as a list of edits.
-- **Architecture decisions** — with reasoning for each. For each structure the change extends, name the role it plays, then whether the change fits or strains it. An edit can be locally reasonable and still strain its host. That strain is a decision, not a detail: the Nth method on a per-resource family that should expose one composable vocabulary, or a feature-specific field on a type many callers share. Surface the choice and its cost for plan review — extend as-is, reshape the host, or route around it. Don't silently pick the largest.
+- **Architecture decisions** — with reasoning for each. For each structure the change extends, name the role it plays, then whether the change fits or strains it. An edit can be locally reasonable and still strain its host. That strain is a decision, not a detail: the Nth method on a per-resource family that should expose one composable vocabulary, or a feature-specific field on a type many callers share. Surface the choice and its cost for plan review — extend as-is, reshape the host, or route around it. Don't silently pick the largest. Separate extending a pattern from introducing one. For each abstraction, say either "extends existing pattern X", or "introduces new Y — because the existing pattern cannot Z". Every new abstraction carries its own justification.
+- **Data & contract changes** — schemas, API shapes, stored formats, and migration of existing data. Write "No data or contract changes" when there are none.
+- **Rollback**, conditional — mandatory when the change is hard to revert. Triggers:
+  - data migrations
+  - contract changes
+  - external side effects
+
+  Otherwise one line: "revert the PR". The plan critic later checks this classification is not understated.
+- **Docs impact** — which existing docs the change makes stale. Their update becomes plan work.
 - **Test strategy** — what to test, how (unit, integration, manual verification), and what coverage looks like. Each completion criterion in the spec should map to a test or verification step.
 - **Risks and dependencies** — anything discovered during research.
 - **Assumptions check** — each spec assumption with its verdict (`confirmed` / `contradicted` / `still-open`) and the evidence behind it.
 - **Order of operations** — what to build first and why.
+- **Checkpoint milestones** — name the natural verification milestones along the Order of operations: layer boundaries, integration seams. Breakdown translates each into a verification-checkpoint task.
 - **Build reference** (appendix) — the concrete touchpoints the build agents need: the files and classes the change lives in, integration points, and the test surface, each with a one-line note of its role. A map to build from, not a script to copy: no method bodies, no prescriptive diffs — the build agents read the codebase themselves. **No decisions live here.** Anything the reviewer must weigh belongs in the body above. If an appendix entry turns out to be a judgment call, promote it. Needing to is the tell: a real smell won't stay down in the mechanics.
 
 Use bullet lists and unnumbered headings by default. Number a list only when order is the point — steps that must run in sequence, or items referenced by position.

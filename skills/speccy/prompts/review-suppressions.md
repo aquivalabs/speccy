@@ -15,4 +15,4 @@ Every one is a finding **unless it is watertight**, which means all of:
 
 Anything short of that is a finding: a bare directive, a vague "false positive", a rule disabled wider than the offending line, a justification you cannot independently verify. Treat a raised threshold or a widened baseline as guilty until the diff proves the underlying problem was fixed rather than hidden.
 
-Follow the shared review output contract for the finding shape and the write guarantee. For each finding, name what the suppression silences and either the non-suppressing fix or precisely what a watertight justification would have to establish. If the change adds no suppressions, say so.
+Follow the shared review output contract for the finding shape and the write guarantee. Your findings are always level `code`. For each finding, name what the suppression silences and either the non-suppressing fix or precisely what a watertight justification would have to establish. If the change adds no suppressions, say so.

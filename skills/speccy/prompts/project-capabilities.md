@@ -12,7 +12,16 @@ A short, human-readable inventory. One line per entry.
 - **Research agents** — read-only "hunter" agents: `name · what it answers · how to dispatch`. These gather in-repo context: where things live, how an existing flow works, whether something already exists.
 - **Reviewer agents / review gate** — the project's own review agents or `/review`-style gate, if any. Used as a Phase 4 lens, not re-derived.
 - **Governing docs** — CLAUDE.md / AGENTS.md and the key docs they point to.
+- **Past-run artifacts** — prior specs (`specs/*.md`), decision logs, retro files. Where this project already recorded a decision or a lesson. "Similar past implementations" stays OUT — that is task-shaped research for the interview and planning hunters, not manifest discovery.
+- **ADRs** — architecture decision records: `adr/`, `docs/adr/`, `decisions/`.
 - **Routing hints** — any explicit skill→area map found: a review-config's zones, a CLAUDE.md skills table, zone globs in a skill's frontmatter. An accelerator over trigger-text matching, never a requirement.
+- **Working configuration** — which skills or agents serve which phase, which checks are mandatory, and source priority where one source outranks another. A small phase→capability table plus the mandatory-check list. Mirror the **Manifest shape** section above.
+
+### Stage 0 is strictly non-blocking
+
+- It records the raw governing sources. It detects no conflicts — the task area does not exist yet at Stage 0.
+- Conflict *detection* happens later, at step 1c, run against the drafted scope.
+- A detected conflict enters the spec as an Open question. It is never silently merged, and never blocks at Stage 0.
 
 ## Injection preamble (prepend to a subagent prompt, scoped to the phase)
 
@@ -23,8 +32,10 @@ A short, human-readable inventory. One line per entry.
 > - GOVERNING DOCS: `<paths>`.
 > Match by relevance — a skill's own trigger text tells you when it applies. Treat a project skill's rule or a hunter's finding as how this repo actually works, not a claim to re-litigate.
 
+**Transmutation — collect wide, filter strict.** The manifest gathers every mandatory fact broadly. Each mandatory fact must then become a task-specific Constraint or Criterion in the spec. The orchestrator does this conversion later, at 1c. Deriving a task-specific requirement from a general rule is mandatory. Restating a general rule verbatim stays banned.
+
 Include only the slice that fits the phase, and drop any line the manifest has nothing for:
 
 - **Spec / plan research** — research agents + governing docs. The planner delegates discovery to a hunter before a generic sweep.
 - **Build task** — the skills whose triggers match the task's files, plus any placement or existence answer already resolved by a hunter and baked in. A build agent inside the workflow can't dispatch one itself.
-- **Review lens** — the skill catalog, so local-doc and codebase-fit judge against house rules rather than generic taste.
+- **Review lens** — the skill catalog, so the local-doc, codebase-fit, security, and plan-adherence lenses judge against house rules rather than generic taste.

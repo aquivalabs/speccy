@@ -6,6 +6,10 @@
 
 <!-- What this feature does and why it matters. Lead with the problem if there is one. One paragraph. -->
 
+## Current state
+
+<!-- What exists today, scoped to this change. Cover what exists, what is broken or missing, and which subsystems or flows the change touches. Stay coarse — no file lists. Every claim here is checkable against the repo; a later critic verifies each one against the code. -->
+
 ## Deliverables
 
 <!-- What exists when this spec is done. Be concrete — name the artifacts, behaviours, or capabilities the implementation produces. Avoid code examples unless this spec defines an API contract or a specific refactor target. -->
@@ -25,7 +29,7 @@
 
 ## Constraints
 
-<!-- Technical, organisational, or business constraints specific to THIS feature: performance budgets, security considerations, platform rules, compatibility requirements. Do NOT restate project-wide standards already in CLAUDE.md — logging, comments, naming, testing policy, code style — the builder reads CLAUDE.md anyway. Reference a rule by file/section only when this feature's constraints turn on it; spell one out only where this feature deliberately diverges from it. -->
+<!-- Technical, organisational, or business constraints specific to THIS feature: performance budgets, security considerations, platform rules, compatibility requirements. Name the invariants explicitly — the public contracts, stored formats, and observable behaviour that must NOT change. Name any secret this feature touches; never quote its value. Do NOT restate project-wide standards already in CLAUDE.md — logging, comments, naming, testing policy, code style — the builder reads CLAUDE.md anyway. Reference a rule by file/section only when this feature's constraints turn on it; spell one out only where this feature deliberately diverges from it. -->
 
 ## Completion criteria
 

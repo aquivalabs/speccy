@@ -16,4 +16,4 @@ The change copies an existing bad pattern, matching the local habit rather than 
 
 **Anchor every finding to the diff.** Name the pre-existing state and how *this change* worsens or perpetuates it. A mess the diff leaves untouched is out of scope — you review the change, not the repo. For each finding, name the smaller, deeper, or divergent change that would have fit better.
 
-Follow the shared review output contract for the finding shape and the write guarantee.
+Follow the shared review output contract for the finding shape and the write guarantee. Level hint: a local fix is `code`; a structural strain needing a design change is `design`.
