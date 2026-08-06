@@ -1,0 +1,14 @@
+{
+  "name": "speccy",
+  "owner": {
+    "name": "Aidan Harding",
+    "email": "aharding@aquiva.com"
+  },
+  "plugins": [
+    {
+      "name": "speccy",
+      "source": ".",
+      "description": "Guided spec-to-implementation pipeline: spec, adversarial critique, plan, build, and independent review."
+    }
+  ]
+}

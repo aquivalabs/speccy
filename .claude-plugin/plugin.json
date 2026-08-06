@@ -1,0 +1,13 @@
+{
+  "name": "speccy",
+  "description": "A guided spec-to-implementation pipeline: specification, adversarial critique, planning, build, and independent review. Bundles the speccy orchestrator and the plan-execution build skill.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Aidan Harding",
+    "email": "aharding@aquiva.com"
+  },
+  "homepage": "https://github.com/aquivalabs/speccy",
+  "repository": "https://github.com/aquivalabs/speccy",
+  "license": "MIT",
+  "keywords": ["spec", "planning", "code-review", "workflow", "adversarial-critique"]
+}

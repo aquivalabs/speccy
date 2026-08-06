@@ -2,7 +2,7 @@
 
 ![Speccy banner — a ZX Spectrum rainbow flash beside the SPECCY wordmark, with the tagline "Think before you build... Then keep thinking" and the pipeline "spec → critique → plan → build → review"](speccy_logo.png)
 
-**Speccy** is a local Claude Code skill that takes a feature from a rough idea through to reviewed code, forcing a specification before humans or agents write code.
+**Speccy** is a Claude Code plugin that takes a feature from a rough idea through to reviewed code, forcing a specification before humans or agents write code. It bundles two skills: the `speccy` orchestrator and the `plan-execution` build skill it drives.
 
 The name is a nod to the Sinclair ZX Spectrum and a pun on "spec".
 
@@ -11,6 +11,17 @@ Speccy is an engineering tool. It keeps you close to the code and the system. Yo
 The artefacts it produces — specs, decision logs, and code — are all included in PRs, so a team can review them like any other change. It focuses your attention onto the decisions that matter: you settle the architecture, take open questions back to the customer for answers, and bring your domain and system knowledge to bear. Then you step out of the loop and let the AI build. Speccy leans towards quality by construction — getting your input, running the project's verification tools, and putting independent review agents on every artefact.
 
 Speccy stops at a reviewable PR. It isn't a merge gate and doesn't run end-to-end verification — that's deliberate. Reviewing the output is *your* job, through every tool you'd use for any change: the diff, the artefacts, CI, E2E, running it yourself. Speccy makes sure your review time is well spent by constructing good output, but it hands off to you for the final decision. 
+
+## Install
+
+This repo is its own plugin marketplace. Add it, then install the plugin:
+
+```
+/plugin marketplace add aquivalabs/speccy
+/plugin install speccy@speccy
+```
+
+Both skills (`speccy` and `plan-execution`) install together. Start a run by describing what you want to build and saying "speccy".
 
 ## The six phases
 
@@ -54,3 +65,7 @@ Speccy guides you through these phases; there is no list of commands to remember
 ## Cost and scale
 
 Speccy is built for the multi-hour build that would blow out a single context window. The resumability and thin-orchestrator design keep the main context small enough to go the distance, and the per-phase model choices keep the bill down — cheap tiers carry the large implementation build, while Opus is spent on the short, high-leverage passes where it earns its keep: the spec and plan critiques, and the focused review lenses over the finished diff.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
