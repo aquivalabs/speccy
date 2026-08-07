@@ -97,13 +97,16 @@ done
 
 ## After the workflow completes
 
-Report to the user:
+The result is recovery-grade: it names each task's state directly rather than leaving the caller to infer it from prose. Report to the user:
 
-1. Summary — tasks completed, whether verification passed, any remaining gaps
-2. Retrospective — if one was produced, present the cross-cutting patterns and suggestions
-3. If incomplete — distinguish two cases:
-   - **Blocked on intent** — a task or the verify step reported a requirement that can't be met as specified: infeasible, self-contradictory, or only closable by changing the agreed design. The reason is usually in a halted task's friction log. Surface it and present it as a **decision for the user** — revise the spec or plan and re-run. Do not retry it as-is or improvise a workaround.
-   - **Mechanical gap** — work simply didn't finish. Report what landed and where to pick up (see "Resuming after failure").
+1. Summary — `tasks_total` and `complete`, plus anything the `failed`, `blocked` and `built_not_integrated` lists carry.
+2. Retrospective — if one was produced, present the cross-cutting patterns and suggestions.
+3. If `complete` is false, read the lists rather than re-deriving what happened:
+   - A **`failed`** entry carries the stage, the reason, and the agent's verbatim text. Use that to tell apart the two cases the old two-outcome result used to blur: an infeasible or self-contradictory requirement is a **decision for the user** — revise the spec or plan and re-run, don't retry it as-is or improvise a workaround — while work that simply didn't finish is a **mechanical gap** — report what landed and where to pick up (see "Resuming after failure").
+   - A **`blocked`** entry names the task that stopped it (`blocked_by`); no work was attempted on it.
+   - **`built_not_integrated`** lists work that landed at a commit but never merged, with its `ref` (`refs/task/<run-id>/<task-id>`) — the durable pointer to recover it from.
+   - **`base_never_fully_verified`**, when present, names which failed or blocked task carried the run-wide gate. Surface it plainly: it means the base branch itself was never confirmed at the promised standard.
+4. `ledger_path` (`.tasks/<run-id>/ledger.jsonl`) is the append-only per-task record underlying all of the above — point the user at it for anything the summary doesn't cover.
 
 Keep it concise. Don't dump raw JSON — synthesize.
 
@@ -111,11 +114,14 @@ Keep it concise. Don't dump raw JSON — synthesize.
 
 The breakdown agent writes each task to `.tasks/<run-id>/<task-id>.md`. These files are the durable record of the decomposition — without them, resuming means re-running breakdown and getting a different decomposition.
 
-To resume a failed run:
+Two more records survive the run itself, and both outlast a stop or a crash: the append-only `.tasks/<run-id>/ledger.jsonl` (one line per verification, integration, block, and closing event), and one `refs/task/<run-id>/<task-id>` git ref per task the confirm agent verified, pointing at that task's verified commit whether or not the work ever reached a branch or the base. `git log` on the base branch alone only shows what was integrated — it misses anything the result lists as `built_not_integrated`.
+
+To resume a failed or stopped run:
 
 1. Read the task files in `.tasks/<run-id>/`
-2. Check `git log` on the base branch to identify which tasks were already integrated
-3. Build a reduced plan containing only the remaining tasks
-4. Run the workflow with that plan
+2. Read `.tasks/<run-id>/ledger.jsonl` for each task's last recorded state, and `git for-each-ref refs/task/<run-id>/` for a verified commit that never made it into the base branch
+3. Check `git log` on the base branch to identify which tasks were already integrated
+4. Build a reduced plan containing only the remaining tasks — anything the ledger and refs show as verified-but-unintegrated is recoverable from its ref rather than re-executed
+5. Run the workflow with that plan
 
 This reduced-plan re-run is also the **amend-and-resume** path after a plan-premise deviation: revise the plan, then re-run with the remaining tasks. Re-running the workflow re-runs breakdown, so the remaining work may re-decompose into different tasks. That is acceptable.

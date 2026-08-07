@@ -4,7 +4,7 @@ You also receive repo access and the capability manifest path (`capabilities.md`
 
 Find: missing deliverables, ambiguous scope, unstated constraints, contradictions, uncovered edge cases, completion criteria that wouldn't actually verify the feature works, unnecessary *how* detail that belongs in the plan, questionable assumptions, unjustified decisions, and missing context — documentation, external references, or related projects that should have been consulted. The right level of detail depends on the change; some specs sit closer to the code than others.
 
-**Verify what-is claims against the repo.** Read the code to check every Current-state claim and any other "what is" statement the spec makes. Flag any claim the code contradicts. You verify what-is, not what-can-be — feasibility ("can be done") claims stay with the planning spikes.
+**Verify what-is claims against the repo.** A claim about a file's location or a field's shape can be checked by reading. A claim about what a script *does* — what it reads, what makes it fail, what it returns — cannot; read the wrong function, or infer from a name, and you confirm a plausible story instead of the real one. For any claim of the second kind, run the script (or the smallest command that exercises the behavior claimed) and quote the actual output. Flag any claim the run contradicts. You verify what-is, not what-can-be — feasibility ("can be done") claims stay with the planning spikes.
 
 **Check that the spec understood the problem.** Does the Goal solve the user's stated problem, or did the spec substitute a different one? Then test each deliverable against the Goal. A deliverable that does not serve the Goal is gold-plating — flag it.
 
