@@ -150,6 +150,23 @@ Two prompt rules close this, split by who can act. Breakdown (which runs where a
 
 Same change as the speccy skill's, same date: point first, one idea per sentence, long sentences split, parenthetical asides unfolded, condition sets as bullets. Language-only — an independent fresh-context audit compared old against new and confirmed every rule, threshold, path, and exception survives, including the watchdog's numerics and its bash sketch byte for byte. Code blocks and frontmatter untouched.
 
+### A task's identity is its verified commit, not its branch name (2026-08-07)
+
+A 14-task run reported task t6 as failed. It had not failed: it committed working, gate-clean code, and the confirm agent quoted its hash twice while returning failure anyway. The commit was stranded, teardown skipped its off-convention branch by luck, and seven independent downstream tasks never ran.
+
+The cause was the identity itself. A task was identified by a branch name, re-derived after the fact by sorting branches by commit date, while the hash the task actually reported was discarded. Re-derivation is guesswork wearing a lookup's clothes: the harness branch name carries a workflow id and an ordinal, so in a parallel step of N tasks the sort returned N candidates and picked by timing.
+
+Identity is now the reported commit, admitted only against four conditions: it resolves as a commit, its subject carries the task id, it is not already on the base at run start, and it changes at least one path. Each condition rejects a specific way a wrong hash gets through — a typo, another task's commit, a pre-existing commit, an empty one. The execute agent writes `refs/task/<runId>/<taskId>` from inside its worktree at commit time, so the work survives a later branch deletion and the commit-to-confirm window the incident lived in is covered.
+
+Two consequences follow, and both were bugs the incident exposed rather than features it inspired. A failing task no longer takes independent siblings down with it — failure isolates to the task and to what genuinely depends on it. And teardown refuses to delete anything it cannot prove is merged or reachable from a task ref, because a cleanup step that can destroy work is not a cleanup step.
+
+### The executor's worktree is its only workspace (2026-08-05)
+
+A task file legitimately carries one main-checkout absolute path: its own description under `.tasks/`, which is gitignored and so absent from a parallel task's worktree. That one sanctioned path was being read as a general licence — an executor would treat the main checkout as its working root and edit the wrong tree. Because the two trees share a layout, every edit looked successful until the commit reported nothing to commit.
+
+Breakdown now states that the `.tasks/` read is the only absolute path a task may use, and execute says plainly that the worktree is the only workspace and paths are relative to its own cwd. Naming the exception is what makes the rule enforceable; leaving it implicit is what made the rule breakable.
+
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
