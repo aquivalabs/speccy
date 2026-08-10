@@ -24,6 +24,7 @@
      - **Decision** — what was chosen: a scope call, an approach, a contract/deliverable shape.
      - **Alternatives** — the viable options considered and rejected.
      - **Why** — the deciding factor that made the chosen option win.
+     - **Origin** — who made the call: **User** (a preference, mandate, or judgement the user brought) or **Speccy, user-agreed** (a default or option the pipeline proposed and the user signed off on). The wrap-up reads this. A *Speccy, user-agreed* decision gets a "what convinced you" check; a *User* decision is logged with the reason given, and challenged only when it rests on a hunch rather than a clear reason. A third origin, *Speccy, alone*, covers speccy's own autonomous calls and arises in the plan and review phases, not here.
      Keep this spec-level: WHAT to build and its shape, not code-level HOW — that belongs in the plan's decision body. Record a decision only when a real alternative existed; a forced move with one option is not a decision. An assumption is a guess under ambiguity; a decision is a deliberate pick among options you weighed. An undocumented decision reads as an arbitrary default and cannot be challenged during critique.
      A decision the input already settles — a stated user preference, a mandate, an existing convention — is still worth recording so it's visible, but its Why is simply that: "chosen because the input specified it" is a complete rationale. Don't manufacture a merit argument for a settled choice that isn't obviously wrong. -->
 
