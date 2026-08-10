@@ -1,0 +1,36 @@
+name: plan-execution-tests
+# Two vehicles over plan-execution's stranded-task recovery.
+#
+# git-rules.test.sh asserts the git commands the confirm and teardown prompts mandate, against
+# throwaway repositories it builds itself — plus a grep group pinning that those commands are
+# still literally present in prompts.md, so a prompt rewrite that drops one fails here rather
+# than in a build run.
+#
+# script-rules.test.mjs drives the real workflow.js offline through a source-driver shim and
+# asserts its logic: the classifier, the blocking rules, the task-shape matrix, the ledger, and
+# the result shape. Nothing in the script is mocked or re-implemented by the test.
+#
+# Neither suite needs an agent, a network, or an API key — both run in seconds on a bare runner.
+on:
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "skills/plan-execution/**"
+      - "tests/**"
+      - ".github/workflows/plan-execution-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  plan-execution-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: git rules (vehicle 1)
+        run: bash tests/git-rules.test.sh
+      - name: script rules (vehicle 2)
+        run: node tests/script-rules.test.mjs
