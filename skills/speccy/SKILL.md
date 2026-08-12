@@ -607,10 +607,29 @@ The retrospective is authored at wrap-up, not lifted from the build. Spawn a sub
 - the review round data — findings, levels, fixes, deferrals;
 - `decision-queue.md` — the design/requirements decisions and their outcomes.
 
-The orchestrator presents it. The retrospective's output sections are: wrong assumptions; research misses; a critique value audit — which findings helped, which were noise, and what review caught that critique should have caught earlier; plan-vs-reality; which checks caught real defects; and a shorter-path note. Add a **mandatory deliverable: at least one ready-to-apply artifact draft**, or an explicit justification for why none is warranted. An artifact is a concrete, applyable change: a skill edit, a CLAUDE.md rule, a doc fix. The user accepts or declines **per artifact**. Accepted artifacts land on a **separate branch/PR — never the feature branch**, so the reviewable build stays clean.
+**Pass `prompts/retrospective.md`, relative to this SKILL.md's directory, to that subagent verbatim, the way a review lens gets its own prompt
+file.** The seven sections and the mandatory artifact are a contract, and a contract the orchestrator
+has to retype from this page is a contract that drifts: on a long run it compresses to three friendly
+headings and the artifact quietly disappears. That has happened — a real run's retrospective shipped
+with half its sections and no artifact draft, and nothing noticed because nothing checked.
+
+The orchestrator presents it. The user accepts or declines **per artifact**, and accepted artifacts
+land on a **separate branch/PR — never the feature branch**, so the reviewable build stays clean.
 
 **ADR chain.** A decision-log architectural decision, or a `design`-level review finding that returned through the decision-queue gate, obliges an ADR draft — a durable record for the wider team, distinct from the run-local decision log. Draft it as one of the wrap-up artifacts; the user accepts or declines it like any other.
 
-Only after the decision-queue gate has cleared and every wrap-up artifact is dispositioned (accepted onto its separate branch, or declined) set `phase: "complete"` in state.json. Setting it earlier would let a `/clear` during the gate or the artifact review resume as finished and silently drop undecided queue items and the mandatory artifact — the exact loss the relocation prevents (see **Resuming a run**).
+**Verify the wrap-up on disk before setting `complete`.** Read the run directory: `summary.md` and
+`retrospective.md` both exist, the retrospective carries its seven headings, the decision log is
+committed. A subagent that returned a summary is not a subagent that wrote a file, and the difference
+stays invisible until someone opens the directory weeks later. Report any gap and fill it rather than
+advancing the phase over it.
+
+**And do not call the run finished while the phase says otherwise** — not to the user, not in a PR,
+not by handing it to another gate. The case this catches is a wrap-up chained straight into a
+project's own review gate: the gate takes over, its rounds consume every round of attention, and the
+phase sits at `wrap-up` with no summary on disk while everyone believes the run closed. Name the open
+phase and what it still owes.
+
+Only after the decision-queue gate has cleared, every wrap-up artifact is dispositioned (accepted onto its separate branch, or declined), and that on-disk check passes, set `phase: "complete"` in state.json. Setting it earlier would let a `/clear` during the gate or the artifact review resume as finished and silently drop undecided queue items and the mandatory artifact — the exact loss the relocation prevents (see **Resuming a run**).
 
 If the pipeline exited early on an implementation failure, report what's done and what remains. The user has a branch with partial progress.
