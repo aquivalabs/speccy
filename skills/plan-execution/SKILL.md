@@ -28,6 +28,15 @@ Check whether CLAUDE.md has a `## Worktree init` section. If it does, resolve th
 2. Parse the **Apply** block — each line is a shell command that may reference `${NAME}` variables from the gather step. Substitute the gathered values. Make symlink commands idempotent: replace `ln -s ` with `ln -snf `, so re-runs don't create circular symlinks inside the existing target.
 3. Pass the resolved commands as the `worktreeInit` arg (string array) to the workflow.
 
+**Check the ignore patterns before the run, or the worktrees never go away.** A worktree is removed
+automatically only while it is UNCHANGED, and every path the init symlinks has to be ignored for that
+to hold. A slash-terminated pattern does not do it: `node_modules/` matches a directory and a symlink
+is not a directory, so the link shows up as untracked and the worktree is dirty from birth. It then
+survives the run, keeps its branch, and needs `--force` to remove by hand. One real project reached
+thirty-six stranded worktrees and thirty-six branches this way before anyone looked. For each Apply
+line, confirm the target is ignored by a slash-LESS pattern; if it is not, say so before starting
+rather than leaving the litter for someone to find later.
+
 If the section is missing and the plan has parallel tasks, tell the user. Worktree agents without init commands lack gitignored state — build failures, missing configs, mid-task recovery friction. Offer to help draft the section before proceeding, as you would for missing verification tools.
 
 ## Input
@@ -107,6 +116,13 @@ The result is recovery-grade: it names each task's state directly rather than le
    - **`built_not_integrated`** lists work that landed at a commit but never merged, with its `ref` (`refs/task/<run-id>/<task-id>`) — the durable pointer to recover it from.
    - **`base_never_fully_verified`**, when present, names which failed or blocked task carried the run-wide gate. Surface it plainly: it means the base branch itself was never confirmed at the promised standard.
 4. `ledger_path` (`.tasks/<run-id>/ledger.jsonl`) is the append-only per-task record underlying all of the above — point the user at it for anything the summary doesn't cover.
+
+5. **Delete each integrated task branch.** A squash-merge leaves the branch behind, and one run's
+   worth is a dozen names in `git branch` that mean nothing a week later. `refs/task/<run-id>/<task-id>`
+   already points at every verified commit and is the durable record, so the branch itself carries
+   nothing the ref does not. Delete only branches whose task the ledger records as integrated; leave
+   anything in `failed`, `blocked` or `built_not_integrated` exactly where it is, and say which you
+   kept and why.
 
 Keep it concise. Don't dump raw JSON — synthesize.
 
