@@ -156,6 +156,14 @@ Scope makes this the right line. Speccy targets scoped changes on live repos, wh
 
 This extends the philosophy that already puts the human at the spec and plan-review gates: review accountability sits with the initiating human, and Speccy's job is to make that review time well spent.
 
+### Worktree init resolves a default in-skill instead of blocking (2026-07-22)
+
+The Worktree-init precondition previously did one of: use the CLAUDE.md `## Worktree init` section if present, else "note the gap, offer to draft it, have the user review and commit before proceeding." On a real run the project had neither `worktree.baseRef` nor the section, the user was away, and the only non-blocking option was to force the whole run sequential — losing all parallelism for a purely mechanical reason.
+
+Fix: the precondition now **resolves a sensible default in-skill and carries on** rather than prompting or silently serialising. `worktree.baseRef` missing → ensure `head`. `## Worktree init` missing → synthesise a minimal `worktreeInit` from `.gitignore` + the verify commands (idempotently symlink the gitignored dependency/config dirs — `node_modules`, `.venv`, `vendor`, `target`, generated config — from the main checkout via `ln -snf`, resolving the checkout with `git rev-parse --show-toplevel`) and pass it to plan-execution. Sequential-only fallback survives, but only for the genuinely-undeterminable case (no recognisable lockfile/manifest). Drafting the section into CLAUDE.md becomes an after-the-fact convenience the user may accept, never a gate.
+
+Rationale: almost every worktree just needs its ignored dependency dir linked in; that default is safe and derivable, so a missing section shouldn't cost parallelism or an interactive prompt. Keeps an unattended fan-out run moving.
+
 A corollary follows. Since the verdict is the human's, a completed run is a handoff — the wrap-up reports what was built and self-reviewed, then leaves the call to the user. Announcing "done" would invite a rubber stamp and undermine that. The Wrap-up section of SKILL.md is worded accordingly.
 
 ### Gate reports are re-verified, not trusted; hard gates beat soft style preferences (2026-06-23)
@@ -351,6 +359,30 @@ The multi-lens panel (2026-07-13) runs speccy's generic lenses plus the built-in
 
 So it becomes an extra lens, in the same category as `code-review` rather than a bespoke prompt: run it the way the repo documents (its own agents, models, thresholds — not overridden), invoke it **directly in the main conversation** because a project gate is usually itself multi-agent (same reasoning as running `code-review` inline, 2026-07-14), normalise its findings into the shared shape, and merge with the triage step deduping its overlap with `code-review`, codebase fit, and local-doc adherence. It is **spec-blind**, so it complements the spec-fidelity lens rather than replacing it. Absent in a repo → the lens is skipped cleanly. The accepted cost is coupling to the repo gate's output shape, the same trade already accepted for `code-review`.
 
+### The full spec ships with a one-page human-reading digest (2026-07-22)
+
+The hardened full spec is dense by design — the critique loop grows it into an implementation reference, not something a human reads to grasp the work at the review gate. Pointing the user at the full spec makes them re-derive the shape of the change from prose meant for the build.
+
+Fix: Phase 1c now also writes `specs/<slug>-digest.md`, a colocated one-page entry point — the goal in a few lines, the load-bearing decisions each with a one-line *why*, the build order, and the open spikes/risks, with every item pointing back into the full spec by section so it stays the derived view rather than a second source of truth. Regenerate it whenever the spec materially changes, at minimum once the critique loop converges. The user-review gate now leads with the digest and keeps the full spec for depth.
+
+The bilingual rule is inlined at the point of use rather than cross-referenced: the digest, like every doc, is English and git-tracked; a translated copy for the user's own reading is written only under a gitignored `.users-files/` zone and never becomes the canonical copy — on conflict the tracked English digest wins.
+
+### A cold-start flow trace is a mandatory critique pass (2026-07-22)
+
+Both critique prompts already check decisions and consistency section by section, but that misses *temporal* contradictions: a step that consumes a resource, credential, or piece of state only produced by a later step (or by the very step being configured), or two individually-sound choices that turn out mutually exclusive once the flow actually runs in order. No single section is wrong in either case, so section-by-section review — however thorough — never surfaces them.
+
+Fix: `spec-critique.md` and `plan-critique.md` each gain a mandatory pass that walks every primary flow step by step from an empty/first-run state and asks, at each step, whether its prerequisites already exist at that point. `spec-critique.md`'s exit gate in SKILL.md now hard-requires at least one round to have done this trace before the spec-critique phase can close, and the same trace repeats at the Phase 2b plan review, since planning can reintroduce an ordering dependency the spec didn't have.
+
+The 3-round general critique cap already tolerates a round finding nothing; the exit gate makes this specific pass non-skippable regardless, because bootstrap contradictions are exactly the kind that survive every other round and still ship.
+
+### Phase 3 build guidance: parallelism, verified gates via the documented harness, and test-rerun scope (2026-07-22)
+
+Phase 3 as written left three costs on the table. Plan-execution's breakdown defaults to sequential steps even when tasks touch disjoint files with no data dependency, so a run pays full serial wall-clock for authoring that could overlap. The gate-trust rule said "re-run the project's load-bearing gates yourself" without saying *how* — on a project that names a specific MCP tool for deploy/test in CLAUDE.md, that gap invites a raw-CLI shortcut instead of the harness the project actually documents. And nothing bounded how often a fix loop re-runs the test suite, so a one-line fix in one test could trigger a full remote re-run every round.
+
+Fix, three parts: the Phase 3 instruction to plan-execution now asks breakdown to parallelize genuinely independent authoring, with the caveat stated up front — a single shared verify environment (one scratch org, one CI runner) still serialises the deploy/test step, so parallelism buys authoring time, not the shared-resource round-trip. The trust rule now says to use the project's documented harness the way CLAUDE.md specifies it (an MCP tool named there beats a raw-CLI wrapper, which is a fallback only). And a hard test-rerun-scope rule caps the fix loop: only the touched/failing test(s) re-run while fixing, and the full suite runs exactly once, at the very end, as the completeness gate — never per-fix.
+
+Together these keep Phase 3's round-trip cost proportional to what actually changed, instead of paying full serial and full-suite cost by default.
+
 ### A comment-discipline lens, deletion-only (2026-07-27)
 
 AI-worked codebases accrete comment noise — restatement of the code, edit-history narration ("changed X to Y", "as requested"), commented-out code, padding — and no existing lens catches it. `code-review` treats it as out of remit (it isn't a correctness bug), and codebase-fit is already loaded; the suppressions and spec-fidelity lenses point the *other* way, wanting justification comments to be *more* thorough. So a new bespoke lens, `prompts/review-comments.md`, owns comment discipline alone.
@@ -416,6 +448,22 @@ What survived was only the *word* — the `adversaryModel` default token `"ladde
 
 Fix: state records the concrete model each phase runs, not a token. `adversaryModel` defaults to `"opus"` (the tier for critique and the panel's judgment lenses) and `builderModel` to `"sonnet"` — no sentinel to decode, and SKILL.md states each phase's model plainly. The one phase with no single model is implementation review, a panel spanning tiers (judgment on opus, suppressions and comments on sonnet); its per-lens mix stays a documented design detail rather than something a state field encodes, so `adversaryModel` names the adversary *tier* and the cheaper lenses sit a rung below it. The two overrides that were doing real work stay: a pinned `adversaryModel` for critique and review lenses, and `builderModel` (commonly raised to opus). Per-phase *override* knobs were considered and declined — everything high-leverage already sits at opus, so there is nothing left to raise, and the log's own arc records cheaper tiers costing more than they saved. This is a rename, not a capability change.
 
+### The pipeline leads with the project's own capabilities (2026-08-04)
+
+Speccy used a project's own machinery only reactively. The review panel would catch a house-convention violation after the build — a whole fix-round late — while the research and build agents re-derived, generically and worse, what the repo already maintains: skills carrying house conventions, read-only research/"hunter" subagents that answer where-does-this-live / does-this-already-exist, governing docs, sometimes a review gate. Nothing told a subagent these existed.
+
+The fix is discover-once-then-inject. A new precondition probes what the project exposes — skills, `.claude/agents/*.md` subagents tagged research/reviewer/other, governing docs, and any explicit skill→area map — into a manifest persisted at `.speccy/<run-id>/capabilities.md` (Phase 1c), so every phase and a resumed context read one inventory instead of re-probing. Each spawn site then prepends a phase-scoped "prefer these over generic approaches" block (`prompts/project-capabilities.md`): spec/plan research delegates discovery to project hunters before any generic sweep; breakdown attaches trigger-matched skills to each task and bakes in hunter-resolved placement answers (a build agent inside the workflow can invoke a Skill but cannot dispatch an Agent, so placement/existence questions are resolved up front); the local-doc lens judges against the house skill set.
+
+Two boundaries were chosen deliberately. Nothing is required: every signal is optional and its absence degrades cleanly to the generic pipeline — there is no mandatory config artifact, because projects differ in what they ship. And the base router needs no map: skills self-describe their triggers ("use when …"), so matching a task to a skill is judgment over trigger text; an explicit skill→area map, where one exists, only accelerates. Capabilities are treated as project truth — the same standing the project review gate already has — not claims to adversarially re-verify.
+
+### The prose is rewritten to a readability standard (2026-08-04)
+
+The skill's text is dense by necessity — nearly every paragraph carries a rule an orchestrator must execute — but the *sentences* had grown expensive: 40-word constructions with nested parenthetical asides, points buried mid-paragraph, condition sets folded into prose. That shape taxes both executors, the model following the instructions and the human auditing them.
+
+So the prose is held to a standard: the point leads each section, one idea per sentence, sentences past roughly 25 words split, parenthetical asides unfolded into their own sentences, enumerable conditions turned into bullets. This is a language-only change. An independent fresh-context audit compared old against new file by file and confirmed every behavioral rule, threshold, ordering, path, model assignment, gate, and exception survives — nothing lost, weakened, or invented. Code blocks, JSON schemas, and frontmatter are untouched, so trigger behavior is unchanged.
+
+The rationale stays inline. Much of this skill's density is compressed why — the boundary conditions live inside the reasons — so the rewrite shortens wording, not justification. Word count drops only a few percent; the gain is per-sentence cost, not length.
+
 ### Packaged as a Claude Code plugin (2026-08-05)
 
 Speccy shipped as two skills under a project's `.claude/skills/`, which meant every user hand-copied both directories and kept them in sync. It was always meant to travel as a unit — an earlier banner-path fix already reasoned about the plugin cache layout — so the repo now *is* the plugin: skills moved to a root `skills/`, a `.claude-plugin/plugin.json` manifest bundles them, and a `.claude-plugin/marketplace.json` makes the repo self-installable (`/plugin marketplace add aquivalabs/speccy`). Both skills install together, which matters because speccy hard-depends on plan-execution.
@@ -433,3 +481,14 @@ The fix is to probe a decision by what it needs, not to probe everything — and
 - **Speccy, alone** — settled inside an autonomous loop (a plan-critique revision, a review disposition) with no gate for the user to sign off. Not a borrowed-confidence target (the user never agreed to it), but not filed unexamined either: it's surfaced at the next gate as speccy's own call now sitting in the spec or plan, with an invitation to check they agree and could justify it. A confident autonomous call waved through is its own surrender risk, so the gate is where the user gets to own or challenge it.
 
 Tagging happens where each decision is made (spec interview at 1c, plan review at 2b), and the central "Name what convinced you" habit carries the three-way handling so every gate and the wrap-up inherit it. Origin is not frozen: when speccy surfaces a *Speccy, alone* call and the user ratifies it, it re-tags to *Speccy, user-agreed*; if they override it, to *User* — so a later gate doesn't re-raise a call the user has owned. Surfacing *Speccy, alone* calls is judgement-gated to the load-bearing ones: flooding the user with checks on trivial or clearly-correct autonomous calls trains them to tune speccy out, the opposite of the engagement it wants. Clean human/agent/joint attribution is worth having in the decision log regardless; the probe fix is what motivated recording it.
+
+### Every phase carries an explicit gate, and returns are proportional (2026-08-05)
+
+The phase boundaries lived in prose. An orchestrator could enter a phase with a precondition unmet, leave it with an output unwritten, or take a return path that led nowhere, and nothing in the skill made the omission visible. A reader could not answer, from the text alone, what a phase demanded before it started or owed when it ended.
+
+Each phase now opens with a gate block — entry conditions, exit conditions, and where a return sends the run — and the phases are drawn once as a cycle with a phase-to-state table beside it, so the machine reads in one place instead of being reconstructed from twelve sections. Returns are proportional: a finding goes back only as far as it must, and nesting is capped at one level, so a return cannot spawn a return. The cap is arbitrary in the way a speed limit is arbitrary; what it buys is a run that terminates.
+
+A Stage 0 runs before the interview, because the run's floor was being assumed rather than established. It widens discovery past the current request to the repo's own record — past specs, ADRs, retrospectives — and records the raw governing sources without blocking on them; blocking there would trade a real precondition for a paperwork one. Phase 1c then transmutes each mandatory fact into a Constraint or Completion criterion this feature actually owes, rather than restating the general rule, and checks the result against the drafted scope. A collision becomes an Open question the 1d gate adjudicates, never a silent merge: the whole point of surfacing a governing rule is that a human decides what happens when it conflicts with the work.
+
+The artefacts absorb the weight. The spec template gains a Current state of checkable claims, invariants, and a rule that a secret is named and never quoted. Spec critique verifies what-is claims against the repo, cross-checks the manifest, and exits on recorded dispositions rather than a round count — a count says the loop ran, a disposition says each finding was answered. The plan gains data and contract changes, a conditional rollback, docs impact, and checkpoint milestones breakdown consumes. Review gains a security lens and a plan-adherence lens, and levels each finding as code, design, or requirements; the latter two batch into one post-review gate, since a requirements question interrupting a panel gets answered badly or not at all.
+

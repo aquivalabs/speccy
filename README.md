@@ -23,22 +23,25 @@ This repo is its own plugin marketplace. Add it, then install the plugin:
 
 Both skills (`speccy` and `plan-execution`) install together. Start a run by describing what you want to build and saying "speccy".
 
-## The six phases
+## The phases
 
-The pipeline runs as: **specification → spec critique → planning → plan critique → implementation → implementation review.**
+The pipeline runs as: **preconditions → specification → spec critique → planning → plan critique → implementation → implementation review.**
 
 Speccy guides you through these phases; there is no list of commands to remember. And because it's just a skill running in an ordinary Claude Code session, you can redirect it at any point — got the spec nailed but you're heading out for a run? Tell it to auto-approve the plan and go straight to building.
 
+Every phase opens with a gate: what must be true to enter it, what it owes on the way out, and where a finding sends the run if it has to go back.
+
 | Phase | Who drives | What happens |
 |-------|-----------|--------------|
-| **1. Spec** | Interactive | Claude interviews you to build a structured spec from a template. You review and edit until satisfied. |
-| **1a. Spec critique** | User-in-the-loop | An independent adversary subagent critiques the spec each round. *You* decide which findings to incorporate. |
+| **0. Preconditions** | Autonomous | Verification tools smoke-tested, worktree init resolved, git state confirmed, and the project's own capabilities and governing rules discovered into one manifest the later phases read from disk. |
+| **1. Spec** | Interactive | Claude interviews you to build a structured spec from a template, then transmutes each mandatory rule from the manifest into a constraint this feature actually owes. You review and edit until satisfied. A one-page digest ships beside the full spec. |
+| **1d. Spec critique** | User-in-the-loop | An independent adversary subagent critiques the spec each round. *You* decide which findings to incorporate; each one is recorded with its disposition, and that record — not a round count — is what ends the loop. |
 | **2. Plan** | Autonomous | A subagent researches the codebase and drafts a plan (the *how* to the spec's *what*), running feasibility spikes to prove any risky mechanism before planning around it. |
 | **2a. Plan critique** | Autonomous | Adversary critiques, a revise agent applies every finding, looping until clean. |
 | **2b. Plan review** | User decides | You review the hardened plan, raise concerns, approve. |
-| **3. Implementation** | Autonomous | Delegates to the `plan-execution` skill, which breaks the plan into tasks and builds. |
-| **3a. Implementation review** | User observes | Parallel reviewers check the diff — correctness and quality via the built-in `code-review` skill, plus spec fidelity, tests, codebase fit, local-doc adherence, and strict scrutiny of any linter/analysis suppressions; a fix agent applies corrections, or findings are deferred as future work. |
-| **Wrap-up** | User reviews | Summary, a decision log distilled from critique and review decisions, deferred-feedback list, retrospective. The branch is handed back for your review — Speccy doesn't merge or certify it. |
+| **3. Implementation** | Autonomous | Delegates to the `plan-execution` skill, which breaks the plan into tasks and builds. A task that deviates from the plan without breaking it says so, and the deviation is triaged before review rather than lost in a log. |
+| **4. Implementation review** | User observes | Parallel reviewers check the diff — correctness and quality via the built-in `code-review` skill, plus spec fidelity, tests, codebase fit, local-doc adherence, security, plan adherence, comment discipline, and strict scrutiny of any linter/analysis suppressions. A finding is levelled as code, design, or requirements; code findings go to a fix agent, the other two batch into one gate you answer after the panel. |
+| **Wrap-up** | User reviews | Summary, a decision log distilled from the spec, plan, and review decisions, deferred-feedback list, retrospective. The branch is handed back for your review — Speccy doesn't merge or certify it. |
 
 ## Core design ideas
 
@@ -61,6 +64,8 @@ Speccy guides you through these phases; there is no list of commands to remember
 - **Verification tools must be documented in CLAUDE.md** (build, lint, static analysis, test) — and Speccy *smoke-tests them on the clean tree first*, since a broken setup discovered at implementation has already cost a spec, several critique rounds, and a plan.
 - **Worktree init** section in CLAUDE.md — only exercised if the plan fans out into parallel tasks.
 - **Clean git tree** and an identified base branch (confirmed with you if not on main).
+
+It also *looks* for things it never requires. The project's own skills, read-only research agents, governing docs, and review gate are discovered once into a manifest every later phase reads, so research delegates to your hunters instead of sweeping generically, each build task arrives with the house conventions attached, and the local-doc lens judges against your rules rather than invented ones. A project that ships none of this degrades cleanly to the generic pipeline.
 
 ## Cost and scale
 
