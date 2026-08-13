@@ -225,7 +225,9 @@ The shape, with the spacing following the entries — an entry with detail under
 ├─ the plan's task 4 built something the spec never asked for
 └─ a suppression carries no justification comment
 
-Two limits on this. Never a bare symbol — `!!` and `◆` mean nothing to a reader who has not memorised a key, and severity is what the group heading is for. And no ANSI colour anywhere in narration: the harness strips colour from Bash output and never renders escapes inside a reply, which is why `banner.sh` reaches for emoji instead.
+Two limits on this. Never a bare symbol — `!!` and `◆` mean nothing to a reader who has not memorised a key, and severity is what the group heading is for. And keep the two encodings apart, because a run writes into both channels. A reply renders markdown and drops ANSI escapes. Everything the terminal prints itself — a script's output through a Bash call, a hook's message, a statusline — renders escapes and drops markdown: there, bold is the group heading, cyan the locator, italic the aside, dim the annotation, and at most one inverse bar per block. The shape above is identical in both; only the encoding swaps, and a single line never carries both. A script that prints for the user therefore styles itself with escapes, not with asterisks.
+
+One thing colour cannot fix: a Bash block sits collapsed behind ctrl+o by default. Anything that must be seen without expanding belongs in a reply — which is why `banner.sh` prints Markdown lines for the orchestrator to reproduce, and reaches for emoji rather than escapes for its colour.
 
 None of this touches the lens findings files. Their shape is fixed by `prompts/review-output-contract.md` so rounds merge mechanically — that is a format the orchestrator parses, and this is a format the user reads.
 

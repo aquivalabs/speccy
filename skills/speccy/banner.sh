@@ -6,9 +6,11 @@
 #
 # Output is two Markdown lines. The orchestrator runs this script, then
 # reproduces those lines verbatim in its own reply so the banner shows by
-# default: the harness collapses Bash tool output behind ctrl+o and strips ANSI
-# colour, so the old in-terminal ANSI banner was invisible. Colour now comes
-# from the rainbow emoji, which render wherever the reply is shown.
+# default: the harness collapses Bash tool output behind ctrl+o, so a banner
+# printed only there is invisible until the user expands the block. ANSI colour
+# does survive in that output — measured, not assumed — but it cannot survive
+# being reproduced in a reply, where markdown renders and escapes do not. Colour
+# therefore comes from the rainbow emoji, which render wherever the reply is shown.
 #
 # Quotes are capped so the `"quote" —Author` line stays ≤ ~140 chars, keeping
 # it to roughly one row on a normal terminal.
