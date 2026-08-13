@@ -349,6 +349,8 @@ Identify external context that would improve the spec or plan: documentation, ot
 
 **Asking nothing is fine.** If the intake settles what you need, write the draft and skip the interview. Clarifying questions only; the habits under **Steering away from cognitive surrender** still apply.
 
+**Skipping the interview never skips the hunters.** The dispatch above is not part of asking the user questions — it establishes what the repo already contains, which the user cannot tell you and an intake never settles. A trigger complete enough to skip the interview is exactly the case that feels like it needs no discovery, and is exactly the case that writes a confident false claim about the codebase. So the research dispatch runs on the skip path too, before any draft is written. Measured: one run skipped the interview, asserted a UI control did not exist, and the spec critique found the control in the repo's own primitives directory two rounds later — with the very hunter agent that answers *does this already exist* sitting unused in that run's own capability manifest.
+
 ### 1c. Structured spec
 
 **Gate.**
@@ -367,6 +369,8 @@ Produce a first-draft spec from the interview answers using the template in `pro
 **Transmute the manifest's mandatory facts — do not restate them.** Read the held capability manifest. Each mandatory rule or check it carries must become a task-specific Constraint or Completion criterion in the spec — the concrete form this feature owes it, not a verbatim copy of the general rule. A bare restatement is banned; a derived, checkable requirement is mandatory. A general "run the house lint gate" becomes "zero violations from `<the project's linter>` on the touched files"; a general "specs name secrets, never their values" becomes the specific secret this feature touches, named in Constraints with its value never quoted (the `spec-template.md` Constraints section carries this rule).
 
 **Detect conflicts against the drafted scope — 1c conflict detection.** With the scope now drafted, check the transmuted facts against it. A mandatory rule that collides with what this feature must do is a conflict. It does not block and it is never silently merged: enter it into the spec as an Open question, and the 1d gate adjudicates it. This is where Stage 0's recorded sources first meet a concrete scope (see **Preconditions — Stage 0**).
+
+**A claim that something does not exist carries the command that proves it.** "No such component exists", "nothing reads this field", "there is no route for it" — each of these is load-bearing, because a deliverable is usually built on top of it, and each is cheap to check and expensive to get wrong. Write none of them from reading, memory, or a subagent's summary that was not asked that question. Run the search, and put it in the spec beside the claim so a critic re-runs it instead of re-deriving it. Where the project ships a research agent for the question — *does a component for X already exist* is one of the three things a frontend hunter is for — that agent is the search, and its answer is authoritative (see **Lead with the project's own capabilities**). A negative claim with no command behind it is the single most expensive kind of error a spec can carry: it survives every consistency pass, because nothing in the document contradicts it.
 
 The **Assumptions** section captures the reasonable defaults chosen where the user's description was ambiguous. Unstated assumptions can't be challenged during critique, so surface them here.
 
