@@ -186,6 +186,49 @@ Use bullet lists and unnumbered headings by default. Reserve numbered lists for 
 
 This applies to all generated artifacts: specs, plans, critiques, and review notes.
 
+### How the run reports to the user
+
+A run narrates constantly — critique findings, dispositions, review rounds, the wrap-up. Where the session is governed by a house voice or output style, that style is canonical and beats every line below; carry it to subagents per **Propagate the session's voice to subagents**. But speccy also runs in repos with no style configured at all, and the default a styleless run falls into is a wall of prose that gets skimmed exactly when it matters. So this is the floor for those runs, and a compact restatement of a house-voice presentation rule rather than a rival standard — the same arrangement as `plan-execution`'s restatement of the record-file format.
+
+**Result first.** The opening sentence carries the verdict: what the round found, what it costs, what you recommend. Detail comes after.
+
+**Pick the shape from what the content is.** These answer different questions and none of them is the default:
+
+| content | shape |
+|---|---|
+| things sharing attributes — compared, scored, weighed | a table, one row each |
+| things grouped by state or severity, each with detail under it | a tree |
+| one thing, one thought | a sentence |
+
+Two or three items with one attribute apiece need neither: a two-row one-column table is ceremony, and a tree nested three deep is a table wearing branches.
+
+**A tree is drawn in ordinary text, never inside a code fence.** A fence is monospaced and nothing else — emphasis and code spans arrive as literal asterisks and backticks, which is the whole toolkit gone. Six axes carry the meaning:
+
+| axis | what it carries |
+|---|---|
+| `code span` | the locator — path, file:line, id: where to look |
+| **bold** | the group heading |
+| plain | the finding itself |
+| *italic* | an aside the reader may skip, never the point |
+| CAPS or lower case in a heading | whether the group stops the work |
+| a blank line between entries | that the entry above has detail under it |
+
+The shape, with the spacing following the entries — an entry with detail under it gets a blank line and a `│` carrying through, one-line entries run flush:
+
+**BLOCKERS**
+│
+└─ the lens traced it and the fix is not local
+   `server/services/x.ts:42`
+   *round 2 raised it as a major; re-levelled at triage*
+
+**majors**
+├─ the plan's task 4 built something the spec never asked for
+└─ a suppression carries no justification comment
+
+Two limits on this. Never a bare symbol — `!!` and `◆` mean nothing to a reader who has not memorised a key, and severity is what the group heading is for. And no ANSI colour anywhere in narration: the harness strips colour from Bash output and never renders escapes inside a reply, which is why `banner.sh` reaches for emoji instead.
+
+None of this touches the lens findings files. Their shape is fixed by `prompts/review-output-contract.md` so rounds merge mechanically — that is a format the orchestrator parses, and this is a format the user reads.
+
 ## Record-file format
 
 Three run records share one format: `spec-dispositions.md`, `decision-queue.md`, `deviations.md`. Each is:
