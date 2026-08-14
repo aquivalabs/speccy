@@ -62,7 +62,7 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
   "baseBranch": "develop",
   "adversaryModel": "opus",
   "builderModel": "sonnet",
-  "phase": "planning" | "spec-critique" | "plan-critique" | "implementation" | "review" | "complete",
+  "phase": "spec-critique" | "planning" | "plan-critique" | "implementation" | "review" | "wrap-up" | "complete",
   "specPath": "specs/auth-refactor.md",
   "planPath": ".speccy/auth-refactor-20260609-1430/plan.md",
   "specCritiqueRounds": 1,
@@ -76,7 +76,9 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
 
 `adversaryModel` defaults to `"opus"` — the tier for every critique round and the review panel's judgment lenses (the suppressions and comment lenses run a tier below; see **Getting started**). If the user pinned a different adversary model, store that name here instead and use it for every critique round and review lens.
 
-On trigger, read `.speccy/.current-runid` — a pointer to the most recent run, written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase. A resumed run skips the precondition checks, so if the recorded phase is anything past the spec interview, suggest auto-accept mode (shift+tab) first — the rest of the run is autonomous tool calls.
+On trigger, read `.speccy/.current-runid` — a pointer to the most recent run, written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase.
+
+`wrap-up` is a resumable phase like any other: the build and review are done, but the summary, decision log, and retrospective are not, so a run recorded there resumes at the wrap-up. Only `complete` means nothing is left to do — which is why nothing sets it until the wrap-up's own exit checks hold. A resumed run skips the precondition checks, so if the recorded phase is anything past the spec interview, suggest auto-accept mode (shift+tab) first — the rest of the run is autonomous tool calls.
 
 After completing each phase, update state.json and continue to the next phase. The user can `/clear` and re-invoke the skill at any point to resume from the recorded phase — no need to ask permission at phase boundaries.
 
@@ -215,7 +217,13 @@ For each round (up to 3):
 2. **Present.** Before showing the critique, ask the user to predict it — the finding they'd bet the reviewer raises, or the part of the spec they'd defend least confidently (see **Steering away from cognitive surrender**). If they have none and you can see a genuine soft spot, offer to look at it together; if the spec is solid, let it go. Then read `.speccy/<run-id>/spec-critique-round-N.md` (N from state.json), present its findings, and close the loop against their prediction ("you expected X; it flagged Y — surprised?"). Point the user to the file for the full text. Ask which findings to incorporate, and on the most consequential finding they choose to adopt, ask what convinced them — adopting the adversary's call is where borrowed confidence lives; a finding they reject on their own judgement is their call, so leave it. If the round surfaced no valuable criticism, the loop is done — exit it.
 3. **Revise.** Spawn a revise subagent (Agent tool) **on opus** with `prompts/revise.md`, the spec path, the critique file path, and the list of accepted findings. The subagent rewrites the spec in place. Once it completes, commit the updated spec with a message summarising the accepted findings you incorporated — you already have that list, so build the message from it rather than from the agent's return. Then run the next round to check the revisions and probe deeper.
 
-After 3 rounds, proceed regardless, noting any unaddressed feedback. Update state.json after each round (`specCritiqueRounds`). When the critique loop exits, set `phase: "planning"`.
+After 3 rounds, proceed regardless. Update state.json after each round (`specCritiqueRounds`).
+
+**Exit checks.** Confirm each before leaving this phase — a resumed context has only what's on disk:
+
+- the revised spec is committed
+- the findings the user skipped, and any the 3-round cap left unaddressed, are in `.speccy/<run-id>/deferred.md` with the reason. The wrap-up reports them, and the `/clear` suggested just below deletes anything held only in conversation.
+- `phase` is `"planning"`
 
 Only once the loop has fully exited, reach the primary context-clearing point. The spec interview and critique are the heaviest interactive context in the run, and the approved spec now captures every decision in a committed file — so the window can reset before planning, which is largely subagent-driven. Verify all run state is in files (state.json current, spec committed, external references recorded in the spec — not left only in conversation), then suggest the user `/clear` and re-invoke to resume at planning. If they'd rather continue, proceed to Phase 2.
 
@@ -307,7 +315,15 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
    You make these disposition calls yourself as the loop runs — the review is autonomous. But surface them to the human at wrap-up so they still review the judgment: deferrals in the deferred list, and any divergence-from-pattern or wider-than-the-diff fix in the summary and decision log.
 3. **Fix.** If nothing is dispositioned Fix, skip to the next round's review (or exit). Otherwise read `prompts/implementation-fix.md` and spawn a fix subagent with that prompt, the Fix findings (point it at the lens files, and state any diverge / fix-wider instruction), the spec path, and the plan path. It makes the changes and commits. After it commits, re-run the load-bearing gates yourself and confirm the actual output before the next round — never advance on the fix agent's claim that the gates pass. (Gates passing doesn't prove coverage held — a dropped test still passes.)
 
-After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`) and set `phase: "complete"` when done. Any `deferred.md` items surface at wrap-up.
+After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`).
+
+**Exit checks.** Confirm each before leaving this phase — a resumed context has only what's on disk:
+
+- every finding still dispositioned Fix when the cap hit is in `.speccy/<run-id>/deferred.md` with the reason
+- `reviewRounds` is current
+- `phase` is `"wrap-up"` — **not** `"complete"`. The wrap-up hasn't run yet, and `complete` is what tells a resumed session there is nothing left to do.
+
+Any `deferred.md` items surface at wrap-up.
 
 ## Wrap-up
 
@@ -317,7 +333,16 @@ When all phases complete, report concisely — both in the chat and written to `
 
 1. **Summary** — what was built, how many critique/review rounds ran, what changed, and that the branch is ready for review.
 2. **Decision log, co-authored** — distil key decisions from the spec, plan, and critique/review rounds into `specs/<slug>-decision-log.md` (including any review-phase divergence from an existing pattern). These are usually implementation-specific choices, not the durable architecture decisions an ADR captures for the wider team. Each entry: what was proposed, what was decided, why, and its **origin** — **User**, **Speccy, user-agreed**, or **Speccy, alone** (carried from the artifacts: the spec's Decisions & rationale is tagged, plan decisions are tagged at 2b, and a review-phase disposition is *Speccy, alone* unless the user raised the concern, in which case it's *User*). Before writing the log, probe only the one or two decisions that warrant it, each the way its origin calls for (see **Steering away from cognitive surrender**): for a **Speccy, user-agreed** decision, ask what convinced them and whether they verified it or trusted the agent's confidence — borrowed confidence is the surrender signal worth catching while the code is fresh and they are about to own it; for a **User** decision, log the rationale as given when it's clear or the call is plainly right, but challenge one resting on a hunch they can't show is correct; a **Speccy, alone** decision isn't a borrowed-confidence target (the user never agreed to it); surface a **load-bearing** one as speccy's own call in the spec or plan and invite them to own or challenge it (re-tagging it *Speccy, user-agreed* or *User* by what they do), but leave the small and trivially-correct ones logged as speccy's without a question. Don't manufacture a probe where nothing warrants one. Commit the decision log.
-3. **Deferred feedback** — substantial feedback set aside for later: findings the user skipped at spec critique, plus any review findings deferred to future work in `.speccy/<run-id>/deferred.md` (with the why). These are candidates for follow-up issues outside this PR.
+3. **Deferred feedback** — substantial feedback set aside for later, all of it in `.speccy/<run-id>/deferred.md` with the why: findings the user skipped at spec critique, and review findings deferred to future work. These are candidates for follow-up issues outside this PR.
 4. **Retrospective** — if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns. If it has a `## Repo-doc suggestions (CLAUDE.md / ADR)` section, present those for the user to accept or decline, never auto-applied.
+
+**Exit checks.** Only once all of these hold, set `phase: "complete"`:
+
+- `.speccy/<run-id>/summary.md` is written
+- `specs/<slug>-decision-log.md` is written and committed
+- the deferred items are reported
+- the retrospective is saved, if the task execution skill produced one
+
+Set `complete` any earlier and a `/clear` during the wrap-up resumes as a finished run, silently dropping the decision log and the retrospective — the artifacts the handoff exists to produce.
 
 If the pipeline exited early (implementation failure), report what's done and what remains. The user has a branch with partial progress.
