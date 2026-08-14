@@ -151,7 +151,11 @@ const GIT_STATUS_SCHEMA = {
       type: "string",
       description: "Branch holding the work (worktree tasks only)"
     },
-    commit: { type: "string", description: "Final commit hash" },
+    commit: {
+      type: "string",
+      description:
+        "The task's commit, at the full forty characters. Required when `success` is true — it is what gets integrated"
+    },
     summary: { type: "string" }
   },
   required: ["success", "summary"]
@@ -272,29 +276,51 @@ ${testing}
 Commit all your changes. Prefix the commit message with \`${task.id}: \` so your work can be located afterwards. You do NOT need to return a structured result — a short prose report is enough, including a friction log (harder_than_expected, wrong_turns, suggestions).`;
 }
 
+// Built from the confirmed commit. A branch name cannot identify a task's work in a
+// parallel step: every sibling's branch is equally recent, so any rule that picks one
+// by date can pick a sibling's.
 function mergePrompt(task, result) {
+  const branch = result.branch
+    ? `\`${result.branch}\` — context only. Squash-merge the commit above, not this name.`
+    : "(none reported)";
   return `${prompts.integrate}
 
 ## Task: ${task.title} (${task.id})
-## Task branch: ${result.branch}
+
+## Verified commit
+\`${result.commit}\`
+
+## Task branch
+${branch}
+
 ## Base branch: ${baseBranch}`;
 }
 
 // Confirm a task's outcome from git rather than trusting a self-reported flag.
 // Minimal-work agents reliably emit structured output, so the schema lives here.
-async function confirmFromGit(task, { useWorktree = false } = {}) {
+async function confirmFromGit(task, { useWorktree = false, execReport = null } = {}) {
   const where = useWorktree
-    ? `The agent ran in an isolated git worktree on its own branch. Use \`git worktree list\` and \`git branch --sort=-committerdate\` to locate the branch holding this task's work — its commits are prefixed \`${task.id}: \`. Report that branch name.`
-    : `The agent ran on the main checkout (the current branch).`;
+    ? `The agent ran in an isolated git worktree on its own branch, and you are standing in the main checkout — so its commit is not reachable from \`HEAD\`. Search \`--branches\`, not a range against \`HEAD\`. Report the branch name you saw as context.`
+    : `The agent ran on the main checkout (the current branch), so it has no branch of its own.`;
+  const report =
+    execReport === null || execReport === undefined || String(execReport).trim() === ""
+      ? "(empty — the execute agent returned no report)"
+      : String(execReport);
   return withRetry(`confirm:${task.id}`, () =>
     agent(
       `A prior agent executed task "${task.title}" (${task.id}). Determine from git whether its work landed — do NOT do the task's work yourself.
 ${where}
 
 Steps:
-1. Inspect \`git log\`/\`git status\`${useWorktree ? " and `git worktree list`" : ""}.
-2. Decide success: the task's changes are committed and present.
-3. Report the final commit hash${useWorktree ? " and the branch name" : ""}.`,
+1. Take the commit hash the execute agent reported below, if it gave one.
+2. Verify it: \`git log -1 --format=%s <hash>\` must print a subject starting with \`${task.id}: \`. This is what catches a task that committed nothing and reported a sibling's or the branch's existing tip as its own.
+3. If there is no reported hash, or it fails step 2, search for the task's own commit: \`git log --branches --format='%H %s' --grep "^${task.id}: "\`, then discard every candidate whose subject does not start with \`${task.id}: \` (\`--grep\` matches the message body too). Take the newest survivor.
+4. Report success only with a commit that passed step 2, and report that hash at the full forty characters — it is what gets integrated, so an abbreviation or a guess is worse than a failure. Report no success without one.${useWorktree ? "\n5. Report the branch name as context. Identity is the hash." : ""}
+
+## Execute agent's report
+Forwarded verbatim.
+
+${report}`,
       {
         label: `confirm:${task.id}`,
         phase: "Execute",
@@ -313,17 +339,32 @@ async function runExecute(task, { useWorktree = false } = {}) {
     ...(useWorktree ? { isolation: "worktree" } : {}),
     ...modelOpt
   });
-  const status = await confirmFromGit(task, { useWorktree });
+  const status = await confirmFromGit(task, { useWorktree, execReport });
+  // A success with no full hash is refused rather than believed. Integration is by
+  // commit, so a success the workflow cannot name a commit for has nothing to merge,
+  // and carrying it forward as success is how a task whose work never landed reports
+  // as done.
+  const reported = typeof status?.commit === "string" ? status.commit.trim() : "";
+  const commit = /^[0-9a-f]{40}$/i.test(reported) ? reported : null;
+  const success = !!status?.success && commit !== null;
+  const refused = !!status?.success && commit === null;
+  if (refused) {
+    log(
+      `${task.id}: confirm reported success with no forty-character commit (commit: ${reported || "absent"}) — treated as failed`
+    );
+  }
   return {
     task_id: task.id,
-    success: !!status?.success,
+    success,
     branch: status?.branch,
-    commit: status?.commit,
+    commit,
     summary: status?.summary || "",
     friction_text: execReport || null,
-    error: status?.success
+    error: success
       ? undefined
-      : status?.summary || "no committed work found"
+      : refused
+        ? "confirm reported success with no forty-character commit"
+        : status?.summary || "no committed work found"
   };
 }
 
@@ -403,7 +444,9 @@ ${treeList}
 
 Steps:
 1. Run \`git worktree prune\` to clear stale entries left by crashed runs.
-2. Run \`git worktree list\`. For each branch above that still has a worktree, run \`git worktree unlock <path>\` (ignore a "not locked" error) then \`git worktree remove --force <path>\`.
+2. Run \`git worktree list\`. For each branch above that still has a worktree, check it is clean first: \`git -C <path> status --porcelain\`. If that prints nothing, run \`git worktree unlock <path>\` (ignore a "not locked" error) then \`git worktree remove <path>\`. If it prints anything, leave the worktree exactly where it is and record it under \`skipped_branches\` with its dirty-file count.
+
+   **Never \`git worktree remove --force\`.** It destroys modified and untracked content with nothing recoverable — the directory goes, and the file is in no commit and no dangling object. A dirty worktree is the shape most likely to hold work that never landed, so a tree you cannot remove cleanly is a tree you leave.
 3. Run \`git worktree prune\` again.
 4. Delete ONLY these already-integrated branches, and only after their worktree is gone. Use \`git branch -D <branch>\` (a squash merge leaves no ancestry, so \`-d\` would wrongly refuse):
 ${deleteList}
@@ -449,39 +492,30 @@ for (let si = 0; si < steps.length; si++) {
       }
     }
 
-    if (failed.length > 0) {
-      for (const f of failed) log(`${f.task.id} failed: ${f.error}`);
-      const salvageable = succeeded.filter((s) => s.result.branch);
-      for (const s of salvageable)
-        log(`${s.task.id} succeeded — work on branch ${s.result.branch}`);
-      await cleanupWorktrees(); // sweep leaked trees; branches survive (none merged yet)
-      return {
-        tasks_total: taskCount,
-        complete: false,
-        error: `${failed.map((f) => f.task.id).join(", ")} failed`,
-        salvageable_branches: salvageable.map((s) => ({
-          task_id: s.task.id,
-          branch: s.result.branch
-        })),
-        friction_logs: allFriction
-      };
-    }
+    for (const f of failed) log(`${f.task.id} failed: ${f.error}`);
 
+    // Integrate what succeeded before deciding whether to stop. The tasks in a
+    // parallel step are independent by construction — that is what put them in one
+    // step — so a sibling's failure says nothing about work that already passed its
+    // own gate. Returning ahead of this loop stranded that work on its branch and
+    // handed the caller a manual recovery job.
     phase("Integrate");
+    const notIntegrated = [];
     for (const { task: t, result: r } of succeeded) {
       log(`Integrating ${t.id}: ${t.title}`);
       const merge = await integrateTask(t, r);
       if (!merge?.success) {
+        // The remaining integrations still run, for the same independence reason.
         log(
-          `Integration failed for ${t.id}: ${merge?.error || "unknown"} — stopping`
+          `Integration failed for ${t.id}: ${merge?.error || "unknown"} — the rest of this step still integrates`
         );
-        await cleanupWorktrees();
-        return {
-          tasks_total: taskCount,
-          complete: false,
-          error: `${t.id} integration failed`,
-          friction_logs: allFriction
-        };
+        notIntegrated.push({
+          task_id: t.id,
+          commit: r.commit,
+          branch: r.branch,
+          error: merge?.error || "unknown"
+        });
+        continue;
       }
       if (r.branch) mergedBranches.add(r.branch); // squash-merge landed — safe to delete at cleanup
       completedWork.push({
@@ -489,6 +523,27 @@ for (let si = 0; si < steps.length; si++) {
         title: t.title,
         summary: r.summary || ""
       });
+    }
+
+    // Only now stop. Later steps are ordered after this one by breakdown, so they may
+    // depend on what did not land; this step's own work is already integrated.
+    if (failed.length > 0 || notIntegrated.length > 0) {
+      await cleanupWorktrees();
+      return {
+        tasks_total: taskCount,
+        complete: false,
+        error: [
+          failed.length ? `${failed.map((f) => f.task.id).join(", ")} failed` : null,
+          notIntegrated.length
+            ? `${notIntegrated.map((n) => n.task_id).join(", ")} did not integrate`
+            : null
+        ]
+          .filter(Boolean)
+          .join("; "),
+        integrated: completedWork.map((w) => w.task_id),
+        built_not_integrated: notIntegrated,
+        friction_logs: allFriction
+      };
     }
   } else {
     // ── Sequential: run directly on the main checkout ──

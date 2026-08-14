@@ -44,7 +44,10 @@ When satisfying an enforced completion gate forces violating a softer CLAUDE.md 
 
 Stay within your task's footprint: only create or modify files your task requires. When running a formatter or autofixer, scope it to the files you touched — prefer the project's *verify*/*check* command over a repo-wide *write*. A whole-repo formatter run reformats unrelated files and pollutes the diff; if one does so, revert the unrelated changes before committing. Commit only the files belonging to your task.
 
-When done, commit all changes. Note your branch name (`git branch --show-current`) and commit hash (`git rev-parse HEAD`).
+When done, commit all changes. Then end your report with these two lines, exactly as labelled — the orchestrator reads them by their labels, and your commit is what gets integrated:
+
+- `Commit: <the full forty-character hash from git rev-parse HEAD>` — never an abbreviation
+- `Branch: <git branch --show-current>`
 
 You do not need to return a structured result — a concise prose report is enough. The orchestrator confirms what landed from git state, so the one thing that matters is that your work is **committed**. Include a friction log in your report with three fields:
 
@@ -56,15 +59,18 @@ You do not need to return a structured result — a concise prose report is enou
 
 ## integrate
 
-Integrate a completed task branch onto the base branch via squash merge.
+Integrate one task's confirmed commit onto the base branch via squash merge.
+
+**Identity is the commit, never the branch name.** Merge the hash under `## Verified commit`. In a parallel step every sibling's branch is equally recent, so any rule that picks a branch by name or by date can pick a sibling's work; and a branch can be renamed or deleted while the commit stays reachable. The branch is context only.
 
 Steps:
 
-1. `git checkout <base-branch>`
-2. `git merge --squash <task-branch>`
-3. Resolve conflicts if any, based on the task's intent
-4. Verify the project builds
-5. `git commit -m "<task-id>: <task-title>"`
+1. `git rev-parse --verify <the verified commit>^{commit}` — confirm it exists before touching the base branch. If it does not resolve, merge nothing and report failure.
+2. `git checkout <base-branch>`
+3. `git merge --squash <the verified commit>`
+4. Resolve conflicts if any, based on the task's intent
+5. Verify the project builds
+6. `git commit -m "<task-id>: <task-title>"`
 
 Do not delete the task branch or remove its worktree — the workflow owns that teardown after the run (it removes the worktree first, then deletes the branch). Running `git branch -D` here while the task's worktree is still live makes git refuse ("cannot delete branch ... used by worktree") and fails the integration.
 

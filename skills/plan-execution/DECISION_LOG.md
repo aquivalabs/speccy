@@ -140,6 +140,30 @@ The first covers a task that edits a shared type, interface, or fixture: its dow
 
 The second covers a task that hard-codes a convention value from the plan rather than checking the real sibling files. Such a value is wrong when it differs from what the code uses, and dead when it matches nothing. The rule has the task discover the convention against the real files at build time instead of freezing a template value.
 
+### A parallel step's failure no longer discards its siblings' work (2026-08-14)
+
+The step loop returned as soon as any task in a parallel step failed, and it returned *before* the Integrate phase. Every sibling that had committed working, gate-passing code had that work left on its branch and handed back as `salvageable_branches` for a human to merge by hand.
+
+The tasks in a parallel step are independent by construction — that is the property that put them in one step — so a sibling's failure says nothing about work that already passed its own gate. Integration now runs first, over everything that succeeded, and the run stops afterwards. An integration that fails no longer stops the others either, for the same reason. Later steps are still cancelled: breakdown orders steps by dependency, so a later step may need what did not land, and nothing in the task shape says which.
+
+The result gains `integrated` and `built_not_integrated` so the caller reads what landed rather than inferring it.
+
+### A task's work is identified by its commit, not its branch name (2026-08-14)
+
+The confirm agent was told to find a task's work with `git branch --sort=-committerdate`. In a parallel step of N tasks, N branches are equally recent, so that rule can return a sibling's branch — and the integrate agent then squash-merged whatever it named. The mechanism cannot work for the case it exists to serve.
+
+The execute agent now ends its report with labelled `Commit:` and `Branch:` lines. Confirm takes the reported hash and verifies its subject starts with `<task-id>: `, which is what catches a task that committed nothing and reported the branch's existing tip as its own; failing that it searches `--branches` for a commit with that subject, since a worktree task's commit is not reachable from the main checkout's `HEAD`. Integration is by hash. The branch is passed as context and decides nothing.
+
+The workflow refuses a reported success carrying no forty-character hash: integration is by commit, so a success it cannot name a commit for has nothing to merge, and believing it is how a task whose work never landed reports as done.
+
+This is deliberately one condition rather than a full verification ladder. The subject check is what makes identity parallel-safe; the rest of a ladder guards against an agent misreporting, which is rare enough in practice not to earn the complexity.
+
+### Teardown never force-removes a worktree (2026-08-14)
+
+Cleanup ran `git worktree remove --force`. Measured: that destroys modified and untracked content unrecoverably — the directory goes and the file is in no commit and no dangling object. A dirty worktree is the shape most likely to hold work that never landed, because a task that halts on a false premise commits nothing by instruction.
+
+Cleanup now checks `git -C <path> status --porcelain` first and removes only a clean tree. A dirty one is kept and reported with its dirty-file count. Keeping a tree that could have gone costs the next run some clutter; removing one that held work cannot be undone.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
