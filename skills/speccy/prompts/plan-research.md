@@ -6,6 +6,7 @@ Research:
 
 - Read the spec carefully, including its open questions and assumptions.
 - Read `CLAUDE.md` (root and any nested) and the docs it links — do not restate them in the plan.
+- Read what this repo has already decided: ADRs (`adr/`, `docs/adr/`, `decisions/`), prior specs and their decision logs under `specs/`, and past retrospectives. Nothing here is guaranteed to exist. A decision already recorded is context to build on rather than re-derive, and a plan that contradicts one has to say so deliberately.
 - Investigate the codebase to resolve the spec's open questions: existing utilities, patterns, integration points, platform constraints. Use Grep, Read, and any project-specific lookup tools.
 - Test each **Assumption** in the spec against what you find and mark it `confirmed`, `contradicted`, or `still-open`. These are the quiet premises (e.g. "this table is append-only") that become silent build-time surprises if false. A contradicted one can invalidate scope, so treat it as a finding.
 - Run the project's static-analysis tool on a small representative stub and read only the violations it actually fires — don't survey the ruleset. Two uses for that output: let any *design-shaping* rule (one that forbids a shape you'd build the design around, e.g. no static helpers, a mandated framework) inform the architecture before you commit; and record any violation that conflicts with a CLAUDE.md *style* preference under Risks as a decision for plan review. Cosmetic conflicts are cheap to fix during the build — don't try to predict them all.

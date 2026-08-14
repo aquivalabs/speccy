@@ -233,6 +233,10 @@ Before diving in, briefly orient the user on why planning is a separate step: th
 
 Planning research happens in a subagent to keep the codebase-reading noise out of the main context. Read `prompts/plan-research.md`.
 
+**Dispatch the project's own research agents from here, not from the planner.** A spawned subagent sees every skill with its trigger text, but is shown no agent types at all, so the planner cannot name a repo's own research agent — the orchestrator can. If `.claude/agents/` holds read-only research agents (the ones answering where-does-this-live, how-does-X-work, does-Y-already-exist), dispatch the relevant ones from the main conversation before spawning the planner, and pass their findings into its prompt as gathered context. Keep the dispatch here for the same reason `code-review` runs inline: a subagent that spawns children and then waits on them has stalled twice. A repo with no such agents needs none of this — the planner researches generically.
+
+A house skill's rule is how this repo works. A research agent's answer is research: cite it in the plan so the critique loop can weigh it like any other evidence.
+
 Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec path, the target plan path (`.speccy/<run-id>/plan.md`), and the path to `prompts/plan-spike.md` so the planner can prove any load-bearing mechanism (preferably by spawning a spike subagent, or inline). If the spec recorded external context (docs, standards, related projects), pass those references too — read them from the spec rather than relying on conversation memory, since planning may run in a freshly cleared context.
 
 When it completes, brief the user on the approach, key decisions, and risks from `.speccy/<run-id>/plan.md` — point them there for the full text rather than dumping it inline. Update state.json with `planPath` and `phase: "plan-critique"`.
