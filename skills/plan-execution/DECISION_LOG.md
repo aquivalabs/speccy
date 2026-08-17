@@ -146,13 +146,15 @@ The step loop returned as soon as any task in a parallel step failed, and it ret
 
 The tasks in a parallel step are independent by construction — that is the property that put them in one step — so a sibling's failure says nothing about work that already passed its own gate. Integration now runs first, over everything that succeeded, and the run stops afterwards. An integration that fails no longer stops the others either, for the same reason. Later steps are still cancelled: breakdown orders steps by dependency, so a later step may need what did not land, and nothing in the task shape says which.
 
-The result gains `integrated` and `built_not_integrated` so the caller reads what landed rather than inferring it.
+Continuing past a failed integration needs a precondition the old stop-immediately behaviour did not: the next sibling merges onto whatever the failure left on the base branch. So integration now refuses to start unless `git status --porcelain` there is empty, and resets on any failure from the merge onward, not only a failing build. The check lives in the prompt because a workflow script has no shell of its own.
+
+Every exit reports `integrated` and `built_not_integrated`, sequential failures and the completeness cap included, so the caller reads what landed from one place rather than inferring it from the exit it happened to take.
 
 ### A task's work is identified by its commit, not its branch name (2026-08-14)
 
 The confirm agent was told to find a task's work with `git branch --sort=-committerdate`. In a parallel step of N tasks, N branches are equally recent, so that rule can return a sibling's branch — and the integrate agent then squash-merged whatever it named. The mechanism cannot work for the case it exists to serve.
 
-The execute agent now ends its report with labelled `Commit:` and `Branch:` lines. Confirm takes the reported hash and verifies its subject starts with `<task-id>: `, which is what catches a task that committed nothing and reported the branch's existing tip as its own; failing that it searches `--branches` for a commit with that subject, since a worktree task's commit is not reachable from the main checkout's `HEAD`. Integration is by hash. The branch is passed as context and decides nothing.
+The execute agent now ends its report with labelled `Commit:` and `Branch:` lines. Confirm takes the reported hash and verifies its subject starts with `<task-id>: `, which is what catches a task that committed nothing and reported the branch's existing tip as its own; failing that it searches for a commit with that subject, since a worktree task's commit is not reachable from the main checkout's `HEAD`. That search excludes commits reachable from the base branch, where integration has already committed `<task-id>: <title>` for anything merged: an id integrated once before (a re-run, or a corrective task reusing an id) otherwise has a commit that passes the subject check while saying nothing about the current attempt. Integration is by hash. The branch is passed as context and decides nothing.
 
 The workflow refuses a reported success carrying no forty-character hash: integration is by commit, so a success it cannot name a commit for has nothing to merge, and believing it is how a task whose work never landed reports as done.
 
