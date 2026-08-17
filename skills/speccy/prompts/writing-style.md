@@ -12,16 +12,16 @@ Every file speccy writes is for a person: the reviewer now, whoever picks the wo
 
 - A sentence needing three clauses wants a list or a subsection instead.
 - No asides and no parenthetical rebuttals.
-- Cut hedges. State uncertainty once, plainly, in the section that exists for it (Assumptions, Risks, Open questions), never as a qualifier on every sentence.
+- Cut hedges. State uncertainty once, plainly, in the section that exists for it (Assumptions, Risks, Open questions). A qualifier repeated on every sentence hides it.
 
 ## Define before use
 
 - Define a term, abbreviation, or code identifier at first use, or don't use it.
-- A citation is evidence for a claim, never a substitute for it. State the fact in words, then cite the file, ADR, or issue as proof. The sentence has to stand on its own for a reader who never opens the reference.
+- A citation is evidence for a claim; it cannot substitute for one. State the fact in words, then cite the file, ADR, or issue as proof. The sentence has to stand on its own for a reader who never opens the reference.
 
-## Describe the thing, not the discussion of it
+## Describe the thing, leave out the discussion of it
 
-- State the current position. How it was reached, what an earlier draft said, and what a review changed belong in the decision log, not here.
+- State the current position. How it was reached, what an earlier draft said, and what a review changed all belong in the decision log.
 - Don't describe the file's own organisation.
 - Argument lives in one section (Decisions & rationale, Architecture decisions), and in the lead, which carries the one or two decisions that shape everything else. Everywhere else, describe. The file's shape says where the argument is, so no cross-reference is needed.
 - Don't pre-defend. A critic will read this and so will a colleague, and writing for the critic is what makes a file unreadable.
