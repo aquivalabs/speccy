@@ -100,7 +100,7 @@ The fix consolidates teardown in `workflow.js`:
 
 ### Breakdown favours parallelism (2026-07-08)
 
-The breakdown prompt defaulted to sequential steps — "only group tasks into a parallel step when they are obviously independent." In practice that decomposed real plans into long sequential chains, so wall-clock was the *sum* of per-task times rather than the max. A 14-task run (`taskray-ent` full-page-portfolio) ran largely serially and took hours, most of it waiting on tasks that had no true dependency on each other.
+The breakdown prompt defaulted to sequential steps — "only group tasks into a parallel step when they are obviously independent." In practice that decomposed real plans into long sequential chains, so wall-clock was the *sum* of per-task times rather than the max. A 14-task run ran largely serially and took hours, most of it waiting on tasks that had no true dependency on each other.
 
 The conservative default was buying little: worktree isolation (`baseRef: head`) plus the prior-work summaries injected into downstream prompts already make parallel batches safe, and squash-merge integration has proven low-conflict across runs. So the cost of the caution (serialised wall-clock) outweighed its benefit (avoiding conflicts that rarely materialise).
 
@@ -108,7 +108,7 @@ The fix: the breakdown prompt now **favours parallelism** — tasks share a para
 
 ### Breakdown owns the verification cadence (2026-07-08)
 
-The `execute` prompt told every task to run the project's full gate suite (build, lint, static analysis, full test run) before committing. On a large run that pays the whole suite once *per task* — the same full-page-portfolio run above ran it 11+ times, and that repetition, not orchestration overhead, was the dominant wall-clock cost. Running the suite only once at the very end is the opposite failure: a regression surfaces late and is hard to attribute to the batch that caused it.
+The `execute` prompt told every task to run the project's full gate suite (build, lint, static analysis, full test run) before committing. On a large run that pays the whole suite once *per task* — the same 14-task run above ran it 11+ times, and that repetition, not orchestration overhead, was the dominant wall-clock cost. Running the suite only once at the very end is the opposite failure: a regression surfaces late and is hard to attribute to the batch that caused it.
 
 The fix distributes verification, and hands the decision to breakdown (the phase with the whole dependency graph in view). This refines "Verification via CLAUDE.md, not discovery" — CLAUDE.md still defines *what* the tools are; this governs *how often* the full set runs:
 
@@ -116,11 +116,11 @@ The fix distributes verification, and hands the decision to breakdown (the phase
 - Breakdown authors explicit **verification-checkpoint** tasks — a sequential step whose task runs the full suite against the integrated base and fixes any breakage — at milestones it chooses: after a parallel batch lands, at a layer boundary, and always once at the end. More checkpoints on a large multi-batch plan so a regression stays attributable to its batch.
 - `execute` honours the per-task level, with a safe default: an **unmarked** task runs the full suite. So `workflow-simple` (a single un-marked task) and any un-marked plan are never under-verified — the speedup is opt-in via breakdown's markings.
 
-Trade-off recorded deliberately: a scoped task that commits can pass a regression to a later checkpoint rather than catching it at once. Accepted to reclaim wall-clock on large runs, bounded by how frequently breakdown checkpoints. Evidence for the change: the full-page-portfolio retrospective (per-task full-suite runs dominated the clock) and the ultracode/Workflow research confirming the platform ships no cadence guidance — the project owns this policy.
+Trade-off recorded deliberately: a scoped task that commits can pass a regression to a later checkpoint rather than catching it at once. Accepted to reclaim wall-clock on large runs, bounded by how frequently breakdown checkpoints. Evidence for the change: that run's retrospective (per-task full-suite runs dominated the clock) and the ultracode/Workflow research confirming the platform ships no cadence guidance — the project owns this policy.
 
 ### Task-file references are absolute paths for worktree agents (2026-07-10)
 
-`.tasks/` is gitignored, so a parallel task's worktree does not contain it. Breakdown wrote each task's file reference as a repo-relative path (`.tasks/{run-id}/{task-id}.md`), which resolves in the main checkout but not in a worktree. Worktree execute agents (parallel and corrective tasks) could not find their own instructions at the given path and detoured to locate the main checkout on every task, seen across the `taskray-ent` full-page-portfolio parallel batches.
+`.tasks/` is gitignored, so a parallel task's worktree does not contain it. Breakdown wrote each task's file reference as a repo-relative path (`.tasks/{run-id}/{task-id}.md`), which resolves in the main checkout but not in a worktree. Worktree execute agents (parallel and corrective tasks) could not find their own instructions at the given path and detoured to locate the main checkout on every task, seen across that run's parallel batches.
 
 The fix: breakdown now references each task file by its absolute path (the repository root from `git rev-parse --show-toplevel`, prepended). The file is still written under `.tasks/{run-id}/`; only the reference handed to an execute agent becomes absolute, so a worktree agent reads its instructions from the main checkout directly with no discovery step.
 
@@ -128,7 +128,7 @@ Chosen over copying the task file into each worktree (the pattern used for other
 
 ### Soft-cap watchdog beat recurs instead of firing once (2026-07-10)
 
-Tier-1's soft wall-clock cap originally fired once (a `w_cap` flag) at ~25 min. Reviewing an overnight `taskray-ent` run showed its value is not failure detection (tier-2's hard stall covers that) but a visible liveness beat: a human glancing at a background run wants periodic proof it is watched and progressing. Firing once undersells that, so a ~100-minute execution got a single beat at 25 min, then 75 minutes of silence.
+Tier-1's soft wall-clock cap originally fired once (a `w_cap` flag) at ~25 min. Reviewing an overnight run showed its value is not failure detection (tier-2's hard stall covers that) but a visible liveness beat: a human glancing at a background run wants periodic proof it is watched and progressing. Firing once undersells that, so a ~100-minute execution got a single beat at 25 min, then 75 minutes of silence.
 
 The fix: the soft cap recurs. Instead of a one-shot flag, the sketch tracks a `cap` threshold that bumps by the interval (~25 min) on each fire, so beats land at 25, 50, 75… minutes. Each beat forces the orchestrator to do a real state check (commits, corrective count, transcript liveness) and report it. The corrective-task warning stays one-shot and the stall flag still re-arms; the ~25-min interval keeps even a multi-hour run to a few beats, well under the Monitor's noise-stop threshold. Cost is one orchestrator check-in turn per beat, cheap relative to the reassurance for a watching human.
 
