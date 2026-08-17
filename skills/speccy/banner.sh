@@ -83,7 +83,9 @@ quotes=(
 q="${quotes[RANDOM % ${#quotes[@]}]}"
 text="${q%|*}"; who="${q#*|}"
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+# -P, because git reports the top-level physically: a checkout reached through a
+# symlink would otherwise never compare equal and would lose its commit stamp.
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
 stamp=""
 version="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \

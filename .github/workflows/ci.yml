@@ -6,6 +6,8 @@ on:
     branches: [ "**" ]
   push:
     branches: [ main ]
+permissions:
+  contents: read
 jobs:
   status-check:
     runs-on: ubuntu-latest
