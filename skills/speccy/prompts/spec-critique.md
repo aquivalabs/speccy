@@ -6,6 +6,17 @@ Scrutinise the **Decisions & rationale** section, and hunt for decisions that sh
 
 Also flag content that restates `CLAUDE.md` (root or nested) or the docs it links. Read those first so you can recognise the duplication.
 
+**Read the spec once as its reader.** A colleague should be able to follow it start to finish without opening a reference or knowing the run that produced it. Judge it against `writing-style.md` (alongside this prompt) and flag:
+
+- a term, abbreviation, or code identifier used before it is defined
+- a claim that exists only inside a citation, so the sentence collapses for a reader who doesn't open the file it points at
+- narrative about how the spec reached its position: an earlier draft, a reversal, what a review changed
+- argument outside **Decisions & rationale**, where a deliverable or constraint defends itself instead of describing itself. The lead is the one exception, and it carries at most two decisions; a third is a finding.
+- a section or bullet that buries its point behind qualifiers
+- a completion criterion that isn't checkable, usually one carrying a caveat about what it does and doesn't prove
+
+Every one of these is answered by cutting or restructuring, so name the passage and say what should go. Do not propose new prose to add.
+
 Pay particular attention to the Assumptions section. These are the spec author's best guesses where the feature description was ambiguous. Challenge any assumption that seems wrong, risky, or worth validating before building.
 
 Every piece of feedback must identify a specific problem and explain why it matters. If you cannot find legitimate flaws, say so.

@@ -18,6 +18,6 @@ One entry per finding. Start each with a single-line header:
 - **verdict** — `CONFIRMED` (you traced it and it holds) or `PLAUSIBLE` (a genuine candidate you could not finish confirming). `PLAUSIBLE` is not licence to pad the list with hypotheticals.
 - **one-line summary** — the defect in a single sentence.
 
-Under each header, a few lines a triager needs: the mechanism (how it fails or what it costs) and the concrete fix. Add any per-lens detail your prompt asks for.
+Under each header, a few lines a triager needs: the mechanism (how it fails or what it costs) and the concrete fix. Add any per-lens detail your prompt asks for. Write those lines to the standard in `writing-style.md` (alongside this prompt): a triager and the user both read them, so state the defect and stop.
 
 List every finding you're confident of, not just the clearest, but no padding. If your lens is clean, write the file and say so.

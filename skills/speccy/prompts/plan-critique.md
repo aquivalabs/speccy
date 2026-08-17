@@ -10,4 +10,15 @@ Check that any load-bearing mechanism the plan depends on has been **proven feas
 
 Also flag content that restates `CLAUDE.md` (root or nested) or the docs it links. Read those first so you can recognise the duplication.
 
+**Read the plan once as its reader.** The user approves the build from this file, so it has to be followable start to finish by someone who has read the spec and knows nothing about the run that produced it. The spec is fair background: a term it defines needs no second definition here. Judge the plan against `writing-style.md` (alongside this prompt) and flag:
+
+- a term, abbreviation, or code identifier the plan uses before defining, and the spec doesn't define either
+- a claim that exists only inside a citation, so the sentence collapses for a reader who doesn't open the file it points at
+- narrative about how the plan reached its position: an earlier draft, a reversal, what a critique round changed
+- argument outside **Architecture decisions**, or a decision sitting in the build-reference appendix. The lead is the one exception, and it carries at most two decisions; a third is a finding.
+- a section or bullet that buries its point behind qualifiers
+- a missing or padded lead, where the top of the file doesn't give the approach, the one or two decisions that matter, and the risks
+
+Every one of these is answered by cutting or restructuring, so name the passage and say what should go. Do not propose new prose to add.
+
 Every piece of feedback must identify a specific problem and explain why it matters. If you cannot find legitimate flaws, say so.
