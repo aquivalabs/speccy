@@ -100,7 +100,7 @@ The fix consolidates teardown in `workflow.js`:
 
 ### Breakdown favours parallelism (2026-07-08)
 
-The breakdown prompt defaulted to sequential steps — "only group tasks into a parallel step when they are obviously independent." In practice that decomposed real plans into long sequential chains, so wall-clock was the *sum* of per-task times rather than the max. A 14-task run (`taskray-ent` full-page-portfolio) ran largely serially and took hours, most of it waiting on tasks that had no true dependency on each other.
+The breakdown prompt defaulted to sequential steps — "only group tasks into a parallel step when they are obviously independent." In practice that decomposed real plans into long sequential chains, so wall-clock was the *sum* of per-task times rather than the max. A 14-task run ran largely serially and took hours, most of it waiting on tasks that had no true dependency on each other.
 
 The conservative default was buying little: worktree isolation (`baseRef: head`) plus the prior-work summaries injected into downstream prompts already make parallel batches safe, and squash-merge integration has proven low-conflict across runs. So the cost of the caution (serialised wall-clock) outweighed its benefit (avoiding conflicts that rarely materialise).
 
@@ -108,7 +108,7 @@ The fix: the breakdown prompt now **favours parallelism** — tasks share a para
 
 ### Breakdown owns the verification cadence (2026-07-08)
 
-The `execute` prompt told every task to run the project's full gate suite (build, lint, static analysis, full test run) before committing. On a large run that pays the whole suite once *per task* — the same full-page-portfolio run above ran it 11+ times, and that repetition, not orchestration overhead, was the dominant wall-clock cost. Running the suite only once at the very end is the opposite failure: a regression surfaces late and is hard to attribute to the batch that caused it.
+The `execute` prompt told every task to run the project's full gate suite (build, lint, static analysis, full test run) before committing. On a large run that pays the whole suite once *per task* — the same 14-task run above ran it 11+ times, and that repetition, not orchestration overhead, was the dominant wall-clock cost. Running the suite only once at the very end is the opposite failure: a regression surfaces late and is hard to attribute to the batch that caused it.
 
 The fix distributes verification, and hands the decision to breakdown (the phase with the whole dependency graph in view). This refines "Verification via CLAUDE.md, not discovery" — CLAUDE.md still defines *what* the tools are; this governs *how often* the full set runs:
 
@@ -116,11 +116,11 @@ The fix distributes verification, and hands the decision to breakdown (the phase
 - Breakdown authors explicit **verification-checkpoint** tasks — a sequential step whose task runs the full suite against the integrated base and fixes any breakage — at milestones it chooses: after a parallel batch lands, at a layer boundary, and always once at the end. More checkpoints on a large multi-batch plan so a regression stays attributable to its batch.
 - `execute` honours the per-task level, with a safe default: an **unmarked** task runs the full suite. So `workflow-simple` (a single un-marked task) and any un-marked plan are never under-verified — the speedup is opt-in via breakdown's markings.
 
-Trade-off recorded deliberately: a scoped task that commits can pass a regression to a later checkpoint rather than catching it at once. Accepted to reclaim wall-clock on large runs, bounded by how frequently breakdown checkpoints. Evidence for the change: the full-page-portfolio retrospective (per-task full-suite runs dominated the clock) and the ultracode/Workflow research confirming the platform ships no cadence guidance — the project owns this policy.
+Trade-off recorded deliberately: a scoped task that commits can pass a regression to a later checkpoint rather than catching it at once. Accepted to reclaim wall-clock on large runs, bounded by how frequently breakdown checkpoints. Evidence for the change: that run's retrospective (per-task full-suite runs dominated the clock) and the ultracode/Workflow research confirming the platform ships no cadence guidance — the project owns this policy.
 
 ### Task-file references are absolute paths for worktree agents (2026-07-10)
 
-`.tasks/` is gitignored, so a parallel task's worktree does not contain it. Breakdown wrote each task's file reference as a repo-relative path (`.tasks/{run-id}/{task-id}.md`), which resolves in the main checkout but not in a worktree. Worktree execute agents (parallel and corrective tasks) could not find their own instructions at the given path and detoured to locate the main checkout on every task, seen across the `taskray-ent` full-page-portfolio parallel batches.
+`.tasks/` is gitignored, so a parallel task's worktree does not contain it. Breakdown wrote each task's file reference as a repo-relative path (`.tasks/{run-id}/{task-id}.md`), which resolves in the main checkout but not in a worktree. Worktree execute agents (parallel and corrective tasks) could not find their own instructions at the given path and detoured to locate the main checkout on every task, seen across that run's parallel batches.
 
 The fix: breakdown now references each task file by its absolute path (the repository root from `git rev-parse --show-toplevel`, prepended). The file is still written under `.tasks/{run-id}/`; only the reference handed to an execute agent becomes absolute, so a worktree agent reads its instructions from the main checkout directly with no discovery step.
 
@@ -128,7 +128,7 @@ Chosen over copying the task file into each worktree (the pattern used for other
 
 ### Soft-cap watchdog beat recurs instead of firing once (2026-07-10)
 
-Tier-1's soft wall-clock cap originally fired once (a `w_cap` flag) at ~25 min. Reviewing an overnight `taskray-ent` run showed its value is not failure detection (tier-2's hard stall covers that) but a visible liveness beat: a human glancing at a background run wants periodic proof it is watched and progressing. Firing once undersells that, so a ~100-minute execution got a single beat at 25 min, then 75 minutes of silence.
+Tier-1's soft wall-clock cap originally fired once (a `w_cap` flag) at ~25 min. Reviewing an overnight run showed its value is not failure detection (tier-2's hard stall covers that) but a visible liveness beat: a human glancing at a background run wants periodic proof it is watched and progressing. Firing once undersells that, so a ~100-minute execution got a single beat at 25 min, then 75 minutes of silence.
 
 The fix: the soft cap recurs. Instead of a one-shot flag, the sketch tracks a `cap` threshold that bumps by the interval (~25 min) on each fire, so beats land at 25, 50, 75… minutes. Each beat forces the orchestrator to do a real state check (commits, corrective count, transcript liveness) and report it. The corrective-task warning stays one-shot and the stall flag still re-arms; the ~25-min interval keeps even a multi-hour run to a few beats, well under the Monitor's noise-stop threshold. Cost is one orchestrator check-in turn per beat, cheap relative to the reassurance for a watching human.
 
@@ -140,6 +140,32 @@ The first covers a task that edits a shared type, interface, or fixture: its dow
 
 The second covers a task that hard-codes a convention value from the plan rather than checking the real sibling files. Such a value is wrong when it differs from what the code uses, and dead when it matches nothing. The rule has the task discover the convention against the real files at build time instead of freezing a template value.
 
+### A parallel step's failure no longer discards its siblings' work (2026-08-14)
+
+The step loop returned as soon as any task in a parallel step failed, and it returned *before* the Integrate phase. Every sibling that had committed working, gate-passing code had that work left on its branch and handed back as `salvageable_branches` for a human to merge by hand.
+
+The tasks in a parallel step are independent by construction — that is the property that put them in one step — so a sibling's failure says nothing about work that already passed its own gate. Integration now runs first, over everything that succeeded, and the run stops afterwards. An integration that fails no longer stops the others either, for the same reason. Later steps are still cancelled: breakdown orders steps by dependency, so a later step may need what did not land, and nothing in the task shape says which.
+
+Continuing past a failed integration needs a precondition the old stop-immediately behaviour did not: the next sibling merges onto whatever the failure left on the base branch. So integration now refuses to start unless `git status --porcelain` there is empty, and resets on any failure from the merge onward, not only a failing build. The check lives in the prompt because a workflow script has no shell of its own.
+
+Every exit reports `integrated` and `built_not_integrated`, sequential failures and the completeness cap included, so the caller reads what landed from one place rather than inferring it from the exit it happened to take.
+
+### A task's work is identified by its commit, not its branch name (2026-08-14)
+
+The confirm agent was told to find a task's work with `git branch --sort=-committerdate`. In a parallel step of N tasks, N branches are equally recent, so that rule can return a sibling's branch — and the integrate agent then squash-merged whatever it named. The mechanism cannot work for the case it exists to serve.
+
+The execute agent now ends its report with labelled `Commit:` and `Branch:` lines. Confirm takes the reported hash and verifies its subject starts with `<task-id>: `, which is what catches a task that committed nothing and reported the branch's existing tip as its own; failing that it searches for a commit with that subject, since a worktree task's commit is not reachable from the main checkout's `HEAD`. That search excludes commits reachable from the base branch, where integration has already committed `<task-id>: <title>` for anything merged: an id integrated once before (a re-run, or a corrective task reusing an id) otherwise has a commit that passes the subject check while saying nothing about the current attempt. Integration is by hash. The branch is passed as context and decides nothing.
+
+The workflow refuses a reported success carrying no full commit hash: integration is by commit, so a success it cannot name a commit for has nothing to merge, and believing it is how a task whose work never landed reports as done. Full means whichever length the repository's object format uses — 40 hex, or 64 in a `--object-format=sha256` repository — so the check admits both rather than hard-coding sha1's width.
+
+This is deliberately one condition rather than a full verification ladder. The subject check is what makes identity parallel-safe; the rest of a ladder guards against an agent misreporting, which is rare enough in practice not to earn the complexity.
+
+### Teardown never force-removes a worktree (2026-08-14)
+
+Cleanup ran `git worktree remove --force`. Measured: that destroys the tree's uncommitted content — the directory goes, and an unstaged or untracked file is then in no commit and no object. Staged content is the one exception, since `git add` wrote it to the object store the worktrees share: it survives as a dangling blob `git fsck --lost-found` can recover, though without its filename. A dirty worktree is the shape most likely to hold work that never landed, because a task that halts on a false premise commits nothing by instruction.
+
+Cleanup now checks `git -C <path> status --porcelain` first and removes only a clean tree. A dirty one is kept and reported with its dirty-file count. Keeping a tree that could have gone costs the next run some clutter; removing one that held work cannot be undone.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
@@ -147,5 +173,7 @@ These are documented rather than deferred indefinitely — they represent real f
 **No budget awareness.** Neither workflow checks `budget.remaining()`. A large plan will consume the full token budget without warning. The right fix is to log remaining budget after each step and bail when it's insufficient for the next, but this requires estimating per-task cost, which varies widely. For now, keep plans reasonable or set a model override to a cheaper tier for execution.
 
 **Corrective tasks are uncapped.** The verify loop runs up to 3 iterations, and each can spawn an arbitrary number of corrective tasks. In the worst case a verify agent returns many corrections per round, each spawning an execute and integrate agent. A per-iteration cap or total corrective-task budget would bound this, but the right cap depends on plan size and hasn't been calibrated yet. Partially mitigated: the watchdog (see design decision above) now *surfaces* corrective-task escalation as a Tier-1 warning, so a runaway loop no longer goes unnoticed — but the loop itself is still not hard-capped.
+
+**A sequential task's confirm can accept an earlier run's commit.** Confirm identifies a task's work by a commit whose subject starts with `<task-id>: `. For a worktree task the search excludes commits reachable from the base branch, so an id integrated once before cannot pass as this attempt (see the identity decision above). A sequential task commits straight onto the base branch, which leaves no range to exclude — so on a resumed run that reuses an id, a task that committed nothing can be confirmed against the earlier run's commit and reported as success. Reuse is the likely case rather than the exotic one: the documented resume path re-runs breakdown on a reduced plan, and breakdown numbers from `task-1` again. The fix is a baseline `HEAD` captured at run start, so the search can require a commit newer than it — one rung of the verification ladder declined above, and declined here for the same reason: no run has hit it, and the completeness check reads deliverables against the plan, so work that never landed surfaces as a gap rather than shipping silently.
 
 **Worktrees lose per-checkout state.** Addressed by the gather/apply worktree init mechanism (see design decision above). This now only affects parallel tasks and corrective tasks — sequential tasks run on the main checkout and have full state. Residual limitation: if a gather command fails (e.g. no default org set), the execute agent is told to stop and report, but this surfaces late — after the worktree is already created. A pre-flight check in the invoking Claude could catch this earlier.

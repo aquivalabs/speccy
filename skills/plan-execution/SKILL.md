@@ -103,6 +103,8 @@ Report to the user:
    - **Blocked on intent** — a task or the verify step reported a requirement that can't be met as specified (infeasible, self-contradictory, or only closable by changing the agreed design). The reason is usually in the friction logs of a halted task. Surface it and present it as a **decision for the user** — revise the spec or plan and re-run. Do not retry it as-is or improvise a workaround.
    - **Mechanical gap** — work simply didn't finish. Report what landed and where to pick up (see "Resuming after failure").
 
+   Read `integrated` and `built_not_integrated` rather than re-deriving what happened. Every exit reports both, on any outcome. `integrated` names the tasks whose work is on the base branch — squash-merged for a parallel task, committed directly for a sequential one. A failing step no longer discards its successful siblings, so on an incomplete run this is usually non-empty. `built_not_integrated` names work that committed but whose merge failed, including corrective tasks, with the commit to recover it from.
+
 Keep it concise. Don't dump raw JSON — synthesize.
 
 ## Resuming after failure
