@@ -99,5 +99,5 @@ if [[ "$(git -C "$root" rev-parse --show-toplevel 2>/dev/null)" == "$root" ]]; t
 fi
 
 printf "%s\n" \
-"🟥🟨🟩🟦 **SPECCY**${stamp} — spec → critique → plan → build → review" \
+"🟥🟨🟩🟦 **speccy**${stamp} — spec → critique → plan → build → review" \
 "_\"${text}\" —${who}_"

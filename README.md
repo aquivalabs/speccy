@@ -1,6 +1,6 @@
 # speccy: a guided spec-to-implementation pipeline
 
-![speccy banner: a ZX Spectrum rainbow flash beside the SPECCY wordmark, with the tagline "Think before you build... Then keep thinking" and the pipeline "spec → critique → plan → build → review"](speccy_logo.png)
+![speccy banner: a ZX Spectrum rainbow flash beside the speccy wordmark, with the tagline "Think before you build... Then keep thinking" and the pipeline "spec → critique → plan → build → review"](speccy_logo.png)
 
 **speccy** is a Claude Code plugin that takes a feature from a rough idea through to reviewed code, forcing a specification before humans or agents write code. It bundles two skills: the `speccy` orchestrator and the `plan-execution` build skill it drives.
 
