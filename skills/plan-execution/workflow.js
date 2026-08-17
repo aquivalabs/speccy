@@ -314,7 +314,7 @@ ${where}
 Steps:
 1. Take the commit hash the execute agent reported below, if it gave one.
 2. Verify it: \`git log -1 --format=%s <hash>\` must print a subject starting with \`${task.id}: \`. This is what catches a task that committed nothing and reported a sibling's or the branch's existing tip as its own.
-3. If there is no reported hash, or it fails step 2, search for the task's own commit: \`git log --branches --format='%H %s' --grep "^${task.id}: "\`, then discard every candidate whose subject does not start with \`${task.id}: \` (\`--grep\` matches the message body too). Take the newest survivor.
+3. If there is no reported hash, or it fails step 2, search for the task's own commit: \`git log ${useWorktree ? `--branches --not ${baseBranch}` : "HEAD"} --format='%H %s' --grep "^${task.id}: "\`, then discard every candidate whose subject does not start with \`${task.id}: \` (\`--grep\` matches the message body too). Take the newest survivor.${useWorktree ? `\n\n   \`--not ${baseBranch}\` matters: integration squashes each task onto \`${baseBranch}\` under the subject \`<task-id>: <title>\`, so an id that has been integrated before (a re-run, or a corrective task reusing an earlier id) has a commit on \`${baseBranch}\` that passes step 2 while saying nothing about whether this attempt committed anything. Only an unmerged commit answers that.` : ""}
 4. Report success only with a commit that passed step 2, and report that hash at the full forty characters — it is what gets integrated, so an abbreviation or a guess is worse than a failure. Report no success without one.${useWorktree ? "\n5. Report the branch name as context. Identity is the hash." : ""}
 
 ## Execute agent's report
@@ -416,6 +416,9 @@ log(`${taskCount} tasks across ${steps.length} steps`);
 
 const allFriction = [];
 const completedWork = [];
+// Work that committed but whose merge failed, for the whole run. Every exit reports it
+// alongside `integrated`, so a caller reads what landed from one place on any outcome.
+const builtNotIntegrated = [];
 const worktreeBranches = []; // every worktree branch ever provisioned (success or fail)
 const mergedBranches = new Set(); // branches whose squash-merge landed on base — safe to delete
 
@@ -525,6 +528,8 @@ for (let si = 0; si < steps.length; si++) {
       });
     }
 
+    builtNotIntegrated.push(...notIntegrated);
+
     // Only now stop. Later steps are ordered after this one by breakdown, so they may
     // depend on what did not land; this step's own work is already integrated.
     if (failed.length > 0 || notIntegrated.length > 0) {
@@ -541,7 +546,7 @@ for (let si = 0; si < steps.length; si++) {
           .filter(Boolean)
           .join("; "),
         integrated: completedWork.map((w) => w.task_id),
-        built_not_integrated: notIntegrated,
+        built_not_integrated: builtNotIntegrated,
         friction_logs: allFriction
       };
     }
@@ -567,6 +572,10 @@ for (let si = 0; si < steps.length; si++) {
           tasks_total: taskCount,
           complete: false,
           error: `${task.id} failed`,
+          // A sequential task commits straight onto the base branch, so everything
+          // completed so far is already integrated by definition.
+          integrated: completedWork.map((w) => w.task_id),
+          built_not_integrated: builtNotIntegrated,
           friction_logs: allFriction
         };
       }
@@ -632,6 +641,12 @@ while (!complete && iteration < 3) {
         log(
           `Corrective integration failed for ${fix.id}: ${merge?.error || "unknown"}`
         );
+        builtNotIntegrated.push({
+          task_id: fix.id,
+          commit: r.commit,
+          branch: r.branch,
+          error: merge?.error || "unknown"
+        });
       } else {
         mergedBranches.add(r.branch); // corrective squash-merge landed — safe to delete at cleanup
       }
@@ -676,6 +691,8 @@ return {
   tasks_total: taskCount,
   completeness_iterations: iteration,
   complete,
+  integrated: completedWork.map((w) => w.task_id),
+  built_not_integrated: builtNotIntegrated,
   friction_logs: allFriction,
   retrospective: retro
 };

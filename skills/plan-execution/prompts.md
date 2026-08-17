@@ -66,7 +66,7 @@ Integrate one task's confirmed commit onto the base branch via squash merge.
 Steps:
 
 1. `git rev-parse --verify <the verified commit>^{commit}` — confirm it exists before touching the base branch. If it does not resolve, merge nothing and report failure.
-2. `git checkout <base-branch>`
+2. `git checkout <base-branch>`, then `git status --porcelain`. It must print nothing. If it prints anything, merge nothing and report failure, naming what was dirty: the base branch is mid-merge from an earlier integration, and squashing on top of someone else's unresolved changes commits their partial work under your task's message.
 3. `git merge --squash <the verified commit>`
 4. Resolve conflicts if any, based on the task's intent
 5. Verify the project builds
@@ -74,7 +74,7 @@ Steps:
 
 Do not delete the task branch or remove its worktree — the workflow owns that teardown after the run (it removes the worktree first, then deletes the branch). Running `git branch -D` here while the task's worktree is still live makes git refuse ("cannot delete branch ... used by worktree") and fails the integration.
 
-If the build fails after merge, run `git reset --hard HEAD` to restore the base branch, then report failure.
+**On any failure at or after step 3 — an unresolvable conflict, a failing build, a refused commit — restore the base branch with `git reset --hard HEAD` before you report.** That discards only the squash you staged; the task's own commit is untouched on its branch. The next task in this step integrates immediately after you, onto whatever you leave behind, so reporting failure from a dirty base branch corrupts its squash commit rather than just its own.
 
 ---
 
