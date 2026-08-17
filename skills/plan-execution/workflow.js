@@ -451,7 +451,7 @@ Steps:
 1. Run \`git worktree prune\` to clear stale entries left by crashed runs.
 2. Run \`git worktree list\`. For each branch above that still has a worktree, check it is clean first: \`git -C <path> status --porcelain\`. If that prints nothing, run \`git worktree unlock <path>\` (ignore a "not locked" error) then \`git worktree remove <path>\`. If it prints anything, leave the worktree exactly where it is and record it under \`skipped_branches\` with its dirty-file count.
 
-   **Never \`git worktree remove --force\`.** It destroys modified and untracked content with nothing recoverable — the directory goes, and the file is in no commit and no dangling object. A dirty worktree is the shape most likely to hold work that never landed, so a tree you cannot remove cleanly is a tree you leave.
+   **Never \`git worktree remove --force\`.** It destroys the tree's uncommitted content — the directory goes, and an unstaged or untracked file is then in no commit and no object. A dirty worktree is the shape most likely to hold work that never landed, so a tree you cannot remove cleanly is a tree you leave.
 3. Run \`git worktree prune\` again.
 4. Delete ONLY these already-integrated branches, and only after their worktree is gone. Use \`git branch -D <branch>\` (a squash merge leaves no ancestry, so \`-d\` would wrongly refuse):
 ${deleteList}
