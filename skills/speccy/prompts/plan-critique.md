@@ -10,7 +10,7 @@ Check that any load-bearing mechanism the plan depends on has been **proven feas
 
 Also flag content that restates `CLAUDE.md` (root or nested) or the docs it links. Read those first so you can recognise the duplication.
 
-**Read the plan once as its reader.** The user approves the build from this file, so it has to be followable start to finish by someone who has read the spec and knows nothing about the run that produced it. The spec is fair background: a term it defines needs no second definition here. Judge the plan against `writing-style.md` (alongside this prompt) and flag:
+**Read the plan once as its reader — but only if you are told the readability pass has already run on it.** Before that pass, prose is its job and not yours. After it, your read is what stops the rewrite sliding back. The user approves the build from this file, so it has to be followable start to finish by someone who has read the spec and knows nothing about the run that produced it. The spec is fair background: a term it defines needs no second definition here. Judge the plan against `writing-style.md` (alongside this prompt) and flag:
 
 - a term, abbreviation, or code identifier the plan uses before defining, and the spec doesn't define either
 - a claim that exists only inside a citation, so the sentence collapses for a reader who doesn't open the file it points at

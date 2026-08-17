@@ -6,7 +6,7 @@ Scrutinise the **Decisions & rationale** section, and hunt for decisions that sh
 
 Also flag content that restates `CLAUDE.md` (root or nested) or the docs it links. Read those first so you can recognise the duplication.
 
-**Read the spec once as its reader.** A colleague should be able to follow it start to finish without opening a reference or knowing the run that produced it. Judge it against `writing-style.md` (alongside this prompt) and flag:
+**Read the spec once as its reader — but only if you are told the readability pass has already run on it.** Before that pass, prose is its job and not yours; raising it early spends the user's triage on findings that get rewritten anyway. After it, your read is what stops the rewrite sliding back. A colleague should be able to follow the spec start to finish without opening a reference or knowing the run that produced it. Judge it against `writing-style.md` (alongside this prompt) and flag:
 
 - a term, abbreviation, or code identifier used before it is defined
 - a claim that exists only inside a citation, so the sentence collapses for a reader who doesn't open the file it points at
