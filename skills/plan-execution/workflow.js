@@ -636,7 +636,9 @@ while (!complete && iteration < 3) {
     const r = await runExecute(fix, { useWorktree: true });
 
     if (r?.branch) worktreeBranches.push(r.branch);
-    if (r?.success && r.branch) {
+    // Gated on success alone, not on a reported branch: integration merges the commit,
+    // which success guarantees, and the branch is context a confirm agent may omit.
+    if (r?.success) {
       phase("Integrate");
       const merge = await integrateTask(fix, r);
       if (!merge?.success) {
@@ -649,7 +651,7 @@ while (!complete && iteration < 3) {
           branch: r.branch,
           error: merge?.error || "unknown"
         });
-      } else {
+      } else if (r.branch) {
         mergedBranches.add(r.branch); // corrective squash-merge landed — safe to delete at cleanup
       }
     }
