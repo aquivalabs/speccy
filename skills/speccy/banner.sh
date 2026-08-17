@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Speccy banner — ZX Spectrum rainbow (as emoji) + wordmark + a rotating quote.
+# speccy banner — ZX Spectrum rainbow (as emoji) + wordmark + a rotating quote.
 # A programmer/writer quote is picked at random each run (writing maxims earn
 # their place: they apply to code too). Every quote is attribution-verified
 # against a primary or authoritative source.
@@ -13,7 +13,7 @@
 # Quotes are capped so the `"quote" —Author` line stays ≤ ~140 chars, keeping
 # it to roughly one row on a normal terminal.
 #
-# The banner also stamps which copy of Speccy is running. The version is read
+# The banner also stamps which copy of speccy is running. The version is read
 # from the plugin manifest, the one the marketplace itself reads, so the two
 # can't drift. The commit is only stamped when this checkout is the git
 # top-level: an installed plugin is a plain copy with no .git of its own, and a
@@ -99,5 +99,5 @@ if [[ "$(git -C "$root" rev-parse --show-toplevel 2>/dev/null)" == "$root" ]]; t
 fi
 
 printf "%s\n" \
-"🟥🟨🟩🟦 **SPECCY**${stamp} — spec → critique → plan → build → review" \
+"🟥🟨🟩🟦 **speccy**${stamp} — spec → critique → plan → build → review" \
 "_\"${text}\" —${who}_"
