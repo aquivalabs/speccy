@@ -46,7 +46,7 @@ Stay within your task's footprint: only create or modify files your task require
 
 When done, commit all changes. Then end your report with these two lines, exactly as labelled — the orchestrator reads them by their labels, and your commit is what gets integrated:
 
-- `Commit: <the full forty-character hash from git rev-parse HEAD>` — never an abbreviation
+- `Commit: <the full hash from git rev-parse HEAD>` — all of it, exactly as git printed it, never an abbreviation
 - `Branch: <git branch --show-current>`
 
 You do not need to return a structured result — a concise prose report is enough. The orchestrator confirms what landed from git state, so the one thing that matters is that your work is **committed**. Include a friction log in your report with three fields:

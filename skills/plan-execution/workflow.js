@@ -154,7 +154,7 @@ const GIT_STATUS_SCHEMA = {
     commit: {
       type: "string",
       description:
-        "The task's commit, at the full forty characters. Required when `success` is true — it is what gets integrated"
+        "The task's commit, as the full hash git printed, never an abbreviation. Required when `success` is true — it is what gets integrated"
     },
     summary: { type: "string" }
   },
@@ -315,7 +315,7 @@ Steps:
 1. Take the commit hash the execute agent reported below, if it gave one.
 2. Verify it: \`git log -1 --format=%s <hash>\` must print a subject starting with \`${task.id}: \`. This is what catches a task that committed nothing and reported a sibling's or the branch's existing tip as its own.
 3. If there is no reported hash, or it fails step 2, search for the task's own commit: \`git log ${useWorktree ? `--branches --not ${baseBranch}` : "HEAD"} --format='%H %s' --grep "^${task.id}: "\`, then discard every candidate whose subject does not start with \`${task.id}: \` (\`--grep\` matches the message body too). Take the newest survivor.${useWorktree ? `\n\n   \`--not ${baseBranch}\` matters: integration squashes each task onto \`${baseBranch}\` under the subject \`<task-id>: <title>\`, so an id that has been integrated before (a re-run, or a corrective task reusing an earlier id) has a commit on \`${baseBranch}\` that passes step 2 while saying nothing about whether this attempt committed anything. Only an unmerged commit answers that.` : ""}
-4. Report success only with a commit that passed step 2, and report that hash at the full forty characters — it is what gets integrated, so an abbreviation or a guess is worse than a failure. Report no success without one.${useWorktree ? "\n5. Report the branch name as context. Identity is the hash." : ""}
+4. Report success only with a commit that passed step 2, and report its hash exactly as git printed it, in full — it is what gets integrated, so an abbreviation or a guess is worse than a failure. Report no success without one.${useWorktree ? "\n5. Report the branch name as context. Identity is the hash." : ""}
 
 ## Execute agent's report
 Forwarded verbatim.
@@ -345,12 +345,14 @@ async function runExecute(task, { useWorktree = false } = {}) {
   // and carrying it forward as success is how a task whose work never landed reports
   // as done.
   const reported = typeof status?.commit === "string" ? status.commit.trim() : "";
-  const commit = /^[0-9a-f]{40}$/i.test(reported) ? reported : null;
+  // 40 or 64 hex: a repository created with `--object-format=sha256` names commits at
+  // 64. Testing only for 40 would refuse every success in one.
+  const commit = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(reported) ? reported : null;
   const success = !!status?.success && commit !== null;
   const refused = !!status?.success && commit === null;
   if (refused) {
     log(
-      `${task.id}: confirm reported success with no forty-character commit (commit: ${reported || "absent"}) — treated as failed`
+      `${task.id}: confirm reported success with no full commit hash (commit: ${reported || "absent"}) — treated as failed`
     );
   }
   return {
@@ -363,7 +365,7 @@ async function runExecute(task, { useWorktree = false } = {}) {
     error: success
       ? undefined
       : refused
-        ? "confirm reported success with no forty-character commit"
+        ? "confirm reported success with no full commit hash"
         : status?.summary || "no committed work found"
   };
 }
