@@ -12,6 +12,13 @@
 #
 # Quotes are capped so the `"quote" —Author` line stays ≤ ~140 chars, keeping
 # it to roughly one row on a normal terminal.
+#
+# The banner also stamps which copy of Speccy is running. The version is read
+# from the plugin manifest, the one the marketplace itself reads, so the two
+# can't drift. The commit is only stamped when this checkout is the git
+# top-level: an installed plugin is a plain copy with no .git of its own, and a
+# bare `git rev-parse` there walks up and reports whatever repo happens to
+# enclose ~/.claude. Installed copies show a version and no commit.
 
 quotes=(
   "Talk is cheap. Show me the code.|Linus Torvalds"
@@ -76,6 +83,19 @@ quotes=(
 q="${quotes[RANDOM % ${#quotes[@]}]}"
 text="${q%|*}"; who="${q#*|}"
 
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+stamp=""
+version="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+  "$root/.claude-plugin/plugin.json" 2>/dev/null | head -1)"
+[[ -n "$version" ]] && stamp=" v$version"
+
+if [[ "$(git -C "$root" rev-parse --show-toplevel 2>/dev/null)" == "$root" ]]; then
+  commit="$(git -C "$root" rev-parse --short HEAD 2>/dev/null)"
+  git -C "$root" diff --quiet HEAD 2>/dev/null || commit="$commit+"
+  [[ -n "$commit" ]] && stamp="$stamp ($commit)"
+fi
+
 printf "%s\n" \
-"🟥🟨🟩🟦 **SPECCY** — spec → critique → plan → build → review" \
+"🟥🟨🟩🟦 **SPECCY**${stamp} — spec → critique → plan → build → review" \
 "_\"${text}\" —${who}_"
