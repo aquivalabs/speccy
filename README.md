@@ -38,7 +38,7 @@ speccy guides you through these phases; there is no list of commands to remember
 | **2b. Plan review** | User decides | You review the hardened plan, raise concerns, approve. |
 | **3. Implementation** | Autonomous | Delegates to the `plan-execution` skill, which breaks the plan into tasks and builds. |
 | **3a. Implementation review** | User observes | Parallel reviewers check the diff: correctness and quality via the built-in `code-review` skill, plus spec fidelity, tests, codebase fit, local-doc adherence, comment noise, and strict scrutiny of any linter/analysis suppressions. A fix agent applies corrections, or findings are deferred as future work. |
-| **Wrap-up** | User reviews | Summary, a decision log distilled from critique and review decisions, deferred-feedback list, retrospective. The branch is handed back for your review; speccy doesn't merge or certify it. |
+| **Wrap-up** | User reviews | Summary, the decision log completed (it opens with the spec and collects reversals as the run goes), deferred-feedback list, retrospective. The branch is handed back for your review; speccy doesn't merge or certify it. |
 
 ## Core design ideas
 

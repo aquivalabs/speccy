@@ -530,3 +530,19 @@ Plans gained a template of their own, a skeleton that fixes the section order wh
 Reversals go to the wrap-up decision log. The artefacts state the position they now hold, so a choice the run abandoned survives in the critique round that overturned it, which the decision log already reads.
 
 Also rejected: naming an external style guide such as the Guardian's. It cannot be fetched, it is mostly lexical where the problem is structural, and relying on the agent's memory of a named guide is weaker than stating the rules. The spec-versus-plan boundary was left alone in this change: "what versus how" is not holding, but the distinction is nuanced enough to deserve its own pass.
+
+### state.json points at the run, it doesn't record it (2026-08-17)
+
+Multiple runs invented a `runNotes` array in state.json and filled it with the run's substance: two user rulings, a spike's findings, the target environment's quirks, tensions to put to the next critic, a correction the spec still needed, and a note to re-tag some Origin lines later. Nine paragraphs of briefing in a file the user never opens, and every one of them had a home already — the spec's Decisions & rationale, Constraints, Assumptions, Open questions, or the spike file.
+
+The schema was published without saying it was closed, so adding a field read as filling a gap rather than breaking a contract. It is now closed, with the routing spelled out: a ruling to Decisions & rationale with its Origin tag, a spike result to its file and then into the spec, a constraint to the spec or `CLAUDE.md`, a tension to Assumptions or Open questions, and a pending correction applied rather than parked.
+
+The pull is real, which is why a rule against it needs the alternative named. A decision lands mid-conversation, the artifact hasn't caught up, and state.json is the one file guaranteed to survive a `/clear`. But content written there is inert: no critic reads it, the readability pass never touches it, the user never sees it, and the wrap-up distils the artifacts. A ruling parked in state is a ruling that never reached the spec. The counter-pressure is to write the artifact at the moment the decision lands, which is what the pipeline wanted anyway.
+
+Closing the schema alone would have left the real gap open. Some of what those runs recorded genuinely had nowhere to go: `writing-style.md` bans process narrative from the spec and plan on purpose, and the decision log that receives it was not created until the wrap-up. A run that overruled its seed during the interview had no home for that fact for the entire run. So `specs/<slug>-decision-log.md` is now created at 1c alongside the spec and appended to as the run goes, and the wrap-up completes it rather than writing it from scratch.
+
+The danger is that the outlet becomes the next dumping ground. So it admits three things and nothing else — a reversal, an origin flip, and the user's own answer to "what convinced you" — and it uses the wrap-up's entry shape from the first line. The critique and readability files remain the wrap-up's backstop for a reversal nobody logged when it happened.
+
+`engagementQuestions` is not a precedent for adding more. It stores what speccy asked, which no artifact holds and no reader wants, and it went in by changing the skill.
+
+What genuinely doesn't persist — the user is mid-read, a precondition passed an hour ago — is left to die with the context. A resumed run re-checks or asks, which is cheaper than a durable note that goes stale.
