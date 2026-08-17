@@ -1,16 +1,16 @@
-# Speccy: a guided spec-to-implementation pipeline
+# speccy: a guided spec-to-implementation pipeline
 
-![Speccy banner: a ZX Spectrum rainbow flash beside the SPECCY wordmark, with the tagline "Think before you build... Then keep thinking" and the pipeline "spec → critique → plan → build → review"](speccy_logo.png)
+![speccy banner: a ZX Spectrum rainbow flash beside the SPECCY wordmark, with the tagline "Think before you build... Then keep thinking" and the pipeline "spec → critique → plan → build → review"](speccy_logo.png)
 
-**Speccy** is a Claude Code plugin that takes a feature from a rough idea through to reviewed code, forcing a specification before humans or agents write code. It bundles two skills: the `speccy` orchestrator and the `plan-execution` build skill it drives.
+**speccy** is a Claude Code plugin that takes a feature from a rough idea through to reviewed code, forcing a specification before humans or agents write code. It bundles two skills: the `speccy` orchestrator and the `plan-execution` build skill it drives.
 
 The name is a nod to the Sinclair ZX Spectrum and a pun on "spec".
 
-Speccy is an engineering tool. It keeps you close to the code and the system. You make decisions, the AI does the boring bits.
+speccy is an engineering tool. It keeps you close to the code and the system. You make decisions, the AI does the boring bits.
 
-The artefacts it produces (specs, decision logs, and code) are all included in PRs, so a team can review them like any other change. It focuses your attention onto the decisions that matter: you settle the architecture, take open questions back to the customer for answers, and bring your domain and system knowledge to bear. Then you step out of the loop and let the AI build. Speccy leans towards quality by construction: getting your input, running the project's verification tools, and putting independent review agents on every artefact.
+The artefacts it produces (specs, decision logs, and code) are all included in PRs, so a team can review them like any other change. It focuses your attention onto the decisions that matter: you settle the architecture, take open questions back to the customer for answers, and bring your domain and system knowledge to bear. Then you step out of the loop and let the AI build. speccy leans towards quality by construction: getting your input, running the project's verification tools, and putting independent review agents on every artefact.
 
-Speccy stops at a reviewable PR. It isn't a merge gate and doesn't run end-to-end verification; that's deliberate. Reviewing the output is *your* job, through every tool you'd use for any change: the diff, the artefacts, CI, E2E, running it yourself. Speccy makes sure your review time is well spent by constructing good output, but it hands off to you for the final decision.
+speccy stops at a reviewable PR. It isn't a merge gate and doesn't run end-to-end verification; that's deliberate. Reviewing the output is *your* job, through every tool you'd use for any change: the diff, the artefacts, CI, E2E, running it yourself. speccy makes sure your review time is well spent by constructing good output, but it hands off to you for the final decision.
 
 ## Install
 
@@ -27,7 +27,7 @@ Both skills (`speccy` and `plan-execution`) install together. Start a run by des
 
 The pipeline runs as: **specification → spec critique → planning → plan critique → implementation → implementation review.**
 
-Speccy guides you through these phases; there is no list of commands to remember. And because it's just a skill running in an ordinary Claude Code session, you can redirect it at any point. Got the spec nailed but heading out for a run? Tell it to auto-approve the plan and go straight to building.
+speccy guides you through these phases; there is no list of commands to remember. And because it's just a skill running in an ordinary Claude Code session, you can redirect it at any point. Got the spec nailed but heading out for a run? Tell it to auto-approve the plan and go straight to building.
 
 | Phase | Who drives | What happens |
 |-------|-----------|--------------|
@@ -38,11 +38,11 @@ Speccy guides you through these phases; there is no list of commands to remember
 | **2b. Plan review** | User decides | You review the hardened plan, raise concerns, approve. |
 | **3. Implementation** | Autonomous | Delegates to the `plan-execution` skill, which breaks the plan into tasks and builds. |
 | **3a. Implementation review** | User observes | Parallel reviewers check the diff: correctness and quality via the built-in `code-review` skill, plus spec fidelity, tests, codebase fit, local-doc adherence, comment noise, and strict scrutiny of any linter/analysis suppressions. A fix agent applies corrections, or findings are deferred as future work. |
-| **Wrap-up** | User reviews | Summary, a decision log distilled from critique and review decisions, deferred-feedback list, retrospective. The branch is handed back for your review; Speccy doesn't merge or certify it. |
+| **Wrap-up** | User reviews | Summary, a decision log distilled from critique and review decisions, deferred-feedback list, retrospective. The branch is handed back for your review; speccy doesn't merge or certify it. |
 
 ## Core design ideas
 
-- **Heavy work runs in subagents.** Critiques, codebase research, building, and review all run in subagents, so the main conversation sees only short summaries. The spec interview is the exception: it's interactive and builds up real context, which is why Speccy suggests a `/clear` once the spec is settled (see resumability below).
+- **Heavy work runs in subagents.** Critiques, codebase research, building, and review all run in subagents, so the main conversation sees only short summaries. The spec interview is the exception: it's interactive and builds up real context, which is why speccy suggests a `/clear` once the spec is settled (see resumability below).
 
 - **Adversarial critique at every artefact boundary.** The spec and plan each get an independent reviewer whose job is narrow: read one artefact, find specific problems. The final diff gets a panel of reviewers instead, each with one lens: correctness and quality delegated to Claude Code's built-in `code-review` skill, plus bespoke lenses for spec fidelity, tests, codebase fit, local-doc adherence, comment noise, and a deliberately harsh check on any linter or static-analysis suppression the change adds. A finding needn't mean *fix now*: the orchestrator can defer it as future work, which is what lets the critic flag codebase drift (including smells the change merely copied) without forcing scope-creep. Each loop **exits early** when a round surfaces nothing valuable, so it runs only as long as each round keeps earning its place. The review panel can settle in a single round; the spec and plan loops always run one more, because a critic has to read the readability pass's rewrite (see below). Every loop caps at 3 rounds.
 
@@ -54,19 +54,19 @@ Speccy guides you through these phases; there is no list of commands to remember
 
 - **Where the human sits differs by phase.** Specs encode *intent*, so spec critique keeps you in the loop deciding what to accept. Plans and code are downstream of an approved spec, so their critique loops run autonomously; findings there are mechanical.
 
-- **It steers you away from cognitive surrender.** Polished, adversarially-hardened artefacts read as authoritative, and that authority is exactly what tempts you to approve without understanding. Shaw and Nave (Wharton) call this [*cognitive surrender*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6097646); across three experiments, people followed confidently-wrong AI about four times in five, and grew *more* confident as they did. Every other safeguard hardens the artefact; this one guards your engagement. At the spec, plan, and wrap-up gates Speccy asks you to commit a view *before* it shows you the agent's, flags where it's genuinely unsure rather than projecting false confidence, and asks what actually convinced you on the decision that matters most. The default is to make you think; you can always decline a given question, or tell it up front not to ask.
+- **It steers you away from cognitive surrender.** Polished, adversarially-hardened artefacts read as authoritative, and that authority is exactly what tempts you to approve without understanding. Shaw and Nave (Wharton) call this [*cognitive surrender*](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6097646); across three experiments, people followed confidently-wrong AI about four times in five, and grew *more* confident as they did. Every other safeguard hardens the artefact; this one guards your engagement. At the spec, plan, and wrap-up gates speccy asks you to commit a view *before* it shows you the agent's, flags where it's genuinely unsure rather than projecting false confidence, and asks what actually convinced you on the decision that matters most. The default is to make you think; you can always decline a given question, or tell it up front not to ask.
 
-- **File state makes the run resumable and resettable.** Every phase boundary writes `.speccy/<run-id>/state.json`, with critique rounds, plans, and review notes saved alongside. Because everything that matters lives on disk, you can `/clear` a bloated window at any point and re-invoke to pick up where you left off with fresh context; Speccy nudges you to do exactly this once the spec is settled, before the subagent-driven planning and build.
+- **File state makes the run resumable and resettable.** Every phase boundary writes `.speccy/<run-id>/state.json`, with critique rounds, plans, and review notes saved alongside. Because everything that matters lives on disk, you can `/clear` a bloated window at any point and re-invoke to pick up where you left off with fresh context; speccy nudges you to do exactly this once the spec is settled, before the subagent-driven planning and build.
 
 ## Preconditions it enforces
 
-- **Verification tools must be documented in CLAUDE.md** (build, lint, static analysis, test), and Speccy *smoke-tests them on the clean tree first*, since a broken setup discovered at implementation has already cost a spec, several critique rounds, and a plan.
+- **Verification tools must be documented in CLAUDE.md** (build, lint, static analysis, test), and speccy *smoke-tests them on the clean tree first*, since a broken setup discovered at implementation has already cost a spec, several critique rounds, and a plan.
 - **Worktree init** section in CLAUDE.md: only exercised if the plan fans out into parallel tasks.
 - **Clean git tree** and an identified base branch (confirmed with you if not on main).
 
 ## Cost and scale
 
-Speccy is built for the multi-hour build that would blow out a single context window. The resumability and thin-orchestrator design keep the main context small enough to go the distance, and the per-phase model choices keep the bill down. Cheap tiers carry the large implementation build; Opus is spent on the short, high-leverage passes where it earns its keep: the spec and plan critiques, and the focused review lenses over the finished diff.
+speccy is built for the multi-hour build that would blow out a single context window. The resumability and thin-orchestrator design keep the main context small enough to go the distance, and the per-phase model choices keep the bill down. Cheap tiers carry the large implementation build; Opus is spent on the short, high-leverage passes where it earns its keep: the spec and plan critiques, and the focused review lenses over the finished diff.
 
 ## License
 

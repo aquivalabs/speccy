@@ -53,9 +53,9 @@
      - **Decision**: what was chosen (a scope call, an approach, a contract/deliverable shape).
      - **Alternatives**: the viable option(s) considered and rejected.
      - **Why**: the deciding factor that made the chosen option win.
-     - **Origin**: **User** (a preference, mandate, or judgement the user brought) or **Speccy,
+     - **Origin**: **User** (a preference, mandate, or judgement the user brought) or **speccy,
        user-agreed** (a default the pipeline proposed and the user signed off). A third origin,
-       *Speccy, alone*, arises in the plan and review phases rather than here. The wrap-up reads
+       *speccy, alone*, arises in the plan and review phases rather than here. The wrap-up reads
        this tag.
 
      Record a decision only where a real alternative existed; a forced move is not a decision. An

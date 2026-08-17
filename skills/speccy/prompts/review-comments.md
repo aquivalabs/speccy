@@ -28,7 +28,7 @@ A comment (or a span within one) that a deletion would improve:
 ## How to calibrate, in priority order
 
 1. **CLAUDE.md and other grounding docs.** Project rules win outright. If the project mandates doc/header comments or a particular style, honour it even where it runs against your instinct.
-2. **Speccy's standard.** Comments should be concise, relevant, explanatory, and must not narrate history. This sets the bar for everything the grounding docs leave open.
+2. **speccy's standard.** Comments should be concise, relevant, explanatory, and must not narrate history. This sets the bar for everything the grounding docs leave open.
 3. **The surrounding code, as a tie-breaker only.** Use it to settle genuinely neutral conventions (doc-comment format, whether public APIs carry a header), never to justify a finding or to excuse one. "The rest of the file comments like this" does not launder restatement, history narration, or padding into acceptable. Much of this code has already drifted, and matching the drift is the failure you are here to stop.
 
 ## Output
