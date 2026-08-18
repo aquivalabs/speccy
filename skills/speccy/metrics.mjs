@@ -398,8 +398,20 @@ export function discover(configRoot, runId) {
 
 // ---------------------------------------------------------------- reporting
 
-function num(n) {
-  return n.toLocaleString('en-US')
+const SCALES = [[1e9, 'B'], [1e6, 'M'], [1e3, 'k']]
+
+/**
+ * Counts to three significant figures. Nobody needs the last digit of a
+ * 613-million-token cache read, and exact figures make the columns unscannable.
+ */
+export function num(n) {
+  if (!Number.isFinite(n)) return '-'
+  const abs = Math.abs(n)
+  if (abs < 1000) return String(n)
+  const [limit, suffix] = SCALES.find(([l]) => abs >= l)
+  const scaled = n / limit
+  const decimals = Math.abs(scaled) >= 100 ? 0 : Math.abs(scaled) >= 10 ? 1 : 2
+  return `${scaled.toFixed(decimals)}${suffix}`
 }
 
 function duration(ms) {
@@ -507,6 +519,8 @@ export function render(report) {
     '- **cache write / uncached input / cache read**: the three parts of each request\'s input, ordered by cost per token. A cache write costs more than uncached input (1.25x the base input rate at the 5-minute TTL, 2x at the 1-hour), uncached input is the base rate, and a cache read is about a tenth of it. Uncached input is normally a couple of tokens per request, so a large figure is a handful of cache misses rather than a phase-wide trait.',
     '- **output**: tokens the model generated. The honest measure of work done, since cache reads swamp everything else by volume and cost a fraction as much.',
     '- **effort** `-`: unrecorded, which means the model has no reasoning-effort setting. It does not mean low.',
+    '',
+    'Counts are rounded to three significant figures, so a column of phases will not add up to its total exactly.',
     '',
     '## Phases',
     '',

@@ -27,6 +27,7 @@ import {
   render,
   runIdStart,
   resolveRunId,
+  num,
 } from '../metrics.mjs'
 
 const RUN = 'metrics-demo-20260101-0900'
@@ -485,6 +486,20 @@ test('the run id comes from .current-runid when no argument is given', () => {
   assert.equal(resolveRunId(cwd, []), RUN)
   assert.equal(resolveRunId(cwd, ['explicit-run-20260101-0900']), 'explicit-run-20260101-0900')
   fs.rmSync(cwd, { recursive: true, force: true })
+})
+
+// ------------------------------------------------------------ number format
+
+test('counts read as k / M / B to three significant figures', () => {
+  assert.deepEqual(
+    [0, 42, 999, 1000, 2924, 19_060, 573_757, 4_716_189, 44_306_207, 1_080_789_196].map(num),
+    ['0', '42', '999', '1.00k', '2.92k', '19.1k', '574k', '4.72M', '44.3M', '1.08B'],
+  )
+})
+
+test('a negative or non-finite count does not produce nonsense', () => {
+  assert.equal(num(-2500), '-2.50k')
+  assert.equal(num(NaN), '-')
 })
 
 // ------------------------------------------------------------ the wrapper
