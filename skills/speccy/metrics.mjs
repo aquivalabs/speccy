@@ -501,6 +501,8 @@ export function render(report) {
     '- **wall**: first to last moment of the phase, including time spent reading.',
     '- **active**: the same span with gaps over 2 minutes removed. A heuristic, not instrumentation.',
     '- **agent-seconds**: summed subagent lifetimes, so parallel work shows its true weight.',
+    '- **cache read / cache write / fresh in**: the three parts of each request\'s input. Read is served from cache, write is stored into it, and fresh in is the rest, billed at the base input rate. Fresh in is normally a couple of tokens per request, so a large figure is a handful of cache misses rather than a phase-wide trait.',
+    '- **output**: tokens the model generated. The honest measure of work done, since cache reads swamp everything else by volume and cost a fraction as much.',
     '- **effort** `-`: unrecorded, which means the model has no reasoning-effort setting. It does not mean low.',
     '',
     '## Phases',
