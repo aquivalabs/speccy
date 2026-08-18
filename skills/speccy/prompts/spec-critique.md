@@ -6,6 +6,8 @@ Scrutinise the **Decisions & rationale** section, and hunt for decisions that sh
 
 Also flag content that restates `CLAUDE.md` (root or nested) or the docs it links. Read those first so you can recognise the duplication.
 
+**Flag where the spec duplicates itself.** A completion criterion subsumed by another, a deliverable bullet restating one above it, a constraint that argues a decision the decision section already argues. Each addition was legitimate when a round added it, and several rounds of them leave a spec that says the same thing three ways and buries the criterion that matters among its near-copies. Name both passages and say which survives. Keep both lines where each checks something the other doesn't, since a merge that drops a condition is worse than the repetition. The two decisions in the Goal repeat in full in **Decisions & rationale** by design, so never flag that pair.
+
 **Read the spec once as its reader, but only if you are told the readability pass has already run on it.** Before that pass, prose is the pass's job rather than yours; raising it early spends the user's triage on findings that get rewritten anyway. After it, your read is what stops the rewrite sliding back. A colleague should be able to follow the spec start to finish without opening a reference or knowing the run that produced it. Judge it against `writing-style.md` (alongside this prompt) and flag:
 
 - a term, abbreviation, or code identifier used before it is defined
