@@ -432,12 +432,20 @@ test('the rendered report names every phase, the agents, and the caveats', () =>
   fs.rmSync(root, { recursive: true, force: true })
 })
 
-test('an unfinished run is reported as still open', () => {
+test('an unfinished run marks its last phase as unbounded rather than timing it', () => {
   const root = tree()
   const found = discover(root, RUN)
   found.boundaries = found.boundaries.filter((b) => b.phase !== 'complete')
   const report = buildReport(RUN, found)
+
   assert.ok(report.notes.some((n) => /not reached `complete`/.test(n)))
+  assert.equal(report.openPhase, 'planning', 'the final bucket is the open one')
+  // The post-complete record now falls inside the open phase, extending it.
+  assert.match(render(report), /### planning\n\nat least .* wall \(phase never closed\)/)
+
+  // A finished run times every phase normally.
+  assert.equal(buildReport(RUN, discover(root, RUN)).openPhase, null)
+  assert.doesNotMatch(render(buildReport(RUN, discover(root, RUN))), /phase never closed/)
   fs.rmSync(root, { recursive: true, force: true })
 })
 

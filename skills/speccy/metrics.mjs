@@ -451,7 +451,7 @@ export function buildReport(runId, found, { now = null } = {}) {
   const { phases, dropped } = bucketByPhase(inRun, timeline, found.agents)
 
   const notes = []
-  if (!completed) notes.push('This run has not reached `complete`; the last phase is still open.')
+  if (!completed) notes.push('This run has not reached `complete`, so its last phase has no end. That phase\'s wall time runs to the last thing the session did, which may be unrelated work days later; read its active time and agent-seconds instead.')
   if (afterRun) {
     notes.push(`${afterRun} record(s) come after the run was marked \`complete\` and are excluded; a session carries on being used after the run it finished.`)
   }
@@ -479,6 +479,9 @@ export function buildReport(runId, found, { now = null } = {}) {
     runId,
     empty: false,
     now,
+    // An unfinished run has no closing boundary, so its last bucket runs to the
+    // last record rather than to a phase end. Its wall figure is a lower bound.
+    openPhase: completed ? null : phases[phases.length - 1]?.phase ?? null,
     sessions: found.sessions,
     agents: found.agents,
     phases,
@@ -511,7 +514,8 @@ export function render(report) {
 
   for (const p of report.phases) {
     const agentPart = p.agentMs ? ` · ${duration(p.agentMs)} agent-seconds` : ' · no subagents'
-    out.push(`### ${p.phase}`, '', `${duration(p.wall)} wall · ${duration(p.active)} active${agentPart} · ${num(p.totals.requests)} requests`, '')
+    const wall = p.phase === report.openPhase ? `at least ${duration(p.wall)} wall (phase never closed)` : `${duration(p.wall)} wall`
+    out.push(`### ${p.phase}`, '', `${wall} · ${duration(p.active)} active${agentPart} · ${num(p.totals.requests)} requests`, '')
     out.push(p.byModel.length ? modelTable(p.byModel) : '_No requests recorded in this phase._', '')
   }
 
