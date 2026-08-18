@@ -546,3 +546,13 @@ The danger is that the outlet becomes the next dumping ground. So it admits thre
 `engagementQuestions` is not a precedent for adding more. It stores what speccy asked, which no artifact holds and no reader wants, and it went in by changing the skill.
 
 What genuinely doesn't persist — the user is mid-read, a precondition passed an hour ago — is left to die with the context. A resumed run re-checks or asks, which is cheaper than a durable note that goes stale.
+
+### The run directory is its own index (2026-08-18)
+
+Closing state.json's schema left a question behind: with no sanctioned place to record what a run produced, how does a resumed context find the spikes, the change notes, the earlier rounds? The tempting answer is a `files` array, and it is the same mistake in a new shape. Give each entry a description and it is `runNotes` again, one field down. Strip the description to `{path, status}` and it becomes a second copy of the directory that goes stale on every write the run makes. So a resumed context lists `.speccy/<run-id>/` instead, and state.json inventories nothing.
+
+That works because the filenames already carry the three things a reader needs. What a file is comes from its name, which is why every prompt in the pipeline is told where to write. Which files an obligation attaches to comes from the phase text: `deferred.md` and `spec-critique-skipped.md` are named in the wrap-up that must report them, and any future file with an obligation on it belongs in the phase text the same way, not in a schema field. What no longer applies comes from a prefix: a run that replaced its plan mid-flight invented a stale marker in the filename, which is now the stated convention, `SUPERSEDED-<original name>`. It groups in a listing, survives any tool, and needs no field to interpret it. Spike verdicts are excluded, since evidence about the world outlives the draft that asked for it.
+
+The one named field added is `decisionLogPath`. It earns a slot because the decision log is the only artefact outside the run directory, so the listing genuinely misses it, and because two named path fields already exist for exactly this. Worth saying that a run reaching for the field is not the argument for it: that is the pull the closed schema exists to stop, and it points at gaps that turn out to be imaginary as often as real. The listing gap is the argument.
+
+Nothing was added to `allowed-tools` for the listing. `ls` sits where `git commit` and `git checkout -b` already sit, approved by the auto-accept mode the skill asks for before the autonomous phases begin.
