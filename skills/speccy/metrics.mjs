@@ -64,7 +64,7 @@ export function usageRecords(text, agent = null) {
       out: u.output_tokens ?? 0,
       cacheRead: u.cache_read_input_tokens ?? 0,
       cacheWrite: u.cache_creation_input_tokens ?? 0,
-      freshIn: u.input_tokens ?? 0,
+      uncachedIn: u.input_tokens ?? 0,
     })
   }
   return { records, malformed }
@@ -211,14 +211,14 @@ function overlapMs(a, b) {
 }
 
 function blankTotals() {
-  return { out: 0, cacheWrite: 0, cacheRead: 0, freshIn: 0, requests: 0 }
+  return { out: 0, cacheWrite: 0, cacheRead: 0, uncachedIn: 0, requests: 0 }
 }
 
 function addTo(totals, r) {
   totals.out += r.out
   totals.cacheWrite += r.cacheWrite
   totals.cacheRead += r.cacheRead
-  totals.freshIn += r.freshIn
+  totals.uncachedIn += r.uncachedIn
   totals.requests += 1
 }
 
@@ -411,12 +411,12 @@ function duration(ms) {
 
 function modelTable(rows) {
   const lines = [
-    '| model | effort | output | cache write | cache read | fresh in |',
+    '| model | effort | output | cache write | cache read | uncached input |',
     '| --- | --- | --- | --- | --- | --- |',
   ]
   for (const r of rows) {
     lines.push(
-      `| ${r.model} | ${r.effort} | ${num(r.out)} | ${num(r.cacheWrite)} | ${num(r.cacheRead)} | ${num(r.freshIn)} |`,
+      `| ${r.model} | ${r.effort} | ${num(r.out)} | ${num(r.cacheWrite)} | ${num(r.cacheRead)} | ${num(r.uncachedIn)} |`,
     )
   }
   return lines.join('\n')
@@ -501,7 +501,7 @@ export function render(report) {
     '- **wall**: first to last moment of the phase, including time spent reading.',
     '- **active**: the same span with gaps over 2 minutes removed. A heuristic, not instrumentation.',
     '- **agent-seconds**: summed subagent lifetimes, so parallel work shows its true weight.',
-    '- **cache read / cache write / fresh in**: the three parts of each request\'s input. Read is served from cache, write is stored into it, and fresh in is the rest, billed at the base input rate. Fresh in is normally a couple of tokens per request, so a large figure is a handful of cache misses rather than a phase-wide trait.',
+    '- **cache read / cache write / uncached input**: the three parts of each request\'s input. Read is served from cache, write is stored into it, and uncached input is the rest, billed at the base input rate. Uncached input is normally a couple of tokens per request, so a large figure is a handful of cache misses rather than a phase-wide trait.',
     '- **output**: tokens the model generated. The honest measure of work done, since cache reads swamp everything else by volume and cost a fraction as much.',
     '- **effort** `-`: unrecorded, which means the model has no reasoning-effort setting. It does not mean low.',
     '',

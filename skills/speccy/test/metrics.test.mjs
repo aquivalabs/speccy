@@ -91,7 +91,7 @@ test('iterations does not double count: 176 output tokens read as 176, not 352',
   assert.equal(records[0].out, 176)
   assert.equal(records[0].cacheRead, 21434)
   assert.equal(records[0].cacheWrite, 15065)
-  assert.equal(records[0].freshIn, 2)
+  assert.equal(records[0].uncachedIn, 2)
 })
 
 test('absent cache fields read as 0, not NaN', () => {
@@ -102,8 +102,8 @@ test('absent cache fields read as 0, not NaN', () => {
   })
   const { records } = usageRecords(line)
   assert.deepEqual(
-    { out: records[0].out, cacheRead: records[0].cacheRead, cacheWrite: records[0].cacheWrite, freshIn: records[0].freshIn },
-    { out: 12, cacheRead: 0, cacheWrite: 0, freshIn: 0 },
+    { out: records[0].out, cacheRead: records[0].cacheRead, cacheWrite: records[0].cacheWrite, uncachedIn: records[0].uncachedIn },
+    { out: 12, cacheRead: 0, cacheWrite: 0, uncachedIn: 0 },
   )
 })
 
