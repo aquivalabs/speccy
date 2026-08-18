@@ -2,7 +2,7 @@
 name: speccy
 description: Guided specification writing, adversarial spec critique, and post-build review. Full pipeline from rough idea to reviewed implementation.
 when_to_use: When the user says "speccy", "spec mode", "adversarial mode", or similar. Also when about to execute a complex multi-step plan and adversarial critique would help.
-allowed-tools: Bash(bash *skills/speccy/banner.sh), Read(.speccy/**), Write(.speccy/**), Edit(.speccy/**)
+allowed-tools: Bash(bash *skills/speccy/banner.sh), Bash(bash *skills/speccy/metrics.sh), Read(.speccy/**), Write(.speccy/**), Edit(.speccy/**)
 ---
 
 # speccy
@@ -398,6 +398,17 @@ When all phases complete, report concisely, both in the chat and in `.speccy/<ru
    - **Skipped at spec critique** (`.speccy/<run-id>/spec-critique-skipped.md`): findings the user declined, and any the 3-round cap left unaddressed. Also follow-up candidates.
    - **Unaddressed at the round cap** (`deferred.md`, its own section): findings the panel dispositioned Fix and the cap left unfixed. These are known defects in the branch about to merge rather than future work, so put them to the user as a decision: fix them now, or merge knowing they are there.
 4. **Retrospective**: if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns. If it has a `## Repo-doc suggestions (CLAUDE.md / ADR)` section, present those for the user to accept or decline; never auto-apply them.
+5. **What the run cost**: run the metrics script from this skill's own directory by its **absolute path**, the same way the banner runs (no `cd`, no command substitution, or the pre-approved permission match breaks).
+
+   ```bash
+   bash <skill-dir>/metrics.sh
+   ```
+
+   It reads the harness transcripts and writes `.speccy/<run-id>/metrics.md`: wall and active time per phase, tokens by model and reasoning effort, and a per-agent table. Report the headline in chat, a line or two at most (where the wall time went, which phase carried the tokens, anything the script flagged), and point the user at the file.
+
+   Read the file's own **Notes** section before you summarise, and pass on what it says. It flags a run measured too late to be complete, phases it could not tell apart, and any agent whose model override did not take effect. Those change how much the numbers are worth.
+
+   The script never blocks the wrap-up: no `node` on `PATH`, no transcripts, or a pruned run all print one line and exit. If it skips, say so in a clause and move on. Measurement happens here rather than during the run because nothing in a live session tells the orchestrator its own token usage; a figure written mid-run would be invented.
 
 **Exit checks.** Only once all of these hold, set `phase: "complete"`:
 
@@ -405,6 +416,7 @@ When all phases complete, report concisely, both in the chat and in `.speccy/<ru
 - `specs/<slug>-decision-log.md` is written and committed
 - all three kinds of unaddressed feedback are reported: deferred by scope, skipped at spec critique, and unaddressed at the round cap
 - the retrospective is saved, if the task execution skill produced one
+- the metrics script has run: either `.speccy/<run-id>/metrics.md` exists, or you have told the user why it skipped
 
 Set `complete` any earlier and a `/clear` during the wrap-up resumes as a finished run, silently dropping the decision log and the retrospective: the artifacts the handoff exists to produce.
 

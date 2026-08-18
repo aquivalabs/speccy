@@ -68,6 +68,8 @@ speccy guides you through these phases; there is no list of commands to remember
 
 speccy is built for the multi-hour build that would blow out a single context window. The resumability and thin-orchestrator design keep the main context small enough to go the distance, and the per-phase model choices keep the bill down. Cheap tiers carry the large implementation build; Opus is spent on the short, high-leverage passes where it earns its keep: the spec and plan critiques, and the focused review lenses over the finished diff.
 
+You don't have to take that on trust. The wrap-up runs `skills/speccy/metrics.sh`, which reads the harness transcripts and writes `.speccy/<run-id>/metrics.md`: wall and active time per phase, tokens grouped by model and reasoning effort, and a per-agent table naming what each subagent was spawned to do. Measurement happens afterwards because nothing in a live session tells the orchestrator its own token usage, so a figure written mid-run would be invented. The report names its own limits, including the transcript pruning window that makes a long-delayed reading under-report. It needs `node` on `PATH`, and skips with a single line if that's missing rather than holding up a run.
+
 ## License
 
 MIT; see [LICENSE](LICENSE).

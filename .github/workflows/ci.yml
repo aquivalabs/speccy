@@ -1,5 +1,5 @@
-# Baseline workflow added automatically to satisfy branch protection
-# (required status checks). Replace the echo step with a real check as needed.
+# The `status-check` job name is the one branch protection requires, so it keeps
+# that name as its contents change.
 name: CI
 on:
   pull_request:
@@ -12,7 +12,12 @@ jobs:
   status-check:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "ok"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run the metrics reader's tests
+        run: node --test "skills/speccy/test/*.test.mjs"
 
   plugin-version-bump:
     runs-on: ubuntu-latest

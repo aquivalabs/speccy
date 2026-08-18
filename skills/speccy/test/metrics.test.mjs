@@ -1,0 +1,492 @@
+// Tests for metrics.mjs. Run with: node --test skills/speccy/test/
+//
+// Fixtures are synthetic and built here rather than committed: real transcripts
+// carry repo names, branch names, and file contents that don't belong in a
+// public repo, and a checked-in fake ~/.claude tree would go stale.
+
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { execFileSync } from 'node:child_process'
+
+import {
+  usageRecords,
+  transcriptSpan,
+  firstPromptLine,
+  isStateWrite,
+  phaseBoundaries,
+  writesRunState,
+  bannerMarker,
+  buildTimeline,
+  bucketByPhase,
+  modelMismatch,
+  discover,
+  buildReport,
+  render,
+  runIdStart,
+  resolveRunId,
+} from '../metrics.mjs'
+
+const RUN = 'metrics-demo-20260101-0900'
+const SKILL_DIR = path.resolve(import.meta.dirname, '..')
+
+// ------------------------------------------------------------ line builders
+
+function assistant({ ts, model = 'claude-opus-5', effort = 'high', out = 0, cr = 0, cw = 0, fin = 0, iterations = true, content = [] }) {
+  const usage = {
+    input_tokens: fin,
+    cache_creation_input_tokens: cw,
+    cache_read_input_tokens: cr,
+    output_tokens: out,
+  }
+  if (iterations) {
+    // The harness repeats the same counts per inference iteration. Anything that
+    // sums the whole object, or greps the line, counts them twice.
+    usage.iterations = [{ input_tokens: fin, output_tokens: out, cache_read_input_tokens: cr, cache_creation_input_tokens: cw }]
+  }
+  const entry = { type: 'assistant', timestamp: ts, cwd: '/repo', message: { role: 'assistant', model, usage, content } }
+  if (effort !== null) entry.effort = effort
+  return JSON.stringify(entry)
+}
+
+function stateWrite({ ts, phase, tool = 'Write', runId = RUN, filePath = null, extra = {} }) {
+  const state = { runId, phase, specCritiqueRounds: 0, ...extra }
+  const input = { file_path: filePath ?? `/repo/.speccy/${runId}/state.json` }
+  if (tool === 'Write') input.content = JSON.stringify(state, null, 2)
+  else input.new_string = `"phase": "${phase}"`
+  return assistant({ ts, out: 1, content: [{ type: 'tool_use', name: tool, id: 'tu1', input }] })
+}
+
+function roundBump({ ts, runId = RUN }) {
+  return assistant({
+    ts,
+    out: 1,
+    content: [{
+      type: 'tool_use',
+      name: 'Edit',
+      id: 'tu2',
+      input: { file_path: `/repo/.speccy/${runId}/state.json`, old_string: '"specCritiqueRounds": 1', new_string: '"specCritiqueRounds": 2' },
+    }],
+  })
+}
+
+function bannerCall({ ts }) {
+  return assistant({
+    ts,
+    out: 1,
+    content: [{ type: 'tool_use', name: 'Bash', id: 'tu3', input: { command: 'bash /plugins/speccy/skills/speccy/banner.sh' } }],
+  })
+}
+
+const at = (h, m = 0, s = 0) => `2026-01-01T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.000Z`
+const ms = (h, m = 0, s = 0) => Date.parse(at(h, m, s))
+
+// ------------------------------------------------------------ parsing
+
+test('iterations does not double count: 176 output tokens read as 176, not 352', () => {
+  const { records } = usageRecords(assistant({ ts: at(9), out: 176, cr: 21434, cw: 15065, fin: 2 }))
+  assert.equal(records.length, 1)
+  assert.equal(records[0].out, 176)
+  assert.equal(records[0].cacheRead, 21434)
+  assert.equal(records[0].cacheWrite, 15065)
+  assert.equal(records[0].freshIn, 2)
+})
+
+test('absent cache fields read as 0, not NaN', () => {
+  const line = JSON.stringify({
+    type: 'assistant',
+    timestamp: at(9),
+    message: { model: 'claude-sonnet-5', usage: { output_tokens: 12 } },
+  })
+  const { records } = usageRecords(line)
+  assert.deepEqual(
+    { out: records[0].out, cacheRead: records[0].cacheRead, cacheWrite: records[0].cacheWrite, freshIn: records[0].freshIn },
+    { out: 12, cacheRead: 0, cacheWrite: 0, freshIn: 0 },
+  )
+})
+
+test('records with no usage, and the <synthetic> model, are skipped', () => {
+  const text = [
+    JSON.stringify({ type: 'user', timestamp: at(9), message: { role: 'user', content: 'hello' } }),
+    assistant({ ts: at(9, 1), model: '<synthetic>', out: 99 }),
+    assistant({ ts: at(9, 2), out: 5 }),
+  ].join('\n')
+  const { records } = usageRecords(text)
+  assert.equal(records.length, 1)
+  assert.equal(records[0].out, 5)
+})
+
+test('a malformed line is skipped and counted', () => {
+  const text = [assistant({ ts: at(9), out: 5 }), '{ not json', '', assistant({ ts: at(9, 1), out: 7 })].join('\n')
+  const { records, malformed } = usageRecords(text)
+  assert.equal(records.length, 2)
+  assert.equal(malformed, 1)
+})
+
+test('effort is carried onto the record, and its absence stays null', () => {
+  const withEffort = usageRecords(assistant({ ts: at(9), out: 1, effort: 'high' })).records[0]
+  const without = usageRecords(assistant({ ts: at(9), out: 1, effort: null })).records[0]
+  assert.equal(withEffort.effort, 'high')
+  assert.equal(without.effort, null)
+})
+
+test('transcriptSpan bounds an agent by any entry, not just usage-bearing ones', () => {
+  const text = [
+    JSON.stringify({ type: 'user', timestamp: at(9, 0), message: { role: 'user', content: 'go' } }),
+    assistant({ ts: at(9, 5), out: 10 }),
+  ].join('\n')
+  assert.deepEqual(transcriptSpan(text), { from: ms(9, 0), to: ms(9, 5) })
+})
+
+// ------------------------------------------------------------ phase timeline
+
+test('a Write of the initial state file yields a boundary at its phase', () => {
+  const found = phaseBoundaries(stateWrite({ ts: at(9, 30), phase: 'spec-critique' }), RUN)
+  assert.deepEqual(found, [{ ts: ms(9, 30), phase: 'spec-critique' }])
+})
+
+test('an Edit that changes phase is a boundary; a round-counter bump is not', () => {
+  const text = [
+    stateWrite({ ts: at(10), phase: 'planning', tool: 'Edit' }),
+    roundBump({ ts: at(10, 5) }),
+  ].join('\n')
+  assert.deepEqual(phaseBoundaries(text, RUN), [{ ts: ms(10), phase: 'planning' }])
+})
+
+test('consecutive writes of the same phase collapse to one boundary', () => {
+  const boundaries = phaseBoundaries(
+    [
+      stateWrite({ ts: at(9), phase: 'spec-critique' }),
+      stateWrite({ ts: at(9, 20), phase: 'spec-critique' }),
+      stateWrite({ ts: at(10), phase: 'planning' }),
+    ].join('\n'),
+    RUN,
+  )
+  const timeline = buildTimeline(boundaries, { start: ms(9), end: ms(11) })
+  assert.deepEqual(timeline.map((b) => b.phase), ['spec-critique', 'planning'])
+})
+
+test('a Windows state write is recognised', () => {
+  const winPath = `C:\\Users\\dev\\proj\\.speccy\\${RUN}\\state.json`
+  assert.equal(isStateWrite(winPath, RUN), true)
+  const found = phaseBoundaries(stateWrite({ ts: at(9), phase: 'review', filePath: winPath }), RUN)
+  assert.deepEqual(found, [{ ts: ms(9), phase: 'review' }])
+})
+
+test('a state write for another run is not a boundary', () => {
+  assert.equal(isStateWrite('/repo/.speccy/other-run-20260101-0900/state.json', RUN), false)
+  assert.deepEqual(phaseBoundaries(stateWrite({ ts: at(9), phase: 'review', runId: 'other-run-20260101-0900' }), RUN), [])
+})
+
+test('the banner call marks the start of the run', () => {
+  const text = [bannerCall({ ts: at(8, 55) }), stateWrite({ ts: at(9, 30), phase: 'spec-critique' })].join('\n')
+  assert.equal(bannerMarker(text), ms(8, 55))
+})
+
+test('the first bucket covers the interview, before state.json exists', () => {
+  const timeline = buildTimeline([{ ts: ms(9, 30), phase: 'spec-critique' }], { start: ms(9), end: ms(10) })
+  assert.deepEqual(timeline, [
+    { phase: 'spec', from: ms(9), to: ms(9, 30) },
+    { phase: 'spec-critique', from: ms(9, 30), to: ms(10) },
+  ])
+})
+
+// ------------------------------------------------------------ attribution
+
+const twoPhase = () => buildTimeline(
+  [{ ts: ms(10), phase: 'planning' }],
+  { start: ms(9), end: ms(11) },
+)
+
+test('a subagent record after a boundary lands in the later bucket, so a straddling agent splits', () => {
+  const records = [
+    ...usageRecords(assistant({ ts: at(9, 55), out: 100 }), 'agent-a').records,
+    ...usageRecords(assistant({ ts: at(10, 5), out: 200 }), 'agent-a').records,
+  ]
+  const { phases, dropped } = bucketByPhase(records, twoPhase())
+  assert.equal(dropped.length, 0)
+  assert.equal(phases[0].totals.out, 100)
+  assert.equal(phases[1].totals.out, 200)
+})
+
+test('the sum of the buckets equals the ungrouped total', () => {
+  const stamps = [[9, 10], [9, 40], [10, 1], [10, 30], [10, 59]]
+  const records = stamps.flatMap(([h, m], i) => usageRecords(assistant({ ts: at(h, m), out: (i + 1) * 10, cr: 1000, cw: 5 })).records)
+  const bare = records.reduce((t, r) => t + r.out + r.cacheRead + r.cacheWrite, 0)
+  const { phases, dropped } = bucketByPhase(records, twoPhase())
+  const bucketed = phases.reduce((t, p) => t + p.totals.out + p.totals.cacheRead + p.totals.cacheWrite, 0)
+  assert.equal(dropped.length, 0)
+  assert.equal(bucketed, bare)
+})
+
+test('two models in one phase produce two rows, split correctly', () => {
+  const records = [
+    ...usageRecords(assistant({ ts: at(10, 5), model: 'claude-opus-5', out: 300 })).records,
+    ...usageRecords(assistant({ ts: at(10, 6), model: 'claude-sonnet-5', out: 40 })).records,
+  ]
+  const { phases } = bucketByPhase(records, twoPhase())
+  assert.deepEqual(
+    phases[1].byModel.map((r) => [r.model, r.effort, r.out]),
+    [['claude-opus-5', 'high', 300], ['claude-sonnet-5', 'high', 40]],
+  )
+})
+
+test('one model at two efforts yields two rows, and a missing effort renders as - without collapsing', () => {
+  const records = [
+    ...usageRecords(assistant({ ts: at(10, 1), out: 10, effort: 'high' })).records,
+    ...usageRecords(assistant({ ts: at(10, 2), out: 20, effort: 'low' })).records,
+    ...usageRecords(assistant({ ts: at(10, 3), out: 30, effort: null })).records,
+  ]
+  const { phases } = bucketByPhase(records, twoPhase())
+  assert.deepEqual(
+    phases[1].byModel.map((r) => [r.effort, r.out]).sort(),
+    [['-', 30], ['high', 10], ['low', 20]],
+  )
+})
+
+test('active time excludes a ten-minute gap and includes a thirty-second one', () => {
+  const records = [
+    ...usageRecords(assistant({ ts: at(10, 0, 0), out: 1 })).records,
+    ...usageRecords(assistant({ ts: at(10, 0, 30), out: 1 })).records,
+    ...usageRecords(assistant({ ts: at(10, 10, 30), out: 1 })).records,
+  ]
+  const { phases } = bucketByPhase(records, twoPhase())
+  assert.equal(phases[1].active, 30_000)
+  assert.equal(phases[1].wall, ms(11) - ms(10))
+})
+
+test('agent-seconds counts the overlap of an agent lifetime with each phase', () => {
+  const agents = [{ id: 'agent-a', span: { from: ms(9, 50), to: ms(10, 10) } }]
+  const { phases } = bucketByPhase([], twoPhase(), agents)
+  assert.equal(phases[0].agentMs, 10 * 60_000)
+  assert.equal(phases[1].agentMs, 10 * 60_000)
+})
+
+// ------------------------------------------------------------ model checks
+
+test('a requested alias matching its resolved id raises no flag', () => {
+  assert.equal(modelMismatch('opus', 'claude-opus-5'), false)
+  assert.equal(modelMismatch('sonnet', 'claude-sonnet-5'), false)
+  assert.equal(modelMismatch('haiku', 'claude-haiku-4-5-20251001'), false)
+  assert.equal(modelMismatch('claude-opus-5', 'claude-opus-5'), false)
+})
+
+test('a requested alias that did not take effect raises the flag', () => {
+  assert.equal(modelMismatch('opus', 'claude-sonnet-5'), true)
+  assert.equal(modelMismatch('sonnet', 'claude-haiku-4-5-20251001'), true)
+})
+
+test('an unrecorded request or resolution raises no flag', () => {
+  assert.equal(modelMismatch(null, 'claude-opus-5'), false)
+  assert.equal(modelMismatch('opus', null), false)
+})
+
+test('a run id yields a start bound, and a malformed one yields none', () => {
+  assert.equal(typeof runIdStart(RUN), 'number')
+  assert.equal(runIdStart('no-timestamp-here'), null)
+})
+
+// ------------------------------------------------------------ discovery
+
+function tree() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-metrics-'))
+  const project = path.join(root, 'projects', '-repo')
+  fs.mkdirSync(project, { recursive: true })
+
+  const write = (file, lines) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, lines.join('\n') + '\n')
+  }
+
+  // Contributes: writes the run's state file.
+  write(path.join(project, 'sess-a.jsonl'), [
+    bannerCall({ ts: at(9, 0) }),
+    assistant({ ts: at(9, 10), out: 1000, cr: 50_000 }),
+    stateWrite({ ts: at(9, 30), phase: 'spec-critique' }),
+    assistant({ ts: at(9, 40), out: 500 }),
+    stateWrite({ ts: at(10, 0), phase: 'planning' }),
+    assistant({ ts: at(10, 30), out: 200 }),
+    stateWrite({ ts: at(10, 45), phase: 'complete' }),
+  ])
+
+  // A plain subagent, with its sidecar.
+  const subagents = path.join(project, 'sess-a', 'subagents')
+  write(path.join(subagents, 'agent-aaa.jsonl'), [
+    JSON.stringify({ type: 'user', timestamp: at(9, 32), message: { role: 'user', content: 'critique' } }),
+    assistant({ ts: at(9, 35), model: 'claude-opus-5', out: 4000, cr: 30_000 }),
+  ])
+  fs.writeFileSync(
+    path.join(subagents, 'agent-aaa.meta.json'),
+    JSON.stringify({ agentType: 'general-purpose', description: 'Adversarial spec critique round 1', model: 'opus', spawnDepth: 1 }),
+  )
+
+  // A workflow agent, nested deeper, whose sidecar carries no description.
+  write(path.join(subagents, 'workflows', 'wf_x', 'agent-bbb.jsonl'), [
+    JSON.stringify({ type: 'user', timestamp: at(10, 19), message: { role: 'user', content: 'Break the plan into steps\nand return them as JSON' } }),
+    assistant({ ts: at(10, 20), model: 'claude-sonnet-5', out: 800 }),
+  ])
+  fs.writeFileSync(
+    path.join(subagents, 'workflows', 'wf_x', 'agent-bbb.meta.json'),
+    JSON.stringify({ agentType: 'workflow-subagent', model: 'opus', spawnDepth: 1 }),
+  )
+
+  // An agent with no sidecar and no prompt to fall back on.
+  write(path.join(subagents, 'agent-ccc.jsonl'), [
+    assistant({ ts: at(9, 45), model: 'claude-haiku-4-5-20251001', effort: null, out: 60 }),
+  ])
+
+  // Mentions the run id in prose but never writes its state file.
+  write(path.join(project, 'sess-b.jsonl'), [
+    assistant({ ts: at(9, 15), out: 99_999, content: [{ type: 'text', text: `chatting about ${RUN} without touching it` }] }),
+  ])
+
+  // Belongs to a different run.
+  write(path.join(project, 'sess-c.jsonl'), [
+    stateWrite({ ts: at(9, 20), phase: 'planning', runId: 'other-run-20260101-0900' }),
+    assistant({ ts: at(9, 25), out: 12_345 }),
+  ])
+
+  return root
+}
+
+test('only the session that writes the run state contributes', () => {
+  const root = tree()
+  const found = discover(root, RUN)
+  assert.deepEqual(found.sessions.map((s) => s.sessionId), ['sess-a'])
+  assert.equal(found.mentionedOnly.length, 1)
+  assert.match(found.mentionedOnly[0], /sess-b\.jsonl$/)
+  assert.equal(found.records.some((r) => r.out === 99_999), false)
+  assert.equal(found.records.some((r) => r.out === 12_345), false)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('workflow agents are found alongside plain subagents, and name their workflow', () => {
+  const root = tree()
+  const found = discover(root, RUN)
+  assert.deepEqual(found.agents.map((a) => a.id).sort(), ['agent-aaa', 'agent-bbb', 'agent-ccc'])
+  const byId = Object.fromEntries(found.agents.map((a) => [a.id, a]))
+  assert.equal(byId['agent-bbb'].workflow, 'wf_x')
+  assert.equal(byId['agent-aaa'].workflow, null)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('the label comes from the sidecar, then the opening prompt, then the id', () => {
+  const root = tree()
+  const byId = Object.fromEntries(discover(root, RUN).agents.map((a) => [a.id, a]))
+  assert.equal(byId['agent-aaa'].label, 'Adversarial spec critique round 1')
+  assert.equal(byId['agent-aaa'].requested, 'opus')
+  assert.equal(byId['agent-aaa'].agentType, 'general-purpose')
+  // Workflow subagents carry no description, so the prompt names them.
+  assert.equal(byId['agent-bbb'].label, 'Break the plan into steps and return them as JSON')
+  assert.equal(byId['agent-ccc'].label, 'agent-ccc')
+  assert.equal(byId['agent-ccc'].requested, null)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a long opening prompt is trimmed to one line', () => {
+  const text = JSON.stringify({
+    type: 'user',
+    timestamp: at(9),
+    message: { role: 'user', content: `${'x'.repeat(200)}\nmore` },
+  })
+  const label = firstPromptLine(text)
+  assert.equal(label.length, 60)
+  assert.match(label, /…$/)
+})
+
+test('a discovered run reports contiguous phases whose totals sum to the whole', () => {
+  const root = tree()
+  const found = discover(root, RUN)
+  const report = buildReport(RUN, found)
+
+  assert.deepEqual(report.phases.map((p) => p.phase), ['spec', 'spec-critique', 'planning', 'complete'])
+  for (let i = 1; i < report.phases.length; i++) {
+    assert.equal(report.phases[i].from, report.phases[i - 1].to, 'phases must be contiguous')
+  }
+
+  const bare = found.records.reduce((t, r) => t + r.out, 0)
+  const bucketed = report.phases.reduce((t, p) => t + p.totals.out, 0)
+  assert.equal(bucketed, bare)
+
+  // The critique subagents' work belongs to the critique phase, not the main
+  // loop's phase alone: 500 orchestrator + 1 state write + 4000 + 60 agents.
+  const critique = report.phases.find((p) => p.phase === 'spec-critique')
+  assert.equal(critique.totals.out, 500 + 1 + 4000 + 60)
+  assert.ok(critique.agentMs > 0)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('the rendered report names every phase, the agents, and the caveats', () => {
+  const root = tree()
+  const text = render(buildReport(RUN, discover(root, RUN)))
+  assert.match(text, new RegExp(`# Run metrics: ${RUN}`))
+  assert.match(text, /### spec-critique/)
+  assert.match(text, /Adversarial spec critique round 1/)
+  assert.match(text, /cleanupPeriodDays/)
+  assert.match(text, /claude-opus-5/)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('an unfinished run is reported as still open', () => {
+  const root = tree()
+  const found = discover(root, RUN)
+  found.boundaries = found.boundaries.filter((b) => b.phase !== 'complete')
+  const report = buildReport(RUN, found)
+  assert.ok(report.notes.some((n) => /not reached `complete`/.test(n)))
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a timeline that starts mid-pipeline names its opening bucket honestly', () => {
+  const root = tree()
+  const found = discover(root, RUN)
+  // Only the later boundaries survive, as when earlier sessions have been pruned.
+  found.boundaries = found.boundaries.filter((b) => b.phase === 'planning' || b.phase === 'complete')
+  const report = buildReport(RUN, found)
+  assert.deepEqual(report.phases.map((p) => p.phase), ['before planning', 'planning', 'complete'])
+  assert.ok(report.notes.some((n) => /cannot be told apart/.test(n)))
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a run with no transcripts anywhere reports empty rather than throwing', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-empty-'))
+  const found = discover(root, RUN)
+  assert.deepEqual(found.sessions, [])
+  assert.match(render(buildReport(RUN, found)), /No usage records found/)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('the run id comes from .current-runid when no argument is given', () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-cwd-'))
+  fs.mkdirSync(path.join(cwd, '.speccy'), { recursive: true })
+  fs.writeFileSync(path.join(cwd, '.speccy', '.current-runid'), `${RUN}\n`)
+  assert.equal(resolveRunId(cwd, []), RUN)
+  assert.equal(resolveRunId(cwd, ['explicit-run-20260101-0900']), 'explicit-run-20260101-0900')
+  fs.rmSync(cwd, { recursive: true, force: true })
+})
+
+// ------------------------------------------------------------ the wrapper
+
+test('the wrapper exits 0 and says so when node is absent', () => {
+  // A PATH holding nothing but bash, so `command -v node` cannot succeed
+  // wherever node happens to be installed.
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-nonode-'))
+  const bash = execFileSync('command', ['-v', 'bash'], { encoding: 'utf8', shell: true }).trim()
+  fs.symlinkSync(bash, path.join(bin, 'bash'))
+
+  const out = execFileSync(bash, [path.join(SKILL_DIR, 'metrics.sh')], {
+    encoding: 'utf8',
+    cwd: os.tmpdir(),
+    env: { PATH: bin },
+  })
+  assert.match(out, /skipped \(needs node on PATH\)/)
+  fs.rmSync(bin, { recursive: true, force: true })
+})
+
+test('the wrapper exits 0 when there is no run to measure', () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-norun-'))
+  const out = execFileSync('bash', [path.join(SKILL_DIR, 'metrics.sh')], { encoding: 'utf8', cwd, stdio: ['pipe', 'pipe', 'pipe'] })
+  assert.equal(out.trim(), '')
+  fs.rmSync(cwd, { recursive: true, force: true })
+})
