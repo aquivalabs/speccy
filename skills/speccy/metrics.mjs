@@ -426,26 +426,35 @@ export function buildReport(runId, found, { now = null } = {}) {
   const stamps = found.records.map((r) => r.ts)
   if (!stamps.length) return { runId, empty: true, sessions: found.sessions, notes: [] }
 
+  const ordered = [...found.boundaries].sort((a, b) => a.ts - b.ts)
   const start = found.marker ?? Math.min(...stamps)
-  const end = Math.max(...stamps)
+
+  // `complete` is the wrap-up's last act, not a phase that does work. It closes
+  // the run, so the timeline ends there and anything later is somebody's next
+  // job in the same session rather than this run's cost.
+  const completed = ordered.find((b) => b.phase === 'complete') ?? null
+  const end = completed ? completed.ts : Math.max(...stamps)
 
   // The opening bucket normally holds the intake and interview, which precede
   // state.json. When the earliest surviving boundary is later than the first
   // phase, it holds several unattributable phases instead, so name it honestly.
-  const earliest = [...found.boundaries].sort((a, b) => a.ts - b.ts)[0]
+  const earliest = ordered[0]
   const startsMidRun = earliest && earliest.phase !== PHASE_ORDER[0]
-  const timeline = buildTimeline(found.boundaries, {
+  const timeline = buildTimeline(ordered.filter((b) => b !== completed), {
     start,
     end,
     firstPhase: startsMidRun ? `before ${earliest.phase}` : 'spec',
   })
-  const inRun = found.records.filter((r) => r.ts >= start)
-  const beforeRun = found.records.length - inRun.length
+  const inRun = found.records.filter((r) => r.ts >= start && r.ts <= end)
+  const beforeRun = found.records.filter((r) => r.ts < start).length
+  const afterRun = found.records.filter((r) => r.ts > end).length
   const { phases, dropped } = bucketByPhase(inRun, timeline, found.agents)
 
-  const complete = found.boundaries.some((b) => b.phase === 'complete')
   const notes = []
-  if (!complete) notes.push('This run has not reached `complete`; the last phase is still open.')
+  if (!completed) notes.push('This run has not reached `complete`; the last phase is still open.')
+  if (afterRun) {
+    notes.push(`${afterRun} record(s) come after the run was marked \`complete\` and are excluded; a session carries on being used after the run it finished.`)
+  }
   if (startsMidRun) {
     notes.push(`The earliest surviving state write sets \`${earliest.phase}\`, so the phases before it cannot be told apart. Their work is lumped into the opening bucket.`)
   }

@@ -309,6 +309,8 @@ function tree() {
     stateWrite({ ts: at(10, 0), phase: 'planning' }),
     assistant({ ts: at(10, 30), out: 200 }),
     stateWrite({ ts: at(10, 45), phase: 'complete' }),
+    // The session keeps being used after the run it finished.
+    assistant({ ts: at(11, 30), out: 7777 }),
   ])
 
   // A plain subagent, with its sidecar.
@@ -401,14 +403,15 @@ test('a discovered run reports contiguous phases whose totals sum to the whole',
   const found = discover(root, RUN)
   const report = buildReport(RUN, found)
 
-  assert.deepEqual(report.phases.map((p) => p.phase), ['spec', 'spec-critique', 'planning', 'complete'])
+  // `complete` closes the timeline rather than becoming a phase of its own.
+  assert.deepEqual(report.phases.map((p) => p.phase), ['spec', 'spec-critique', 'planning'])
   for (let i = 1; i < report.phases.length; i++) {
     assert.equal(report.phases[i].from, report.phases[i - 1].to, 'phases must be contiguous')
   }
 
   const bare = found.records.reduce((t, r) => t + r.out, 0)
   const bucketed = report.phases.reduce((t, p) => t + p.totals.out, 0)
-  assert.equal(bucketed, bare)
+  assert.equal(bucketed, bare - 7777, 'everything but the post-complete record is bucketed')
 
   // The critique subagents' work belongs to the critique phase, not the main
   // loop's phase alone: 500 orchestrator + 1 state write + 4000 + 60 agents.
@@ -438,13 +441,23 @@ test('an unfinished run is reported as still open', () => {
   fs.rmSync(root, { recursive: true, force: true })
 })
 
+test('work done after the run was marked complete is excluded and reported', () => {
+  const root = tree()
+  const report = buildReport(RUN, discover(root, RUN))
+  const last = report.phases[report.phases.length - 1]
+  assert.equal(last.to, ms(10, 45), 'the timeline closes at the `complete` write')
+  assert.ok(report.notes.some((n) => /after the run was marked `complete`/.test(n)))
+  assert.equal(report.phases.some((p) => p.totals.out === 7777), false)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
 test('a timeline that starts mid-pipeline names its opening bucket honestly', () => {
   const root = tree()
   const found = discover(root, RUN)
   // Only the later boundaries survive, as when earlier sessions have been pruned.
   found.boundaries = found.boundaries.filter((b) => b.phase === 'planning' || b.phase === 'complete')
   const report = buildReport(RUN, found)
-  assert.deepEqual(report.phases.map((p) => p.phase), ['before planning', 'planning', 'complete'])
+  assert.deepEqual(report.phases.map((p) => p.phase), ['before planning', 'planning'])
   assert.ok(report.notes.some((n) => /cannot be told apart/.test(n)))
   fs.rmSync(root, { recursive: true, force: true })
 })
