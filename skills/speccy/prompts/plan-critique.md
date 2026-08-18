@@ -10,6 +10,8 @@ Check that any load-bearing mechanism the plan depends on has been **proven feas
 
 Also flag content that restates `CLAUDE.md` (root or nested) or the docs it links. Read those first so you can recognise the duplication.
 
+**Flag where the plan duplicates itself.** A step or task restating one above it, a risk carried in two sections, a decision entry re-arguing what another entry settled, a build-reference appendix repeating the body. Each addition was legitimate when a round added it, and several rounds of them leave a plan the user has to read twice to find the approach. Name both passages and say which survives. The two decisions in the lead repeat in full in **Architecture decisions** by design, so never flag that pair.
+
 **Read the plan once as its reader, but only if you are told the readability pass has already run on it.** Before that pass, prose is the pass's job rather than yours. After it, your read is what stops the rewrite sliding back. The user approves the build from this file, so it has to be followable start to finish by someone who has read the spec and knows nothing about the run that produced it. The spec is fair background: a term it defines needs no second definition here. Judge the plan against `writing-style.md` (alongside this prompt) and flag:
 
 - a term, abbreviation, or code identifier the plan uses before defining, and the spec doesn't define either

@@ -1,7 +1,7 @@
 {
   "name": "speccy",
   "description": "A guided spec-to-implementation pipeline: specification, adversarial critique, planning, build, and independent review. Bundles the speccy orchestrator and the plan-execution build skill.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "author": {
     "name": "Aidan Harding",
     "email": "aharding@aquiva.com"
