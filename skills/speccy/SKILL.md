@@ -162,6 +162,10 @@ The main session may be governed by a behavioural or output style a fresh agent 
 
 So **before spawning any subagent, restate the active style concisely at the top of its prompt**, enough that both its reasoning and its written output match the session's voice. **Pass `prompts/writing-style.md` to every subagent that writes an artifact**, which is all of them but the fixer: the session's voice is a layer on top of those rules rather than a substitute for them, and a style restated from memory is the least reliable way to carry a writing standard across a context boundary. Two things are out of reach and don't need carrying: conventions already in `CLAUDE.md` (subagents read it anyway), and the built-in `code-review` skill run inline (it manages its own prompt; the orchestrator just applies the session's voice when it normalises those findings into the lens file). This rule applies to every spawn site in the phases below; it is stated once here rather than repeated at each. speccy's own narration back to the user follows the same style as a matter of course.
 
+## Pass the tool-use rules to every subagent
+
+**Pass `prompts/tool-use.md` to every subagent speccy spawns**, plan-execution's build agents included. Like the writing-style rule above, it applies at every spawn site in the phases below and is stated once here rather than repeated at each, with the same two exceptions: the built-in `code-review` skill and any project review gate manage their own prompts.
+
 ## Steering away from cognitive surrender
 
 speccy's own output is the hazard. Adversarially-hardened specs and plans read as authoritative, and the more authoritative they read, the stronger the pull for the user to approve without understanding (cognitive surrender: borrowed confidence, surface correctness hiding deeper flaws). The pipeline already hardens its artifacts. These habits guard the user's engagement, which nothing else does.
