@@ -475,6 +475,43 @@ test('the rendered report names every phase, the agents, and the caveats', () =>
   fs.rmSync(root, { recursive: true, force: true })
 })
 
+test('the console render keeps the phases and notes but drops the agent table', () => {
+  const root = tree()
+  const report = buildReport(RUN, discover(root, RUN))
+  const full = render(report)
+  const brief = render(report, { agents: false })
+
+  assert.match(full, /## Agents/)
+  assert.doesNotMatch(brief, /## Agents/)
+  assert.doesNotMatch(brief, /Adversarial spec critique round 1/)
+  for (const kept of [/### spec-critique/, /## Run total/, /## Notes/, /cleanupPeriodDays/]) {
+    assert.match(brief, kept)
+  }
+  assert.ok(brief.length < full.length)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('the command writes the whole report to the file and the brief one to stdout', () => {
+  const root = tree()
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-main-'))
+  fs.mkdirSync(path.join(cwd, '.speccy', RUN), { recursive: true })
+
+  const stdout = execFileSync(process.execPath, [path.join(SKILL_DIR, 'metrics.mjs'), RUN], {
+    encoding: 'utf8',
+    cwd,
+    env: { ...process.env, CLAUDE_CONFIG_DIR: root },
+  })
+  const file = fs.readFileSync(path.join(cwd, '.speccy', RUN, 'metrics.md'), 'utf8')
+
+  assert.match(file, /## Agents/, 'the file keeps the table')
+  assert.doesNotMatch(stdout, /## Agents/, 'stdout does not')
+  assert.match(stdout, /### spec-critique/)
+  assert.match(stdout, /3-row agent table, written to/)
+  assert.ok(stdout.length < file.length)
+  fs.rmSync(root, { recursive: true, force: true })
+  fs.rmSync(cwd, { recursive: true, force: true })
+})
+
 test('an unfinished run marks its last phase as unbounded rather than timing it', () => {
   const root = tree()
   const found = discover(root, RUN)

@@ -610,7 +610,12 @@ export function buildReport(runId, found, { state = null } = {}) {
   }
 }
 
-export function render(report) {
+/**
+ * `agents: false` drops the per-agent table, which is most of the report by
+ * volume and the part nothing summarises. The file keeps it; the caller's
+ * context does not have to.
+ */
+export function render(report, { agents = true } = {}) {
   if (report.empty) {
     return `# Run metrics: ${report.runId}\n\nNo usage records found for this run.\n`
   }
@@ -644,7 +649,7 @@ export function render(report) {
 
   out.push('## Run total', '', modelTable(report.totals), '')
 
-  if (report.agents.length) {
+  if (report.agents.length && agents) {
     out.push('## Agents', '')
     out.push(
       '| agent | type | requested | resolved | effort | output | cache write | cache read | span |',
@@ -699,17 +704,26 @@ export function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     return 0
   }
 
-  const text = render(buildReport(runId, found, { state: readRunState(cwd, runId) }))
+  const report = buildReport(runId, found, { state: readRunState(cwd, runId) })
   const target = path.join(cwd, '.speccy', runId, 'metrics.md')
   try {
     fs.mkdirSync(path.dirname(target), { recursive: true })
-    fs.writeFileSync(target, text)
-    process.stdout.write(text)
-    process.stdout.write(`\nWritten to ${path.relative(cwd, target)}\n`)
+    fs.writeFileSync(target, render(report))
   } catch (err) {
-    process.stdout.write(text)
+    // With nowhere to put the file, the whole report has to go to the caller.
+    process.stdout.write(render(report))
     process.stderr.write(`speccy metrics: could not write ${target}: ${err.message}\n`)
+    return 0
   }
+
+  // The phases, the totals and the notes are what the caller reports on, so
+  // they go to stdout. The agent table is most of the file and nothing
+  // summarises it, so it stays in the file.
+  const agents = report.agents?.length ?? 0
+  process.stdout.write(render(report, { agents: false }))
+  process.stdout.write(
+    `\nFull report${agents ? `, including the ${agents}-row agent table,` : ''} written to ${path.relative(cwd, target)}\n`,
+  )
   return 0
 }
 

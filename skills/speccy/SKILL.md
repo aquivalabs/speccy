@@ -415,7 +415,9 @@ bash <skill-dir>/metrics.sh
 
 It reads the harness transcripts and writes `.speccy/<run-id>/metrics.md`: wall and active time per phase, tokens by model and reasoning effort, and a per-agent table. Report the headline in chat, a line or two at most (where the wall time went, which phase carried the tokens, anything the script flagged), and point the user at the file.
 
-Read the file's own **Notes** section before you summarise, and pass on what it says. It flags phases it could not tell apart, work it excluded as belonging to something else, and any agent whose model override did not take effect. Those change how much the numbers are worth.
+Everything you need to say that is already in the output: the phases, the run total, and the **Notes**. Summarise from what it printed and **don't open `metrics.md`** — the per-agent table is most of the file, nothing asks you to summarise it, and reading it back spends the context this step is written to protect.
+
+Pass on what the Notes say. They flag phases the reader could not tell apart, work it excluded as belonging to something else, and any agent whose model override did not take effect. Those change how much the numbers are worth.
 
 This step is deliberately outside the exit checks and runs after `complete`, not before it. The measurement is a nice-to-have and must never stand between the user and a finished run: nothing here can fail in a way that leaves the run looking unfinished. It also reads a truer timeline, because `complete` is what closes the last phase. The cost is that a `/clear` in the gap loses the report; `bash <skill-dir>/metrics.sh <run-id>` recovers it later from whatever the transcripts still hold.
 
