@@ -20,13 +20,17 @@ import { fileURLToPath } from 'node:url'
 const ACTIVE_GAP_MS = 120_000
 const MODEL_FAMILIES = ['opus', 'sonnet', 'haiku', 'fable']
 
-// state.json's phase enum, in order. Used only to notice a timeline that starts
-// mid-pipeline, which means earlier state writes did not survive.
-const PHASE_ORDER = ['spec-critique', 'planning', 'plan-critique', 'implementation', 'review', 'wrap-up', 'complete']
+// The first phase state.json can record. A timeline opening on any other phase
+// has lost its earlier state writes.
+const FIRST_PHASE = 'spec-critique'
 
 // ---------------------------------------------------------------- parsing
 
-function parseLines(text) {
+/**
+ * JSONL text -> entries, parsed once. Every reader below takes the result, so a
+ * transcript is parsed one time however many things are read from it.
+ */
+export function parseTranscript(text) {
   const entries = []
   let malformed = 0
   for (const line of text.split('\n')) {
@@ -41,10 +45,9 @@ function parseLines(text) {
 }
 
 /**
- * JSONL text -> usage records. `agent` is null for main-loop records.
+ * Entries -> usage records. `agent` is null for main-loop records.
  */
-export function usageRecords(text, agent = null) {
-  const { entries, malformed } = parseLines(text)
+export function usageRecords(entries, agent = null) {
   const records = []
   for (const e of entries) {
     const u = e.message?.usage
@@ -67,15 +70,14 @@ export function usageRecords(text, agent = null) {
       uncachedIn: u.input_tokens ?? 0,
     })
   }
-  return { records, malformed }
+  return records
 }
 
 /**
  * An agent's opening prompt, trimmed to one short line. Workflow subagents get
  * no `description` in their sidecar, so without this they show as hex ids.
  */
-export function firstPromptLine(text, max = 60) {
-  const { entries } = parseLines(text)
+export function firstPromptLine(entries, max = 60) {
   for (const e of entries) {
     if (e.type !== 'user') continue
     const content = e.message?.content
@@ -90,8 +92,7 @@ export function firstPromptLine(text, max = 60) {
 }
 
 /** First and last timestamp of any entry, which bounds an agent's lifetime. */
-export function transcriptSpan(text) {
-  const { entries } = parseLines(text)
+export function transcriptSpan(entries) {
   const stamps = entries.map((e) => Date.parse(e.timestamp)).filter((t) => !Number.isNaN(t))
   if (!stamps.length) return null
   return { from: Math.min(...stamps), to: Math.max(...stamps) }
@@ -140,9 +141,8 @@ function phaseFromInput(name, input) {
   return null
 }
 
-/** JSONL text -> [{ts, phase}] for every state write that assigns a phase. */
-export function phaseBoundaries(text, runId) {
-  const { entries } = parseLines(text)
+/** Entries -> [{ts, phase}] for every state write that assigns a phase. */
+export function phaseBoundaries(entries, runId) {
   const found = []
   for (const { entry, use } of toolUses(entries)) {
     if (!isStateWrite(use.input?.file_path, runId)) continue
@@ -155,14 +155,12 @@ export function phaseBoundaries(text, runId) {
 }
 
 /** Does this session actually belong to the run, or merely mention it? */
-export function writesRunState(text, runId) {
-  const { entries } = parseLines(text)
+export function writesRunState(entries, runId) {
   return toolUses(entries).some(({ use }) => isStateWrite(use.input?.file_path, runId))
 }
 
 /** The banner is shown on every speccy invocation, so it marks the run's start. */
-export function bannerMarker(text) {
-  const { entries } = parseLines(text)
+export function bannerMarker(entries) {
   for (const { entry, use } of toolUses(entries)) {
     if (use.name !== 'Bash') continue
     if (!String(use.input?.command ?? '').includes('banner.sh')) continue
@@ -289,6 +287,21 @@ function readIfFile(file) {
   }
 }
 
+/**
+ * A sidecar is written by the harness as the agent starts, so a session killed
+ * mid-write leaves a truncated one. Losing an agent's label is not a reason to
+ * lose the whole report.
+ */
+function readJson(file) {
+  const text = readIfFile(file)
+  if (text === null) return {}
+  try {
+    return JSON.parse(text) ?? {}
+  } catch {
+    return {}
+  }
+}
+
 function listDir(dir) {
   try {
     return fs.readdirSync(dir, { withFileTypes: true })
@@ -352,17 +365,17 @@ export function discover(configRoot, runId) {
 
       const text = readIfFile(file)
       if (text === null || !text.includes(runId)) continue
-      if (!writesRunState(text, runId)) {
+      const session = parseTranscript(text)
+      if (!writesRunState(session.entries, runId)) {
         mentionedOnly.push(file)
         continue
       }
 
-      const main = usageRecords(text)
-      malformed += main.malformed
-      records = records.concat(main.records)
-      boundaries = boundaries.concat(phaseBoundaries(text, runId))
+      malformed += session.malformed
+      records = records.concat(usageRecords(session.entries))
+      boundaries = boundaries.concat(phaseBoundaries(session.entries, runId))
 
-      const banner = bannerMarker(text)
+      const banner = bannerMarker(session.entries)
       if (banner !== null && (marker === null || banner < marker)) marker = banner
 
       const sessionId = entry.name.replace(/\.jsonl$/, '')
@@ -371,21 +384,22 @@ export function discover(configRoot, runId) {
         const id = path.basename(agentFile).replace(/\.jsonl$/, '')
         const agentText = readIfFile(agentFile)
         if (agentText === null) continue
-        const meta = JSON.parse(readIfFile(agentFile.replace(/\.jsonl$/, '.meta.json')) ?? 'null') ?? {}
-        const parsed = usageRecords(agentText, id)
-        malformed += parsed.malformed
-        records = records.concat(parsed.records)
+        const meta = readJson(agentFile.replace(/\.jsonl$/, '.meta.json'))
+        const { entries: agentEntries, malformed: agentMalformed } = parseTranscript(agentText)
+        const agentRecords = usageRecords(agentEntries, id)
+        malformed += agentMalformed
+        records = records.concat(agentRecords)
         const workflow = agentFile.replace(/\\/g, '/').match(/\/workflows\/(wf_[^/]+)\//)?.[1] ?? null
         agents.push({
           id,
-          label: meta.description ?? firstPromptLine(agentText) ?? id,
+          label: meta.description ?? firstPromptLine(agentEntries) ?? id,
           workflow,
           agentType: meta.agentType ?? null,
           requested: meta.model ?? null,
-          resolved: [...new Set(parsed.records.map((r) => r.model))],
-          efforts: [...new Set(parsed.records.map((r) => r.effort ?? '-'))],
-          span: transcriptSpan(agentText),
-          totals: parsed.records.reduce((t, r) => (addTo(t, r), t), blankTotals()),
+          resolved: [...new Set(agentRecords.map((r) => r.model))],
+          efforts: [...new Set(agentRecords.map((r) => r.effort ?? '-'))],
+          span: transcriptSpan(agentEntries),
+          totals: agentRecords.reduce((t, r) => (addTo(t, r), t), blankTotals()),
         })
       }
 
@@ -406,10 +420,12 @@ const SCALES = [[1e9, 'B'], [1e6, 'M'], [1e3, 'k']]
  */
 export function num(n) {
   if (!Number.isFinite(n)) return '-'
-  const abs = Math.abs(n)
-  if (abs < 1000) return String(n)
-  const [limit, suffix] = SCALES.find(([l]) => abs >= l)
-  const scaled = n / limit
+  if (Math.abs(n) < 1000) return String(n)
+  // Round first, then pick the scale: rounding 999,999 up crosses into the next
+  // one, and choosing the scale from the raw value would print it as "1000k".
+  const rounded = Number(n.toPrecision(3))
+  const [limit, suffix] = SCALES.find(([l]) => Math.abs(rounded) >= l)
+  const scaled = rounded / limit
   const decimals = Math.abs(scaled) >= 100 ? 0 : Math.abs(scaled) >= 10 ? 1 : 2
   return `${scaled.toFixed(decimals)}${suffix}`
 }
@@ -421,6 +437,15 @@ function duration(ms) {
   return `${Math.floor(mins / 60)}h ${mins % 60}m`
 }
 
+/**
+ * Agent labels are arbitrary prose: a sidecar description, or the agent's own
+ * opening prompt, which routinely holds a shell snippet. An unescaped pipe adds
+ * a column and shifts every cell in the row.
+ */
+function cell(value) {
+  return String(value).replace(/\s+/g, ' ').replace(/\|/g, '\\|').trim()
+}
+
 function modelTable(rows) {
   const lines = [
     '| model | effort | output | cache write | uncached input | cache read |',
@@ -428,13 +453,18 @@ function modelTable(rows) {
   ]
   for (const r of rows) {
     lines.push(
-      `| ${r.model} | ${r.effort} | ${num(r.out)} | ${num(r.cacheWrite)} | ${num(r.uncachedIn)} | ${num(r.cacheRead)} |`,
+      `| ${cell(r.model)} | ${cell(r.effort)} | ${num(r.out)} | ${num(r.cacheWrite)} | ${num(r.uncachedIn)} | ${num(r.cacheRead)} |`,
     )
   }
   return lines.join('\n')
 }
 
-export function buildReport(runId, found, { now = null } = {}) {
+/** An agent belongs to the run if any part of its life falls inside the window. */
+function overlapsRun(agent, start, end) {
+  return agent.span !== null && agent.span.from <= end && agent.span.to >= start
+}
+
+export function buildReport(runId, found) {
   const stamps = found.records.map((r) => r.ts)
   if (!stamps.length) return { runId, empty: true, sessions: found.sessions, notes: [] }
 
@@ -451,7 +481,7 @@ export function buildReport(runId, found, { now = null } = {}) {
   // state.json. When the earliest surviving boundary is later than the first
   // phase, it holds several unattributable phases instead, so name it honestly.
   const earliest = ordered[0]
-  const startsMidRun = earliest && earliest.phase !== PHASE_ORDER[0]
+  const startsMidRun = earliest && earliest.phase !== FIRST_PHASE
   const timeline = buildTimeline(ordered.filter((b) => b !== completed), {
     start,
     end,
@@ -459,13 +489,22 @@ export function buildReport(runId, found, { now = null } = {}) {
   })
   const inRun = found.records.filter((r) => r.ts >= start && r.ts <= end)
   const beforeRun = found.records.filter((r) => r.ts < start).length
-  const afterRun = found.records.filter((r) => r.ts > end).length
-  const { phases, dropped } = bucketByPhase(inRun, timeline, found.agents)
+  const afterRun = found.records.filter((r) => r.ts > end)
+
+  // A session outlives the run it hosted: it may have run an earlier speccy run,
+  // a later one, or unrelated work. Their subagents sit in the same directory,
+  // so the window is what separates this run's agents from theirs.
+  const agents = found.agents.filter((a) => overlapsRun(a, start, end))
+  const outsideRun = found.agents.filter((a) => !overlapsRun(a, start, end))
+  const { phases, dropped } = bucketByPhase(inRun, timeline, agents)
 
   const notes = []
   if (!completed) notes.push('This run has not reached `complete`, so its last phase has no end. That phase\'s wall time runs to the last thing the session did, which may be unrelated work days later; read its active time and agent-seconds instead.')
-  if (afterRun) {
-    notes.push(`${afterRun} record(s) come after the run was marked \`complete\` and are excluded; a session carries on being used after the run it finished.`)
+  if (afterRun.length) {
+    // The call that produced this report is itself one of them, so a small count
+    // here is the normal shape rather than a sign of anything.
+    const out = afterRun.reduce((t, r) => t + r.out, 0)
+    notes.push(`${afterRun.length} record(s) totalling ${num(out)} output tokens come after the run was marked \`complete\` and are excluded. Reading these metrics is one of them; beyond that, a session carries on being used after the run it finished.`)
   }
   if (startsMidRun) {
     notes.push(`The earliest surviving state write sets \`${earliest.phase}\`, so the phases before it cannot be told apart. Their work is lumped into the opening bucket.`)
@@ -475,11 +514,15 @@ export function buildReport(runId, found, { now = null } = {}) {
   }
   if (beforeRun) notes.push(`${beforeRun} record(s) predate the run's start marker and are excluded.`)
   if (dropped.length) notes.push(`${dropped.length} record(s) fell outside every phase and are excluded.`)
+  if (outsideRun.length) {
+    const out = outsideRun.reduce((t, a) => t + a.totals.out, 0)
+    notes.push(`${outsideRun.length} subagent(s) in these sessions ran wholly outside the run's window and are excluded, together with their ${num(out)} output tokens. They belong to other work the session did.`)
+  }
   if (found.malformed) notes.push(`${found.malformed} unparseable transcript line(s) skipped.`)
   if (found.mentionedOnly.length) {
     notes.push(`${found.mentionedOnly.length} session(s) mention this run but never wrote its state file, so they are excluded.`)
   }
-  for (const a of found.agents) {
+  for (const a of agents) {
     for (const resolved of a.resolved) {
       if (modelMismatch(a.requested, resolved)) {
         notes.push(`Model mismatch: "${a.label}" requested \`${a.requested}\` and ran on \`${resolved}\`.`)
@@ -490,12 +533,12 @@ export function buildReport(runId, found, { now = null } = {}) {
   return {
     runId,
     empty: false,
-    now,
     // An unfinished run has no closing boundary, so its last bucket runs to the
     // last record rather than to a phase end. Its wall figure is a lower bound.
-    openPhase: completed ? null : phases[phases.length - 1]?.phase ?? null,
+    // Held as an index, since a pipeline that revisits a phase repeats its name.
+    openPhase: completed ? null : phases.length - 1,
     sessions: found.sessions,
-    agents: found.agents,
+    agents,
     phases,
     totals: groupByModel(inRun),
     notes,
@@ -526,12 +569,13 @@ export function render(report) {
     '',
   )
 
-  for (const p of report.phases) {
+  report.phases.forEach((p, i) => {
     const agentPart = p.agentMs ? ` · ${duration(p.agentMs)} agent-seconds` : ' · no subagents'
-    const wall = p.phase === report.openPhase ? `at least ${duration(p.wall)} wall (phase never closed)` : `${duration(p.wall)} wall`
-    out.push(`### ${p.phase}`, '', `${wall} · ${duration(p.active)} active${agentPart} · ${num(p.totals.requests)} requests`, '')
+    const wall = i === report.openPhase ? `at least ${duration(p.wall)} wall (phase never closed)` : `${duration(p.wall)} wall`
+    const requests = `${num(p.totals.requests)} request${p.totals.requests === 1 ? '' : 's'}`
+    out.push(`### ${p.phase}`, '', `${wall} · ${duration(p.active)} active${agentPart} · ${requests}`, '')
     out.push(p.byModel.length ? modelTable(p.byModel) : '_No requests recorded in this phase._', '')
-  }
+  })
 
   out.push('## Run total', '', modelTable(report.totals), '')
 
@@ -548,7 +592,7 @@ export function render(report) {
       const span = a.span ? duration(a.span.to - a.span.from) : '-'
       const type = [a.agentType ?? '-', a.workflow ? `(${a.workflow})` : ''].join(' ').trim()
       out.push(
-        `| ${a.label} | ${type} | ${a.requested ?? '-'}${flag} | ${resolved} | ${a.efforts.join(', ') || '-'} | ${num(a.totals.out)} | ${num(a.totals.cacheWrite)} | ${num(a.totals.cacheRead)} | ${span} |`,
+        `| ${cell(a.label)} | ${cell(type)} | ${cell(a.requested ?? '-')}${flag} | ${cell(resolved)} | ${cell(a.efforts.join(', ') || '-')} | ${num(a.totals.out)} | ${num(a.totals.cacheWrite)} | ${num(a.totals.cacheRead)} | ${span} |`,
       )
     }
     out.push('')

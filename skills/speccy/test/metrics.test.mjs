@@ -12,12 +12,12 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 
 import {
+  parseTranscript,
   usageRecords,
   transcriptSpan,
   firstPromptLine,
   isStateWrite,
   phaseBoundaries,
-  writesRunState,
   bannerMarker,
   buildTimeline,
   bucketByPhase,
@@ -84,10 +84,15 @@ function bannerCall({ ts }) {
 const at = (h, m = 0, s = 0) => `2026-01-01T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.000Z`
 const ms = (h, m = 0, s = 0) => Date.parse(at(h, m, s))
 
+// A transcript is parsed once and every reader takes the entries, so the tests
+// parse the same way production does.
+const entriesOf = (text) => parseTranscript(text).entries
+const recordsOf = (text, agent = null) => usageRecords(entriesOf(text), agent)
+
 // ------------------------------------------------------------ parsing
 
 test('iterations does not double count: 176 output tokens read as 176, not 352', () => {
-  const { records } = usageRecords(assistant({ ts: at(9), out: 176, cr: 21434, cw: 15065, fin: 2 }))
+  const records = recordsOf(assistant({ ts: at(9), out: 176, cr: 21434, cw: 15065, fin: 2 }))
   assert.equal(records.length, 1)
   assert.equal(records[0].out, 176)
   assert.equal(records[0].cacheRead, 21434)
@@ -101,7 +106,7 @@ test('absent cache fields read as 0, not NaN', () => {
     timestamp: at(9),
     message: { model: 'claude-sonnet-5', usage: { output_tokens: 12 } },
   })
-  const { records } = usageRecords(line)
+  const records = recordsOf(line)
   assert.deepEqual(
     { out: records[0].out, cacheRead: records[0].cacheRead, cacheWrite: records[0].cacheWrite, uncachedIn: records[0].uncachedIn },
     { out: 12, cacheRead: 0, cacheWrite: 0, uncachedIn: 0 },
@@ -114,21 +119,21 @@ test('records with no usage, and the <synthetic> model, are skipped', () => {
     assistant({ ts: at(9, 1), model: '<synthetic>', out: 99 }),
     assistant({ ts: at(9, 2), out: 5 }),
   ].join('\n')
-  const { records } = usageRecords(text)
+  const records = recordsOf(text)
   assert.equal(records.length, 1)
   assert.equal(records[0].out, 5)
 })
 
 test('a malformed line is skipped and counted', () => {
   const text = [assistant({ ts: at(9), out: 5 }), '{ not json', '', assistant({ ts: at(9, 1), out: 7 })].join('\n')
-  const { records, malformed } = usageRecords(text)
-  assert.equal(records.length, 2)
+  const { entries, malformed } = parseTranscript(text)
+  assert.equal(usageRecords(entries).length, 2)
   assert.equal(malformed, 1)
 })
 
 test('effort is carried onto the record, and its absence stays null', () => {
-  const withEffort = usageRecords(assistant({ ts: at(9), out: 1, effort: 'high' })).records[0]
-  const without = usageRecords(assistant({ ts: at(9), out: 1, effort: null })).records[0]
+  const withEffort = recordsOf(assistant({ ts: at(9), out: 1, effort: 'high' }))[0]
+  const without = recordsOf(assistant({ ts: at(9), out: 1, effort: null }))[0]
   assert.equal(withEffort.effort, 'high')
   assert.equal(without.effort, null)
 })
@@ -138,13 +143,13 @@ test('transcriptSpan bounds an agent by any entry, not just usage-bearing ones',
     JSON.stringify({ type: 'user', timestamp: at(9, 0), message: { role: 'user', content: 'go' } }),
     assistant({ ts: at(9, 5), out: 10 }),
   ].join('\n')
-  assert.deepEqual(transcriptSpan(text), { from: ms(9, 0), to: ms(9, 5) })
+  assert.deepEqual(transcriptSpan(entriesOf(text)), { from: ms(9, 0), to: ms(9, 5) })
 })
 
 // ------------------------------------------------------------ phase timeline
 
 test('a Write of the initial state file yields a boundary at its phase', () => {
-  const found = phaseBoundaries(stateWrite({ ts: at(9, 30), phase: 'spec-critique' }), RUN)
+  const found = phaseBoundaries(entriesOf(stateWrite({ ts: at(9, 30), phase: 'spec-critique' })), RUN)
   assert.deepEqual(found, [{ ts: ms(9, 30), phase: 'spec-critique' }])
 })
 
@@ -153,16 +158,16 @@ test('an Edit that changes phase is a boundary; a round-counter bump is not', ()
     stateWrite({ ts: at(10), phase: 'planning', tool: 'Edit' }),
     roundBump({ ts: at(10, 5) }),
   ].join('\n')
-  assert.deepEqual(phaseBoundaries(text, RUN), [{ ts: ms(10), phase: 'planning' }])
+  assert.deepEqual(phaseBoundaries(entriesOf(text), RUN), [{ ts: ms(10), phase: 'planning' }])
 })
 
 test('consecutive writes of the same phase collapse to one boundary', () => {
   const boundaries = phaseBoundaries(
-    [
+    entriesOf([
       stateWrite({ ts: at(9), phase: 'spec-critique' }),
       stateWrite({ ts: at(9, 20), phase: 'spec-critique' }),
       stateWrite({ ts: at(10), phase: 'planning' }),
-    ].join('\n'),
+    ].join('\n')),
     RUN,
   )
   const timeline = buildTimeline(boundaries, { start: ms(9), end: ms(11) })
@@ -172,18 +177,18 @@ test('consecutive writes of the same phase collapse to one boundary', () => {
 test('a Windows state write is recognised', () => {
   const winPath = `C:\\Users\\dev\\proj\\.speccy\\${RUN}\\state.json`
   assert.equal(isStateWrite(winPath, RUN), true)
-  const found = phaseBoundaries(stateWrite({ ts: at(9), phase: 'review', filePath: winPath }), RUN)
+  const found = phaseBoundaries(entriesOf(stateWrite({ ts: at(9), phase: 'review', filePath: winPath })), RUN)
   assert.deepEqual(found, [{ ts: ms(9), phase: 'review' }])
 })
 
 test('a state write for another run is not a boundary', () => {
   assert.equal(isStateWrite('/repo/.speccy/other-run-20260101-0900/state.json', RUN), false)
-  assert.deepEqual(phaseBoundaries(stateWrite({ ts: at(9), phase: 'review', runId: 'other-run-20260101-0900' }), RUN), [])
+  assert.deepEqual(phaseBoundaries(entriesOf(stateWrite({ ts: at(9), phase: 'review', runId: 'other-run-20260101-0900' })), RUN), [])
 })
 
 test('the banner call marks the start of the run', () => {
   const text = [bannerCall({ ts: at(8, 55) }), stateWrite({ ts: at(9, 30), phase: 'spec-critique' })].join('\n')
-  assert.equal(bannerMarker(text), ms(8, 55))
+  assert.equal(bannerMarker(entriesOf(text)), ms(8, 55))
 })
 
 test('the first bucket covers the interview, before state.json exists', () => {
@@ -203,8 +208,8 @@ const twoPhase = () => buildTimeline(
 
 test('a subagent record after a boundary lands in the later bucket, so a straddling agent splits', () => {
   const records = [
-    ...usageRecords(assistant({ ts: at(9, 55), out: 100 }), 'agent-a').records,
-    ...usageRecords(assistant({ ts: at(10, 5), out: 200 }), 'agent-a').records,
+    ...recordsOf(assistant({ ts: at(9, 55), out: 100 }), 'agent-a'),
+    ...recordsOf(assistant({ ts: at(10, 5), out: 200 }), 'agent-a'),
   ]
   const { phases, dropped } = bucketByPhase(records, twoPhase())
   assert.equal(dropped.length, 0)
@@ -214,7 +219,7 @@ test('a subagent record after a boundary lands in the later bucket, so a straddl
 
 test('the sum of the buckets equals the ungrouped total', () => {
   const stamps = [[9, 10], [9, 40], [10, 1], [10, 30], [10, 59]]
-  const records = stamps.flatMap(([h, m], i) => usageRecords(assistant({ ts: at(h, m), out: (i + 1) * 10, cr: 1000, cw: 5 })).records)
+  const records = stamps.flatMap(([h, m], i) => recordsOf(assistant({ ts: at(h, m), out: (i + 1) * 10, cr: 1000, cw: 5 })))
   const bare = records.reduce((t, r) => t + r.out + r.cacheRead + r.cacheWrite, 0)
   const { phases, dropped } = bucketByPhase(records, twoPhase())
   const bucketed = phases.reduce((t, p) => t + p.totals.out + p.totals.cacheRead + p.totals.cacheWrite, 0)
@@ -224,8 +229,8 @@ test('the sum of the buckets equals the ungrouped total', () => {
 
 test('two models in one phase produce two rows, split correctly', () => {
   const records = [
-    ...usageRecords(assistant({ ts: at(10, 5), model: 'claude-opus-5', out: 300 })).records,
-    ...usageRecords(assistant({ ts: at(10, 6), model: 'claude-sonnet-5', out: 40 })).records,
+    ...recordsOf(assistant({ ts: at(10, 5), model: 'claude-opus-5', out: 300 })),
+    ...recordsOf(assistant({ ts: at(10, 6), model: 'claude-sonnet-5', out: 40 })),
   ]
   const { phases } = bucketByPhase(records, twoPhase())
   assert.deepEqual(
@@ -236,9 +241,9 @@ test('two models in one phase produce two rows, split correctly', () => {
 
 test('one model at two efforts yields two rows, and a missing effort renders as - without collapsing', () => {
   const records = [
-    ...usageRecords(assistant({ ts: at(10, 1), out: 10, effort: 'high' })).records,
-    ...usageRecords(assistant({ ts: at(10, 2), out: 20, effort: 'low' })).records,
-    ...usageRecords(assistant({ ts: at(10, 3), out: 30, effort: null })).records,
+    ...recordsOf(assistant({ ts: at(10, 1), out: 10, effort: 'high' })),
+    ...recordsOf(assistant({ ts: at(10, 2), out: 20, effort: 'low' })),
+    ...recordsOf(assistant({ ts: at(10, 3), out: 30, effort: null })),
   ]
   const { phases } = bucketByPhase(records, twoPhase())
   assert.deepEqual(
@@ -249,9 +254,9 @@ test('one model at two efforts yields two rows, and a missing effort renders as 
 
 test('active time excludes a ten-minute gap and includes a thirty-second one', () => {
   const records = [
-    ...usageRecords(assistant({ ts: at(10, 0, 0), out: 1 })).records,
-    ...usageRecords(assistant({ ts: at(10, 0, 30), out: 1 })).records,
-    ...usageRecords(assistant({ ts: at(10, 10, 30), out: 1 })).records,
+    ...recordsOf(assistant({ ts: at(10, 0, 0), out: 1 })),
+    ...recordsOf(assistant({ ts: at(10, 0, 30), out: 1 })),
+    ...recordsOf(assistant({ ts: at(10, 10, 30), out: 1 })),
   ]
   const { phases } = bucketByPhase(records, twoPhase())
   assert.equal(phases[1].active, 30_000)
@@ -394,7 +399,7 @@ test('a long opening prompt is trimmed to one line', () => {
     timestamp: at(9),
     message: { role: 'user', content: `${'x'.repeat(200)}\nmore` },
   })
-  const label = firstPromptLine(text)
+  const label = firstPromptLine(entriesOf(text))
   assert.equal(label.length, 60)
   assert.match(label, /…$/)
 })
@@ -440,7 +445,7 @@ test('an unfinished run marks its last phase as unbounded rather than timing it'
   const report = buildReport(RUN, found)
 
   assert.ok(report.notes.some((n) => /not reached `complete`/.test(n)))
-  assert.equal(report.openPhase, 'planning', 'the final bucket is the open one')
+  assert.equal(report.phases[report.openPhase].phase, 'planning', 'the final bucket is the open one')
   // The post-complete record now falls inside the open phase, extending it.
   assert.match(render(report), /### planning\n\nat least .* wall \(phase never closed\)/)
 
@@ -469,6 +474,88 @@ test('a timeline that starts mid-pipeline names its opening bucket honestly', ()
   assert.deepEqual(report.phases.map((p) => p.phase), ['before planning', 'planning'])
   assert.ok(report.notes.some((n) => /cannot be told apart/.test(n)))
   fs.rmSync(root, { recursive: true, force: true })
+})
+
+// A session outlives the run it hosted, and the harness writes each subagent's
+// sidecar as it starts, so a killed session leaves a truncated one.
+function treeWithStrays() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-strays-'))
+  const project = path.join(root, 'projects', '-repo')
+  const write = (file, lines) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, lines.join('\n') + '\n')
+  }
+  const subagent = (name, lines, meta) => {
+    write(path.join(project, 'sess-d', 'subagents', `${name}.jsonl`), lines)
+    fs.writeFileSync(path.join(project, 'sess-d', 'subagents', `${name}.meta.json`), meta)
+  }
+
+  write(path.join(project, 'sess-d.jsonl'), [
+    bannerCall({ ts: at(9, 0) }),
+    stateWrite({ ts: at(9, 10), phase: 'spec-critique' }),
+    stateWrite({ ts: at(10, 0), phase: 'complete' }),
+    assistant({ ts: at(15, 0), out: 5 }),
+  ])
+
+  subagent('agent-in', [assistant({ ts: at(9, 30), out: 100 })], JSON.stringify({ description: 'inside the run' }))
+  subagent('agent-later', [assistant({ ts: at(15, 10), out: 999_999 })], JSON.stringify({ description: 'the session\'s next job' }))
+  subagent('agent-pipe', [assistant({ ts: at(9, 40), out: 7 })], JSON.stringify({ description: 'run tests | grep fail' }))
+  subagent(
+    'agent-cut',
+    [
+      JSON.stringify({ type: 'user', timestamp: at(9, 41), message: { role: 'user', content: 'prove the cache mechanism' } }),
+      assistant({ ts: at(9, 42), out: 3 }),
+    ],
+    '{"description":"trunca',
+  )
+  return root
+}
+
+test('a subagent that ran wholly outside the run is excluded, and the notes say so', () => {
+  const root = treeWithStrays()
+  const report = buildReport(RUN, discover(root, RUN))
+  assert.deepEqual(report.agents.map((a) => a.id).sort(), ['agent-cut', 'agent-in', 'agent-pipe'])
+  assert.ok(report.notes.some((n) => /1 subagent\(s\).*wholly outside the run's window/.test(n)))
+  assert.doesNotMatch(render(report), /next job/)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a pipe in an agent label is escaped, so the row keeps its columns', () => {
+  const root = treeWithStrays()
+  const row = render(buildReport(RUN, discover(root, RUN))).split('\n').find((l) => l.includes('grep fail'))
+  assert.match(row, /run tests \\\| grep fail/)
+  assert.equal(row.split(/(?<!\\)\|/).length - 2, 9, 'nine columns, whatever the label holds')
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a truncated sidecar costs that agent its label, not the whole report', () => {
+  const root = treeWithStrays()
+  const byId = Object.fromEntries(discover(root, RUN).agents.map((a) => [a.id, a]))
+  assert.equal(byId['agent-cut'].label, 'prove the cache mechanism', 'falls back to the opening prompt')
+  assert.equal(byId['agent-cut'].requested, null)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a phase the pipeline revisits does not make its earlier bucket look unclosed', () => {
+  const report = buildReport(RUN, {
+    sessions: [{ file: 'f', sessionId: 'sess-e', project: '-repo' }],
+    mentionedOnly: [],
+    agents: [],
+    records: recordsOf([
+      assistant({ ts: at(9, 5), out: 1 }),
+      assistant({ ts: at(10, 5), out: 1 }),
+      assistant({ ts: at(11, 5), out: 1 }),
+    ].join('\n')),
+    boundaries: [
+      { ts: ms(9), phase: 'spec-critique' },
+      { ts: ms(10), phase: 'planning' },
+      { ts: ms(11), phase: 'spec-critique' },
+    ],
+    marker: ms(9),
+    malformed: 0,
+  })
+  assert.deepEqual(report.phases.map((p) => p.phase), ['spec-critique', 'planning', 'spec-critique'])
+  assert.equal((render(report).match(/phase never closed/g) ?? []).length, 1)
 })
 
 test('a run with no transcripts anywhere reports empty rather than throwing', () => {
@@ -500,6 +587,13 @@ test('counts read as k / M / B to three significant figures', () => {
 test('a negative or non-finite count does not produce nonsense', () => {
   assert.equal(num(-2500), '-2.50k')
   assert.equal(num(NaN), '-')
+})
+
+test('rounding that crosses a scale boundary steps up, rather than printing 1000k', () => {
+  assert.deepEqual(
+    [999_499, 999_500, 999_999, 999_999_999].map(num),
+    ['999k', '1.00M', '1.00M', '1.00B'],
+  )
 })
 
 // ------------------------------------------------------------ the wrapper
