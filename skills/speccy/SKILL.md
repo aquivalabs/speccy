@@ -164,11 +164,7 @@ So **before spawning any subagent, restate the active style concisely at the top
 
 ## Pass the tool-use rules to every subagent
 
-**Pass `prompts/tool-use.md` to every subagent speccy spawns**, including plan-execution's build agents. It holds one rule: gather independent lookups in a single turn rather than one per turn. Like the writing-style rule above, this applies at every spawn site in the phases below and is stated once here rather than repeated at each. The same two exceptions apply, for the same reason: the built-in `code-review` skill and any project review gate manage their own prompts.
-
-Its scope is deliberately wider than `writing-style.md`, which skips the build agents because their task files are working notes. This one governs how an agent works rather than what it writes, so the agents that read the most code need it most.
-
-A subagent's whole context is re-read on every turn, so cost tracks the number of turns far more than the volume of what it reads. Measured on one lens over a 136-file diff, two agents given this rule took 29% fewer turns and 28% less cache read than two without it, while fetching 3% *more* material, reaching the same final context, and finding the same number of things. The saving is round trips, not thoroughness, which is why the rule says to look at no less than you would have.
+**Pass `prompts/tool-use.md` to every subagent speccy spawns**, plan-execution's build agents included. Like the writing-style rule above, it applies at every spawn site in the phases below and is stated once here rather than repeated at each, with the same two exceptions: the built-in `code-review` skill and any project review gate manage their own prompts.
 
 ## Steering away from cognitive surrender
 
