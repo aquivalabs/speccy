@@ -49,6 +49,7 @@ export function parseTranscript(text) {
  */
 export function usageRecords(entries, agent = null) {
   const records = []
+  const byMessage = new Map()
   for (const e of entries) {
     const u = e.message?.usage
     if (!u || typeof u !== 'object') continue
@@ -56,7 +57,7 @@ export function usageRecords(entries, agent = null) {
     if (!model || model === '<synthetic>') continue
     const ts = Date.parse(e.timestamp)
     if (Number.isNaN(ts)) continue
-    records.push({
+    const record = {
       ts,
       model,
       effort: e.effort ?? null,
@@ -68,7 +69,26 @@ export function usageRecords(entries, agent = null) {
       cacheRead: u.cache_read_input_tokens ?? 0,
       cacheWrite: u.cache_creation_input_tokens ?? 0,
       uncachedIn: u.input_tokens ?? 0,
-    })
+    }
+
+    // One API response is written to the transcript once per content block, so
+    // a reply that thought, spoke, and called a tool leaves three entries. Each
+    // repeats the whole request's usage, and the input counts are identical
+    // across them, so counting entries multiplies a request by its block count.
+    // Output is either repeated the same way or reported cumulatively as the
+    // response streams, which max() resolves either way.
+    const id = e.message?.id
+    const seen = typeof id === 'string' ? byMessage.get(id) : undefined
+    if (!seen) {
+      records.push(record)
+      if (typeof id === 'string') byMessage.set(id, record)
+      continue
+    }
+    seen.out = Math.max(seen.out, record.out)
+    seen.cacheRead = Math.max(seen.cacheRead, record.cacheRead)
+    seen.cacheWrite = Math.max(seen.cacheWrite, record.cacheWrite)
+    seen.uncachedIn = Math.max(seen.uncachedIn, record.uncachedIn)
+    seen.ts = Math.min(seen.ts, record.ts)
   }
   return records
 }

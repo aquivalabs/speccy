@@ -598,3 +598,13 @@ The first real run measured reported itself unfinished while its own state.json 
 The tempting fix was to require a file-editing tool at that step. That leaves the measurement depending on how a file happened to be written, which a hook, a script, or a future refactor breaks silently and invisibly. Reading the artifact the run maintains anyway is the robust answer: state.json is the authority on whether the run finished, and its mtime on when.
 
 It cannot replace the transcript scan, which is why the scan stays. state.json holds one overwritten snapshot with no timestamps in it, so every phase before the last leaves no trace there; only the transcript dates the boundaries. The state file is consulted for the one question it answers better. Its mtime is capped at the last record, so a file touched afterwards cannot stretch a run past anything that happened in it, and the report says when the close came from the file rather than from a tool call.
+
+### A response is one request, however many transcript entries it leaves (2026-08-19)
+
+The reader already guarded against `usage.iterations`, which repeats a request's counts per inference iteration. It missed the same trap one level up. The harness writes an assistant response to the transcript once per content block, so a reply that thought, spoke, and called a tool leaves three entries, each carrying the whole request's usage. Summing the entries multiplied every request by its block count.
+
+The error was large and invisible: on the first real run measured, requests and cache reads came out 1.9x their true value, cache writes 2.4x. Output was worse in one place and nearly right in another, which is what made it hard to spot from the numbers alone. Orchestrator responses repeat an identical output count per block, so they tripled; subagent responses report output cumulatively as the response streams, so summing them landed within a few per cent of the truth. A tool that is 2x wrong on one column and 2% wrong on the next offers no internal signal that anything is wrong.
+
+Records are now keyed on `message.id` and merged with `max` per field. The input counts are provably identical across the entries of one response, checked over every multi-entry group in a real corpus, so max returns the value unchanged; output is either identical or cumulative, and max resolves both. Entries carrying no id stay separate.
+
+The general lesson is the one the `iterations` decision already recorded, and it recurred anyway: the transcript's shape is not a stable interface, and a count that looks plausible is not evidence. Every field the reader sums needs a check against a real corpus asking what one unit is, because both of these bugs produced numbers that were entirely believable.

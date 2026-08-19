@@ -36,7 +36,7 @@ const SKILL_DIR = path.resolve(import.meta.dirname, '..')
 
 // ------------------------------------------------------------ line builders
 
-function assistant({ ts, model = 'claude-opus-5', effort = 'high', out = 0, cr = 0, cw = 0, fin = 0, iterations = true, content = [] }) {
+function assistant({ ts, model = 'claude-opus-5', effort = 'high', out = 0, cr = 0, cw = 0, fin = 0, iterations = true, content = [], id = null, blocks = null }) {
   const usage = {
     input_tokens: fin,
     cache_creation_input_tokens: cw,
@@ -48,7 +48,9 @@ function assistant({ ts, model = 'claude-opus-5', effort = 'high', out = 0, cr =
     // sums the whole object, or greps the line, counts them twice.
     usage.iterations = [{ input_tokens: fin, output_tokens: out, cache_read_input_tokens: cr, cache_creation_input_tokens: cw }]
   }
-  const entry = { type: 'assistant', timestamp: ts, cwd: '/repo', message: { role: 'assistant', model, usage, content } }
+  const body = blocks ? blocks.map((type) => ({ type })) : content
+  const entry = { type: 'assistant', timestamp: ts, cwd: '/repo', message: { role: 'assistant', model, usage, content: body } }
+  if (id !== null) entry.message.id = id
   if (effort !== null) entry.effort = effort
   return JSON.stringify(entry)
 }
@@ -99,6 +101,40 @@ test('iterations does not double count: 176 output tokens read as 176, not 352',
   assert.equal(records[0].cacheRead, 21434)
   assert.equal(records[0].cacheWrite, 15065)
   assert.equal(records[0].uncachedIn, 2)
+})
+
+// One API response becomes one transcript entry per content block, each
+// carrying the whole request's usage. Both observed shapes are covered here.
+test('blocks of one response count once, not once per block', () => {
+  const text = [
+    assistant({ ts: at(9, 0, 1), id: 'msg_a', out: 375, cr: 56146, cw: 1200, fin: 3, blocks: ['thinking'] }),
+    assistant({ ts: at(9, 0, 2), id: 'msg_a', out: 375, cr: 56146, cw: 1200, fin: 3, blocks: ['text'] }),
+    assistant({ ts: at(9, 0, 3), id: 'msg_a', out: 375, cr: 56146, cw: 1200, fin: 3, blocks: ['tool_use'] }),
+  ].join('\n')
+  const records = recordsOf(text)
+  assert.equal(records.length, 1, 'one response, one record')
+  assert.deepEqual(
+    { out: records[0].out, cacheRead: records[0].cacheRead, cacheWrite: records[0].cacheWrite, uncachedIn: records[0].uncachedIn },
+    { out: 375, cacheRead: 56146, cacheWrite: 1200, uncachedIn: 3 },
+  )
+  assert.equal(records[0].ts, ms(9, 0, 1), 'dated when the response began')
+})
+
+test('a response whose output count grows as it streams keeps the final total', () => {
+  const text = [
+    assistant({ ts: at(9, 0, 1), id: 'msg_b', out: 5, cr: 10564 }),
+    assistant({ ts: at(9, 0, 2), id: 'msg_b', out: 5, cr: 10564 }),
+    assistant({ ts: at(9, 0, 3), id: 'msg_b', out: 286, cr: 10564 }),
+  ].join('\n')
+  const records = recordsOf(text)
+  assert.equal(records.length, 1)
+  assert.equal(records[0].out, 286, 'the complete count, not the first snapshot nor the sum')
+  assert.equal(records[0].cacheRead, 10564, 'input counted once')
+})
+
+test('entries with no message id are each their own record', () => {
+  const text = [assistant({ ts: at(9), out: 5 }), assistant({ ts: at(9, 1), out: 7 })].join('\n')
+  assert.equal(recordsOf(text).length, 2)
 })
 
 test('absent cache fields read as 0, not NaN', () => {
