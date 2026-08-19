@@ -162,6 +162,14 @@ The main session may be governed by a behavioural or output style a fresh agent 
 
 So **before spawning any subagent, restate the active style concisely at the top of its prompt**, enough that both its reasoning and its written output match the session's voice. **Pass `prompts/writing-style.md` to every subagent that writes an artifact**, which is all of them but the fixer: the session's voice is a layer on top of those rules rather than a substitute for them, and a style restated from memory is the least reliable way to carry a writing standard across a context boundary. Two things are out of reach and don't need carrying: conventions already in `CLAUDE.md` (subagents read it anyway), and the built-in `code-review` skill run inline (it manages its own prompt; the orchestrator just applies the session's voice when it normalises those findings into the lens file). This rule applies to every spawn site in the phases below; it is stated once here rather than repeated at each. speccy's own narration back to the user follows the same style as a matter of course.
 
+## Pass the tool-use rules to every subagent
+
+**Pass `prompts/tool-use.md` to every subagent speccy spawns**, including plan-execution's build agents. It holds one rule: gather independent lookups in a single turn rather than one per turn. Like the writing-style rule above, this applies at every spawn site in the phases below and is stated once here rather than repeated at each. The same two exceptions apply, for the same reason: the built-in `code-review` skill and any project review gate manage their own prompts.
+
+Its scope is deliberately wider than `writing-style.md`, which skips the build agents because their task files are working notes. This one governs how an agent works rather than what it writes, so the agents that read the most code need it most.
+
+A subagent's whole context is re-read on every turn, so cost tracks the number of turns far more than the volume of what it reads. Measured on one lens over a 136-file diff, two agents given this rule took 29% fewer turns and 28% less cache read than two without it, while fetching 3% *more* material, reaching the same final context, and finding the same number of things. The saving is round trips, not thoroughness, which is why the rule says to look at no less than you would have.
+
 ## Steering away from cognitive surrender
 
 speccy's own output is the hazard. Adversarially-hardened specs and plans read as authoritative, and the more authoritative they read, the stronger the pull for the user to approve without understanding (cognitive surrender: borrowed confidence, surface correctness hiding deeper flaws). The pipeline already hardens its artifacts. These habits guard the user's engagement, which nothing else does.
