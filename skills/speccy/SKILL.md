@@ -2,7 +2,7 @@
 name: speccy
 description: Guided specification writing, adversarial spec critique, and post-build review. Full pipeline from rough idea to reviewed implementation.
 when_to_use: When the user says "speccy", "spec mode", "adversarial mode", or similar. Also when about to execute a complex multi-step plan and adversarial critique would help.
-allowed-tools: Bash(bash *skills/speccy/banner.sh), Read(.speccy/**), Write(.speccy/**), Edit(.speccy/**)
+allowed-tools: Bash(bash *skills/speccy/banner.sh), Bash(bash *skills/speccy/metrics.sh), Bash(bash *skills/speccy/metrics.sh *), Read(.speccy/**), Write(.speccy/**), Edit(.speccy/**)
 ---
 
 # speccy
@@ -398,7 +398,6 @@ When all phases complete, report concisely, both in the chat and in `.speccy/<ru
    - **Skipped at spec critique** (`.speccy/<run-id>/spec-critique-skipped.md`): findings the user declined, and any the 3-round cap left unaddressed. Also follow-up candidates.
    - **Unaddressed at the round cap** (`deferred.md`, its own section): findings the panel dispositioned Fix and the cap left unfixed. These are known defects in the branch about to merge rather than future work, so put them to the user as a decision: fix them now, or merge knowing they are there.
 4. **Retrospective**: if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns. If it has a `## Repo-doc suggestions (CLAUDE.md / ADR)` section, present those for the user to accept or decline; never auto-apply them.
-
 **Exit checks.** Only once all of these hold, set `phase: "complete"`:
 
 - `.speccy/<run-id>/summary.md` is written
@@ -407,5 +406,21 @@ When all phases complete, report concisely, both in the chat and in `.speccy/<ru
 - the retrospective is saved, if the task execution skill produced one
 
 Set `complete` any earlier and a `/clear` during the wrap-up resumes as a finished run, silently dropping the decision log and the retrospective: the artifacts the handoff exists to produce.
+
+**Last, after `complete` is set: what the run cost.** Run the metrics script from this skill's own directory by its **absolute path**, the same way the banner runs (no `cd`, no command substitution, or the pre-approved permission match breaks).
+
+```bash
+bash <skill-dir>/metrics.sh
+```
+
+It reads the harness transcripts and writes `.speccy/<run-id>/metrics.md`: wall and active time per phase, tokens by model and reasoning effort, and a per-agent table. Report the headline in chat, a line or two at most (where the wall time went, which phase carried the tokens, anything the script flagged), and point the user at the file.
+
+Everything you need to say that is already in the output: the phases, the run total, and the **Notes**. Summarise from what it printed and **don't open `metrics.md`** — the per-agent table is most of the file, nothing asks you to summarise it, and reading it back spends the context this step is written to protect.
+
+Pass on what the Notes say. They flag phases the reader could not tell apart, work it excluded as belonging to something else, and any agent whose model override did not take effect. Those change how much the numbers are worth.
+
+This step is deliberately outside the exit checks and runs after `complete`, not before it. The measurement is a nice-to-have and must never stand between the user and a finished run: nothing here can fail in a way that leaves the run looking unfinished. It also reads a truer timeline, because `complete` is what closes the last phase. The cost is that a `/clear` in the gap loses the report; `bash <skill-dir>/metrics.sh <run-id>` recovers it later from whatever the transcripts still hold.
+
+The script never blocks: no `node` on `PATH`, no transcripts, or a pruned run all print one line and exit. If it skips, say so in a clause and move on. Measurement happens after the run rather than during it because nothing in a live session tells the orchestrator its own token usage; a figure written mid-run would be invented.
 
 If the pipeline exited early (implementation failure), report what's done and what remains. The user has a branch with partial progress.
