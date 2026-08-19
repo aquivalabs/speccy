@@ -23,6 +23,7 @@ import {
   bucketByPhase,
   modelMismatch,
   discover,
+  readRunState,
   buildReport,
   render,
   runIdStart,
@@ -556,6 +557,60 @@ test('a phase the pipeline revisits does not make its earlier bucket look unclos
   })
   assert.deepEqual(report.phases.map((p) => p.phase), ['spec-critique', 'planning', 'spec-critique'])
   assert.equal((render(report).match(/phase never closed/g) ?? []).length, 1)
+})
+
+// A run can mark itself complete through a shell command, which leaves the
+// phase in state.json but no tool call in the transcript to date it.
+test('state.json closes a run whose `complete` write never reached the transcript', () => {
+  const root = tree()
+  const found = discover(root, RUN)
+  found.boundaries = found.boundaries.filter((b) => b.phase !== 'complete')
+
+  const report = buildReport(RUN, found, { state: { phase: 'complete', mtime: ms(10, 46) } })
+  assert.equal(report.openPhase, null, 'the run is finished, so no phase is left open')
+  assert.equal(report.phases[report.phases.length - 1].to, ms(10, 46), 'closed at the state file')
+  assert.equal(report.phases.some((p) => p.totals.out === 7777), false, 'later work stays out')
+  assert.ok(report.notes.some((n) => /closes at `state.json`/.test(n)))
+  assert.doesNotMatch(render(report), /has not reached `complete`/)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a state file that is stale, unfinished, or absent leaves the run open', () => {
+  const root = tree()
+  const open = () => {
+    const found = discover(root, RUN)
+    found.boundaries = found.boundaries.filter((b) => b.phase !== 'complete')
+    return found
+  }
+  // Older than the last phase boundary, so it cannot be that phase's end.
+  assert.equal(buildReport(RUN, open(), { state: { phase: 'complete', mtime: ms(9, 0) } }).openPhase, 2)
+  assert.equal(buildReport(RUN, open(), { state: { phase: 'wrap-up', mtime: ms(10, 46) } }).openPhase, 2)
+  assert.equal(buildReport(RUN, open(), { state: null }).openPhase, 2)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a state file touched long after the run cannot stretch it past the last record', () => {
+  const root = tree()
+  const found = discover(root, RUN)
+  found.boundaries = found.boundaries.filter((b) => b.phase !== 'complete')
+  const report = buildReport(RUN, found, { state: { phase: 'complete', mtime: ms(20, 0) } })
+  assert.equal(report.phases[report.phases.length - 1].to, ms(11, 30), 'capped at the last record')
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('readRunState reads the phase and the moment it was set', () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-state-'))
+  const dir = path.join(cwd, '.speccy', RUN)
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ runId: RUN, phase: 'complete' }))
+  const state = readRunState(cwd, RUN)
+  assert.equal(state.phase, 'complete')
+  assert.ok(state.mtime > 0)
+
+  fs.writeFileSync(path.join(dir, 'state.json'), '{ truncated')
+  assert.equal(readRunState(cwd, RUN), null, 'an unreadable state file is no state file')
+  assert.equal(readRunState(cwd, 'absent-run-20260101-0900'), null)
+  fs.rmSync(cwd, { recursive: true, force: true })
 })
 
 test('a run with no transcripts anywhere reports empty rather than throwing', () => {

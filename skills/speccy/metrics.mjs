@@ -332,6 +332,31 @@ export function runIdStart(runId) {
 }
 
 /**
+ * The run's own state file, which outranks the transcript on one question: did
+ * the run finish? The transcript shows a phase transition only when it went
+ * through a file-editing tool, and state.json gets written other ways. It
+ * cannot replace the transcript scan, though, because it holds one overwritten
+ * snapshot with no timestamps in it, so the phases before the last leave no
+ * trace. Its mtime is when that last phase was set.
+ */
+export function readRunState(cwd, runId) {
+  const file = path.join(cwd, '.speccy', runId, 'state.json')
+  const text = readIfFile(file)
+  if (text === null) return null
+  let phase = null
+  try {
+    phase = JSON.parse(text)?.phase ?? null
+  } catch {
+    return null
+  }
+  try {
+    return { phase, mtime: fs.statSync(file).mtimeMs }
+  } catch {
+    return { phase, mtime: null }
+  }
+}
+
+/**
  * Walk the transcripts for one run. `configRoot` is a parameter rather than an
  * environment read so a fixture tree can stand in for ~/.claude.
  */
@@ -464,18 +489,31 @@ function overlapsRun(agent, start, end) {
   return agent.span !== null && agent.span.from <= end && agent.span.to >= start
 }
 
-export function buildReport(runId, found) {
+export function buildReport(runId, found, { state = null } = {}) {
   const stamps = found.records.map((r) => r.ts)
   if (!stamps.length) return { runId, empty: true, sessions: found.sessions, notes: [] }
 
   const ordered = [...found.boundaries].sort((a, b) => a.ts - b.ts)
   const start = found.marker ?? Math.min(...stamps)
+  const latest = Math.max(...stamps)
 
   // `complete` is the wrap-up's last act, not a phase that does work. It closes
   // the run, so the timeline ends there and anything later is somebody's next
   // job in the same session rather than this run's cost.
   const completed = ordered.find((b) => b.phase === 'complete') ?? null
-  const end = completed ? completed.ts : Math.max(...stamps)
+
+  // A `complete` the transcript missed, because the write went through Bash
+  // rather than a file-editing tool. state.json says the run finished and its
+  // mtime says when, which beats running the last phase on to the last record.
+  const lastMark = ordered.length ? ordered[ordered.length - 1].ts : start
+  const stateClose = !completed && state?.phase === 'complete' && state.mtime !== null
+    // Capped at the last record so a state file touched afterwards cannot
+    // stretch the run past anything that actually happened in it.
+    ? Math.min(state.mtime, latest)
+    : null
+  const closedByState = stateClose !== null && stateClose >= lastMark
+
+  const end = completed ? completed.ts : closedByState ? stateClose : latest
 
   // The opening bucket normally holds the intake and interview, which precede
   // state.json. When the earliest surviving boundary is later than the first
@@ -498,8 +536,15 @@ export function buildReport(runId, found) {
   const outsideRun = found.agents.filter((a) => !overlapsRun(a, start, end))
   const { phases, dropped } = bucketByPhase(inRun, timeline, agents)
 
+  const finished = completed !== null || closedByState
+
   const notes = []
-  if (!completed) notes.push('This run has not reached `complete`, so its last phase has no end. That phase\'s wall time runs to the last thing the session did, which may be unrelated work days later; read its active time and agent-seconds instead.')
+  if (!finished) {
+    notes.push('This run has not reached `complete`, so its last phase has no end. That phase\'s wall time runs to the last thing the session did, which may be unrelated work days later; read its active time and agent-seconds instead.')
+  }
+  if (closedByState) {
+    notes.push('No `complete` write appears in the transcripts, so the timeline closes at `state.json`\'s own timestamp instead. That happens when the run marked itself complete through a shell command rather than a file-editing tool: the state file records the phase, but only a tool call records the moment.')
+  }
   if (afterRun.length) {
     // The call that produced this report is itself one of them, so a small count
     // here is the normal shape rather than a sign of anything.
@@ -536,7 +581,7 @@ export function buildReport(runId, found) {
     // An unfinished run has no closing boundary, so its last bucket runs to the
     // last record rather than to a phase end. Its wall figure is a lower bound.
     // Held as an index, since a pipeline that revisits a phase repeats its name.
-    openPhase: completed ? null : phases.length - 1,
+    openPhase: finished ? null : phases.length - 1,
     sessions: found.sessions,
     agents,
     phases,
@@ -634,7 +679,7 @@ export function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     return 0
   }
 
-  const text = render(buildReport(runId, found))
+  const text = render(buildReport(runId, found, { state: readRunState(cwd, runId) }))
   const target = path.join(cwd, '.speccy', runId, 'metrics.md')
   try {
     fs.mkdirSync(path.dirname(target), { recursive: true })
