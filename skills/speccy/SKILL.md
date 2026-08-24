@@ -107,6 +107,16 @@ Read and write `.speccy/` state with the Read/Write tools: these paths are pre-a
 
 Before running any of the checks below, suggest the user enable auto-accept mode (shift+tab). From here to the end of the run the work is mostly tool calls (the verification smoke-test runs the project's linters and tests, then planning, critique, implementation, and review run autonomous loops), so approving each one by hand is pure friction. The spec interview is a conversation regardless, so auto-accept doesn't take any decisions away: the user still reviews and edits the spec content directly.
 
+### Reasoning effort
+
+Every subagent inherits the session's effort, and speccy spawns dozens of them: critics, revise agents, a planner, the review lenses, the fixers, and the whole build. At `xhigh` or `max` that multiplies across the pipeline and the run takes far longer.
+
+```bash
+echo "${CLAUDE_EFFORT:-$(grep -o '"effortLevel"[^,]*' ~/.claude/settings.json 2>/dev/null | cut -d'"' -f4)}"
+```
+
+If that prints `xhigh` or `max`, say so and suggest dropping to `high` in `/effort` before starting. It is the user's call, since this costs time rather than correctness. If it prints nothing, say nothing: an unreported effort is not a low one.
+
 ### Verification tools
 
 Check that CLAUDE.md documents the project's verification tools (build, lint, static analysis, test commands). These are needed during implementation: execute agents run them to validate their work. If they're missing, tell the user before proceeding. Establishing verification standards is part of project setup; discovering them mid-build is too late.
