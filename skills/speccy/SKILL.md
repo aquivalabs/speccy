@@ -107,6 +107,16 @@ Read and write `.speccy/` state with the Read/Write tools: these paths are pre-a
 
 Before running any of the checks below, suggest the user enable auto-accept mode (shift+tab). From here to the end of the run the work is mostly tool calls (the verification smoke-test runs the project's linters and tests, then planning, critique, implementation, and review run autonomous loops), so approving each one by hand is pure friction. The spec interview is a conversation regardless, so auto-accept doesn't take any decisions away: the user still reviews and edits the spec content directly.
 
+### Reasoning effort
+
+Every subagent inherits the session's effort, and speccy spawns dozens of them: critics, revise agents, a planner, the review lenses, the fixers, and the whole build. At `xhigh` or `max` that multiplies across the pipeline and the run takes far longer.
+
+```bash
+echo "${CLAUDE_EFFORT:-$(grep -o '"effortLevel"[^,]*' ~/.claude/settings.json 2>/dev/null | cut -d'"' -f4)}"
+```
+
+If that prints `xhigh` or `max`, say so and suggest dropping to `high` in `/effort` before starting. It is the user's call, since this costs time rather than correctness. If it prints nothing, say nothing: an unreported effort is not a low one.
+
 ### Verification tools
 
 Check that CLAUDE.md documents the project's verification tools (build, lint, static analysis, test commands). These are needed during implementation: execute agents run them to validate their work. If they're missing, tell the user before proceeding. Establishing verification standards is part of project setup; discovering them mid-build is too late.
@@ -369,15 +379,21 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
    A suppression finding is effectively never Defer: remove it or make it watertight, this round. **Exit the loop when nothing is dispositioned Fix.**
 
    You make these disposition calls yourself as the loop runs; the review is autonomous. But surface them to the human at wrap-up so they still review the judgment: deferrals in the deferred list, and any divergence-from-pattern or wider-than-the-diff fix in the summary and decision log.
-3. **Fix.** If nothing is dispositioned Fix, skip to the next round's review (or exit). Otherwise read `prompts/implementation-fix.md` and spawn a fix subagent with that prompt, the Fix findings (point it at the lens files, and state any diverge / fix-wider instruction), the spec path, and the plan path. It makes the changes and commits.
+3. **Fix.** If nothing is dispositioned Fix, skip to the next round's review (or exit). Otherwise read `prompts/implementation-fix.md` and spawn a fix subagent with that prompt, the Fix findings (point it at the lens files, and state any diverge / fix-wider instruction), the spec path, the plan path, and **`baseBranch` from state.json**. It makes the changes and commits.
 
    **The fixer runs on sonnet.** A triaged finding names the defect and its location, so applying it is execution against a written instruction, which sonnet does faster and no worse. `builderModel` does not govern this: a build raised to opus for its novelty says nothing about the difficulty of applying a finding, and inheriting it would put every fix round on the slower tier for the rest of the run.
 
    Raise a batch to opus on evidence rather than on how serious its findings look. Two cases qualify: a later round found the previous fix broken or regressive in this same area, so sonnet has already been tried and failed here; or the finding establishes that the current shape is wrong without stating the right one, leaving the design call to the fixer. Name the batch you raised and why in the round's report: with the choice free each round, an unexplained opus batch is where this drifts back to "opus for anything that looks hard".
 
-   **Split a large fix set across a series of agents.** One agent carrying thirty findings across twenty files degrades as it goes: the last findings get the thinnest attention, and a fixer running short of room compensates by taking the cheap ones and reporting done. Group the findings into coherent batches (by area or layer reads better than by count) and spawn a fresh agent per batch, each with the same prompt and its own findings. Run them **strictly one after another, never in parallel**: they share a working tree and an index, so concurrent fixers race on the same files. Each commits its own batch before the next starts.
+   **Split a large fix set across a series of agents.** One agent carrying thirty findings across twenty files degrades as it goes: the last findings get the thinnest attention, and a fixer running short of room compensates by taking the cheap ones and reporting done. Group the findings into coherent batches (by area or layer reads better than by count) and spawn a fresh agent per batch, each with the same prompt and its own findings. Run them **strictly one after another, never in parallel**: they share a working tree and an index, so concurrent fixers race on the same files. Each commits its findings, a commit per fix, before the next starts.
 
-   After the last fix agent commits, re-run the load-bearing gates yourself and confirm the actual output before the next round; never advance on a fix agent's claim that the gates pass. (Gates passing doesn't prove coverage held; a dropped test still passes.)
+   **Blockers go first, in their own batch**, committed and gated before any other batch is spawned. **No batch is the remainder**: a leftover finding gets its own agent rather than being appended to the last batch, even if it is the only finding in it.
+
+   **Confirm each batch committed before spawning the next**, from `git log` and `git status` rather than the agent's report. A commit per fix means a batch can land some of its findings and leave the rest in the tree, so read both: uncommitted work is still work, so review that diff and commit it; nothing committed and a clean tree means the batch built nothing, which is a hand-back.
+
+   **A fix agent that hands back is a signal about the handout.** A batch too large to hold is the usual reason it gets there, so re-split the remaining findings smaller and spawn a fresh agent, rather than returning the same batch to a context already full of the dead end. Anything still unfixed when the round ends surfaces again in the next cold round.
+
+   After the last fix agent commits, re-run the load-bearing gates yourself and confirm the actual output before the next round; never advance on a fix agent's claim that the gates pass. (Gates passing doesn't prove coverage held; a dropped test still passes.) A fixer runs only the checks covering what it touched, so this is what covers the round's work as a whole, and it is where an unverified hand-back gets its verdict. Between batches nothing is gated but the blockers, which is the accepted cost of not paying for a full suite per batch: a breakage a batch's own checks miss surfaces here, with the round's other commits already on top of it.
 
 After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`).
 
