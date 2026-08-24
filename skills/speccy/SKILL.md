@@ -381,6 +381,8 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
 
    **A fix agent that hands back is a signal about the handout.** A batch too large to hold is the usual reason it gets there, so re-split the remaining findings smaller and spawn a fresh agent, rather than returning the same batch to a context already full of the dead end. Anything still unfixed when the round ends surfaces again in the next cold round.
 
+   **Confirm each batch committed before spawning the next.** Read `git log` rather than the agent's report: a batch can report success with nothing in git, and its work then sits loose in the tree for the next fixer to commit under the wrong message. Where nothing landed, treat it as a hand-back rather than a completion.
+
    After the last fix agent commits, re-run the load-bearing gates yourself and confirm the actual output before the next round; never advance on a fix agent's claim that the gates pass. (Gates passing doesn't prove coverage held; a dropped test still passes.) A fixer runs only the checks covering what it touched, so this is the round's one full pass rather than a re-check of one, and it is where an unverified hand-back gets its verdict.
 
 After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`).
