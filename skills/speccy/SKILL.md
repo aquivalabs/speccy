@@ -369,7 +369,7 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
    A suppression finding is effectively never Defer: remove it or make it watertight, this round. **Exit the loop when nothing is dispositioned Fix.**
 
    You make these disposition calls yourself as the loop runs; the review is autonomous. But surface them to the human at wrap-up so they still review the judgment: deferrals in the deferred list, and any divergence-from-pattern or wider-than-the-diff fix in the summary and decision log.
-3. **Fix.** If nothing is dispositioned Fix, skip to the next round's review (or exit). Otherwise read `prompts/implementation-fix.md` and spawn a fix subagent with that prompt, the Fix findings (point it at the lens files, and state any diverge / fix-wider instruction), the spec path, and the plan path. It makes the changes and commits.
+3. **Fix.** If nothing is dispositioned Fix, skip to the next round's review (or exit). Otherwise read `prompts/implementation-fix.md` and spawn a fix subagent with that prompt, the Fix findings (point it at the lens files, and state any diverge / fix-wider instruction), the spec path, the plan path, and **`baseBranch` from state.json**. It makes the changes and commits.
 
    **The fixer runs on sonnet.** A triaged finding names the defect and its location, so applying it is execution against a written instruction, which sonnet does faster and no worse. `builderModel` does not govern this: a build raised to opus for its novelty says nothing about the difficulty of applying a finding, and inheriting it would put every fix round on the slower tier for the rest of the run.
 
@@ -377,7 +377,11 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
 
    **Split a large fix set across a series of agents.** One agent carrying thirty findings across twenty files degrades as it goes: the last findings get the thinnest attention, and a fixer running short of room compensates by taking the cheap ones and reporting done. Group the findings into coherent batches (by area or layer reads better than by count) and spawn a fresh agent per batch, each with the same prompt and its own findings. Run them **strictly one after another, never in parallel**: they share a working tree and an index, so concurrent fixers race on the same files. Each commits its own batch before the next starts.
 
-   After the last fix agent commits, re-run the load-bearing gates yourself and confirm the actual output before the next round; never advance on a fix agent's claim that the gates pass. (Gates passing doesn't prove coverage held; a dropped test still passes.)
+   **Blockers go first, in their own batch**, committed and gated before any refactor batch is spawned. **No batch is the remainder**: a leftover finding gets its own agent rather than being appended to the last batch, even if it is the only finding in it.
+
+   **A fix agent that hands back is a signal about the handout.** A batch too large to hold is the usual reason it gets there, so re-split the remaining findings smaller and spawn a fresh agent, rather than returning the same batch to a context already full of the dead end. Anything still unfixed when the round ends surfaces again in the next cold round.
+
+   After the last fix agent commits, re-run the load-bearing gates yourself and confirm the actual output before the next round; never advance on a fix agent's claim that the gates pass. (Gates passing doesn't prove coverage held; a dropped test still passes.) A fixer runs only the checks covering what it touched, so this is the round's one full pass rather than a re-check of one, and it is where an unverified hand-back gets its verdict.
 
 After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`).
 
