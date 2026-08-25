@@ -2,7 +2,7 @@
 
 **Status**: Draft
 
-<!-- `Draft` until the critique loop exits, then `Accepted`. The orchestrator sets it. -->
+<!-- `Draft` until planning starts, then `Accepted`. The orchestrator sets it. -->
 
 <!-- Follow `writing-style.md`. The sections run description first, argument second, caveats last;
      keep them that way. Rationale belongs in Decisions & rationale rather than spread through the
