@@ -270,9 +270,11 @@ For each round (up to 3):
 
 After 3 rounds, proceed regardless. Update state.json after each round (`specCritiqueRounds`).
 
+**When the loop exits, set the spec's Status to `Accepted`** and commit that line.
+
 **Exit checks.** Confirm each before leaving this phase (a resumed context has only what's on disk):
 
-- the revised spec is committed
+- the revised spec is committed, with **Status**: `Accepted`
 - `readabilityPasses` includes `"spec"`, and a critique round ran after it
 - the findings the user skipped, and any the 3-round cap left unaddressed, are in `.speccy/<run-id>/spec-critique-skipped.md` with the reason. The wrap-up reports them, and the `/clear` suggested just below deletes anything held only in conversation. Keep them out of `deferred.md`: the review panel is told not to re-raise anything in that file, and a skipped spec finding is a decision about the spec rather than acceptance of the matching defect in the code.
 - `phase` is `"planning"`
