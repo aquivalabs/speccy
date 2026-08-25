@@ -2,6 +2,8 @@
 
 **Status**: Draft
 
+<!-- `Draft` until the critique loop exits, then `Accepted`. The orchestrator sets it. -->
+
 <!-- Follow `writing-style.md`. The sections run description first, argument second, caveats last;
      keep them that way. Rationale belongs in Decisions & rationale rather than spread through the
      rest. Don't restate `CLAUDE.md` anywhere in this file. Reference it by file/section where a

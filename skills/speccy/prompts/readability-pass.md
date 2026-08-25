@@ -15,7 +15,7 @@ Work through the artifact against those two standards:
 - **Hedges and asides.** Cut them. Uncertainty gets stated once, plainly, in the section that exists for it.
 - **Criteria.** In a spec, each completion criterion is one checkable line with no caveat. Move the qualification to Constraints or the doubt to Open questions; never drop it.
 
-**What you must not change:** any decision, deliverable, scope boundary, constraint, completion criterion, assumption, or open question. Don't add one, don't remove one, don't resolve an open question, don't soften a recorded risk, and don't reverse a decision because you find its reasoning thin. That judgement belongs to the critique loop and the user.
+**What you must not change:** the Status line under the title, or any decision, deliverable, scope boundary, constraint, completion criterion, assumption, or open question. Don't add one, don't remove one, don't resolve an open question, don't soften a recorded risk, and don't reverse a decision because you find its reasoning thin. That judgement belongs to the critique loop and the user.
 
 Losing a load-bearing fact is the one way this pass does damage, so every cut must be justifiable as one of three things: information that survives elsewhere in the file, process narrative, or a qualifier that carried no information. If you can't place a passage in one of those, keep it and shorten it instead.
 

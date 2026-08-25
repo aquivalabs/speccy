@@ -616,3 +616,9 @@ The orchestrator also reads git rather than the report. A batch can say it is do
 Effort is not a per-agent setting speccy can pin the way it pins models. Subagents inherit the session's, so a pipeline that spawns ninety of them multiplies whatever the session was started at, and a run at `xhigh` costs hours the user did not choose to spend. The other preconditions guard correctness; this one guards the clock, so it reports and proceeds rather than stopping.
 
 `CLAUDE_EFFORT` in the environment answers it, with `effortLevel` in `~/.claude/settings.json` as the fallback. The session transcript records `effort` per request too, and `metrics.mjs` already reads that field, but it was the wrong source: it needs the run's own transcript identified by mtime, and this repo has twice been caught by transcript-shape assumptions that returned believable wrong numbers. A silent value is left silent rather than assumed low, for the same reason the metrics report refuses to read an absent effort as a low one.
+
+### The spec's Status line is set on the way out of critique (2026-08-25)
+
+Every spec the pipeline produced said `Draft`: the template opened with that word and no later step wrote the field again, so a spec that had been through three adversarial rounds and a readability rewrite reached the planner still labelled a first draft. Deleting the field was the alternative, since one nobody maintains is worse than none. It stays because there is a real transition to record, and the critique loop's exit is it.
+
+The orchestrator writes it rather than an agent inside a round: no revise agent knows it is the last one. It is an exit check because that is what survives a resumed context. The readability pass gets one guard, since it is the step allowed to remove and a lone bold line under the title is what it would read as removable.
