@@ -270,11 +270,9 @@ For each round (up to 3):
 
 After 3 rounds, proceed regardless. Update state.json after each round (`specCritiqueRounds`).
 
-**When the loop exits, set the spec's Status to `Accepted`** and commit that line.
-
 **Exit checks.** Confirm each before leaving this phase (a resumed context has only what's on disk):
 
-- the revised spec is committed, with **Status**: `Accepted`
+- the revised spec is committed
 - `readabilityPasses` includes `"spec"`, and a critique round ran after it
 - the findings the user skipped, and any the 3-round cap left unaddressed, are in `.speccy/<run-id>/spec-critique-skipped.md` with the reason. The wrap-up reports them, and the `/clear` suggested just below deletes anything held only in conversation. Keep them out of `deferred.md`: the review panel is told not to re-raise anything in that file, and a skipped spec finding is a decision about the spec rather than acceptance of the matching defect in the code.
 - `phase` is `"planning"`
@@ -288,6 +286,8 @@ Before diving in, briefly orient the user on why planning is a separate step: th
 Planning research happens in a subagent to keep the codebase-reading noise out of the main context. Read `prompts/plan-research.md`.
 
 **Dispatch the project's own research agents from here rather than from the planner.** A spawned subagent is shown no agent types at all, so the planner cannot name a repo's own research agent, and a subagent that spawns children and waits on them has stalled twice. So if `.claude/agents/` holds read-only research agents, dispatch the relevant ones yourself before spawning the planner and pass their findings into its prompt. Cite them in the plan as research: unlike a house skill's rule, a research agent's answer is one agent's output, and the critique loop weighs it like any other evidence.
+
+**Set the spec's Status to `Accepted`** and commit that line before spawning the planner: entering planning is the user accepting the spec.
 
 Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec path, the target plan path (`.speccy/<run-id>/plan.md`), the paths to `prompts/plan-template.md` and `prompts/writing-style.md`, and the path to `prompts/plan-spike.md` so the planner can prove any load-bearing mechanism (preferably by spawning a spike subagent, or inline). If the spec recorded external context (docs, standards, related projects), pass those references too. Read them from the spec rather than relying on conversation memory, since planning may run in a freshly cleared context.
 
@@ -311,8 +311,9 @@ For each round (up to 3):
 
 After 3 rounds, exit the loop regardless. Update state.json after each round (`planCritiqueRounds`). When the loop exits, surface a one-line note of how many rounds ran and what changed, then proceed to 2b.
 
-**Exit checks.** Confirm both before leaving this phase (a resumed context has only what's on disk):
+**Exit checks.** Confirm each before leaving this phase (a resumed context has only what's on disk):
 
+- the spec's **Status** is `Accepted`
 - the revised plan is committed
 - `readabilityPasses` includes `"plan"`, and a critique round ran after it
 

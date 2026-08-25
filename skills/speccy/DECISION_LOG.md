@@ -617,8 +617,10 @@ Effort is not a per-agent setting speccy can pin the way it pins models. Subagen
 
 `CLAUDE_EFFORT` in the environment answers it, with `effortLevel` in `~/.claude/settings.json` as the fallback. The session transcript records `effort` per request too, and `metrics.mjs` already reads that field, but it was the wrong source: it needs the run's own transcript identified by mtime, and this repo has twice been caught by transcript-shape assumptions that returned believable wrong numbers. A silent value is left silent rather than assumed low, for the same reason the metrics report refuses to read an absent effort as a low one.
 
-### The spec's Status line is set on the way out of critique (2026-08-25)
+### The spec's Status is set where the run starts building from the spec (2026-08-25)
 
-Every spec the pipeline produced said `Draft`: the template opened with that word and no later step wrote the field again, so a spec that had been through three adversarial rounds and a readability rewrite reached the planner still labelled a first draft. Deleting the field was the alternative, since one nobody maintains is worse than none. It stays because there is a real transition to record, and the critique loop's exit is it.
+Every spec the pipeline produced said `Draft`: the template opened with that word and no later step wrote the field again, so a spec that had been through three adversarial rounds and a readability rewrite reached the planner still labelled a first draft. Deleting the field was the alternative, since one nobody maintains is worse than none. It stays because there is a real transition to record.
 
-The orchestrator writes it rather than an agent inside a round: no revise agent knows it is the last one. It is an exit check because that is what survives a resumed context. The readability pass gets one guard, since it is the step allowed to remove and a lone bold line under the title is what it would read as removable.
+The write sits at the planner spawn rather than at the critique loop's exit. Leaving that loop can mean the 3-round cap ran out, which is not acceptance of anything. Planning starts on the user's say-so: the loop's exit is an offer to clear or move on, and they answer it by re-invoking at planning or asking to continue. So a spec that reaches the planner is one the user chose to build from, which is what the field records.
+
+An instruction at a phase's start is skippable in a way an exit check is not: a context resuming at `plan-critique` never passes the spawn. So the 2a exit checks carry the field as a backstop. The readability pass gets one guard too, since it is the step allowed to remove and a lone bold line under the title is what it would read as removable.
