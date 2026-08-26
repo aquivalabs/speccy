@@ -7,6 +7,9 @@
 # With no argument the run id comes from .speccy/.current-runid in the current
 # directory, which keeps the wrap-up's call argument-free like the banner's.
 #
+# Run this from the run's own checkout. That is where .speccy/ lives, and the
+# run's state.json is what says which project directories hold its transcripts.
+#
 # Like the banner, this must never block a run: no node, no transcripts, or a
 # bad run id all print one line and exit 0.
 
