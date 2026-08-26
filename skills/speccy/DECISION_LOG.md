@@ -630,3 +630,9 @@ An instruction at a phase's start is skippable in a way an exit check is not: a 
 The write guarantee already said to keep findings out of the return, and lenses kept returning a severity tally anyway: a line reading how many blockers and majors the file held. Several of those tallies did not match the file they summarised. A wrong count in a return is worse than no return at all, because it is the one thing the orchestrator can act on without opening the file, which is exactly what "trust files over returns" exists to stop.
 
 So the contract now names the count as something a return must not carry, alongside the findings and the summary, and the orchestrator is told to take every count it triages on or reports from the files. Nothing asks a lens for a number any more, which leaves nothing to disagree with the file.
+
+### The wrap-up probes get a template per origin (2026-08-26)
+
+The wrap-up already said what each origin's probe has to do — ask a *speccy, user-agreed* decision what convinced the user, log or challenge a *User* one, hand a *speccy, alone* one back to own or overturn — but every run invented the wording from that description, and the versions that worked were reinvented rather than kept. So each origin now carries one example wording next to its rule.
+
+Three lines rather than a bank of them. The variation rule still governs: `engagementQuestions` says what earlier gates asked, and a template recited unchanged at the third gate is the ritual the whole section exists to prevent. What the templates fix is a probe that comes out shapeless, not one that comes out familiar; a wording to depart from is a better starting point than a paragraph to paraphrase.
