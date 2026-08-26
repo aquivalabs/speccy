@@ -225,7 +225,7 @@ Ask only about gaps the intake leaves genuinely open and that materially change 
 - Integration points with existing code
 - Non-functional requirements
 
-Identify external context that would improve the spec or plan: documentation, other projects with relevant patterns, standards, API references. Ask the user about anything you can't access directly. This is worth doing early: missing context discovered mid-build is expensive. Record the references that matter in the spec itself (under Open questions, or a short references note) so they survive the context clear before planning. Anything left only in conversation is lost when the user `/clear`s.
+Identify external context that would improve the spec or plan: documentation, other projects with relevant patterns, standards, API references, and the issue or ticket the work is tracked in. Ask the user about anything you can't access directly. This is worth doing early: missing context discovered mid-build is expensive. Record the references that matter in the spec itself (under Open questions, or a short references note) so they survive the context clear before planning, where Phase 2 re-reads them against the spec. Anything left only in conversation is lost when the user `/clear`s.
 
 **Never ask what code or the environment can answer.** If a quick look at the repo, config, or tooling would settle it, look instead of asking. Mark questions needing deeper codebase research open and defer them to planning.
 
@@ -283,6 +283,16 @@ Only once the loop has fully exited, reach the primary context-clearing point. T
 
 Before diving in, briefly orient the user on why planning is a separate step: the spec says _what_ to build, the plan says _how_. Planning is where we research the codebase, discover what already exists, make architecture decisions, and work out the order of operations. Without it, the spec's open questions carry into implementation and cause mid-build surprises.
 
+**Refresh the external context first, before anything else in this phase.** The spec's references were read at intake, and the interview, the critique rounds and a context clear have happened since. Nothing downstream re-reads them: the planner takes the spec at its word, and so does everything after. A stakeholder answering the surface question in a comment on the tracking issue is enough to make the spec's premise wrong, and the plan is then built on intake that has been overtaken.
+
+Re-read what the spec already names (1b records it there for this): the tracking issue and any comments on it, and the docs, PRDs, or standards it cites. This is a re-read of a recorded list rather than a hunt for context. Read each reference once, don't follow it onward, and don't go looking for a source the spec doesn't name.
+
+Then compare what you found against the spec's premises — the surface it names, its scope boundaries, its assumptions — and write the differences, and only those, to `.speccy/<run-id>/context-refresh.md`. If nothing moved, say so in a line and carry on; there is no file to write.
+
+**A difference is a blocking question before the planner spawns.** Give the user what the reference now says and which premise it contradicts, then let them choose: build from the spec as it stands, or correct it first. If they correct it, revise the spec with `context-refresh.md` as the critique file (see **Spec delta and delta plan** below for the revise step) and commit before spawning the planner. No plan exists yet, so nothing is superseded.
+
+**An unreachable reference is not a difference.** Where a link is dead, a doc needs access this session doesn't have, or the tool for reading it isn't available, name it to the user, record it in `context-refresh.md`, and move on. It goes to the planner as context the plan could not check, for the plan's Risks. It never blocks the run.
+
 Planning research happens in a subagent to keep the codebase-reading noise out of the main context. Read `prompts/plan-research.md`.
 
 **Dispatch the project's own research agents from here rather than from the planner.** A spawned subagent is shown no agent types at all, so the planner cannot name a repo's own research agent, and a subagent that spawns children and waits on them has stalled twice. So if `.claude/agents/` holds read-only research agents, dispatch the relevant ones yourself before spawning the planner and pass their findings into its prompt. Cite them in the plan as research: unlike a house skill's rule, a research agent's answer is one agent's output, and the critique loop weighs it like any other evidence.
@@ -293,7 +303,22 @@ Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec p
 
 When it completes, brief the user on the approach, key decisions, and risks from `.speccy/<run-id>/plan.md`; point them there for the full text rather than dumping it inline. Update state.json with `planPath` and `phase: "plan-critique"`.
 
-**If the plan flags a contradicted spec assumption**, stop before the plan-critique loop and put it to the user as a blocking choice: accept the adjusted scope, or revise the spec and re-plan. A falsified assumption can invalidate scope, so this blocking gate always fires.
+**If the plan flags a contradicted spec assumption**, stop before the plan-critique loop and put it to the user as a blocking choice: accept the adjusted scope, or correct the spec and re-plan. A falsified assumption can invalidate scope, so this blocking gate always fires. Correcting and re-planning takes the delta route below, whether the contradiction came from a spike or from the research.
+
+### Spec delta and delta plan
+
+A spike verdict can reach past the plan and into the spec: it contradicts an assumption the spec rests on, or it reshapes what the spec says gets built. A mechanism the spec expected to be unavailable, and wrote its deliverables around, does this by being confirmed. So the trigger is what the verdict moves rather than the verdict word itself.
+
+Both spike sites route here: the planner's own, whose verdicts the plan records in its Assumptions check, and 2a's. A verdict that changes only how the plan builds an unchanged deliverable is an ordinary revise finding rather than this.
+
+The user has already made the scope call at the blocking gate. What follows applies it.
+
+1. **Revise the spec.** Spawn a revise subagent **on opus** with `prompts/revise.md`, the spec path, **the spike file as the critique file**, and the scope changes the user chose as the accepted findings. A correction the verdict forces outright — an assumption now false, a constraint the environment refuses — is mechanical and needs no ruling to apply. Commit the spec, and log the reversal in the decision log: a decision a spike overturned is one of the three things that file admits.
+2. **Rename what the verdict superseded.** The plan, and any critique round and readability change note already written against it, become `SUPERSEDED-<original name>` (see **When an artifact is replaced, rename what reviewed it**). Rename before the planner runs, so the old plan has a stable name to be read under and the new one takes `plan.md`, which `planPath` already points at. The spike file keeps its name.
+3. **Re-plan the delta.** Spawn the planner with the same inputs as at the phase's start, adding the superseded plan's path and the spike file, and tell it to run in **delta mode**: change what the verdict changes, and carry the rest — the decisions it leaves standing, and the appendix — forward. `prompts/plan-research.md` holds what may and may not move.
+4. **Reset the loop.** Set `planCritiqueRounds` to 0, so the delta plan is critiqued from round 1 rather than inheriting a clean sheet the old plan earned. Leave `readabilityPasses` as it is: the pass rewrites prose, the delta plan carries the passed prose forward, and the rounds that follow read the new sections cold.
+
+**A full re-plan stays available**, and two things call for it: the user asks for one, or the surface itself changed. Where the verdict rewrote the spec's deliverables there is little left to carry, and handing that planner a plan for the old surface anchors it to the wrong shape. Then spawn the planner the way the phase does normally, with the revised spec and no superseded plan, and rename the old artifacts the same way.
 
 ### 2a. Adversarial plan critique
 
@@ -303,8 +328,8 @@ For each round (up to 3):
 
 1. **Critique.** Spawn an adversary subagent with the plan critique prompt, the path to the plan, and the path to the spec (for context; the spec itself should not be re-reviewed). Instruct it to **write its review to `.speccy/<run-id>/plan-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one). Tell it whether the readability pass has run (`readabilityPasses` in state.json): before the pass it critiques substance only and skips the reader lens. Read the critique file (N from state.json) to triage. If no legitimate flaws found, the critique is done, but don't leave the loop until the readability pass has run and a round has read the result (see below).
 2. **Spike, if the critique flags an unproven load-bearing mechanism.** The critic judges the plan's evidence but does not spike; when it flags a mechanism whose feasibility the plan hasn't proven, prove it before revising. Spawn a spike subagent with `prompts/plan-spike.md` and the mechanism to prove, writing its verdict to `.speccy/<run-id>/spike-round-N.md`. Read the verdict:
-   - `confirmed` → carry its evidence into the revise step so the plan records it in the Assumptions check.
-   - `refuted` or `unproven` → a load-bearing mechanism that can't be proven can invalidate scope, so treat it like a contradicted spec assumption. Stop the loop and put a blocking choice to the user: accept a redesign around a mechanism that works, or revise the spec and re-plan. Like the contradicted-assumption gate, this one always fires.
+   - `confirmed` → carry its evidence into the revise step so the plan records it in the Assumptions check. Where the verdict names a spec assumption it contradicts or a deliverable it reshapes, it is the blocking choice below rather than a revise finding: a mechanism the spec expected to be denied and the spike confirms moves the spec as surely as a refusal does.
+   - `refuted` or `unproven` → a load-bearing mechanism that can't be proven can invalidate scope, so treat it like a contradicted spec assumption. Stop the loop and put a blocking choice to the user: accept a redesign around a mechanism that works, or correct the spec and re-plan the delta (see **Spec delta and delta plan**). Like the contradicted-assumption gate, this one always fires.
 3. **Revise.** Spawn a revise subagent **on opus** with `prompts/revise.md`, the plan path, the critique file path, and instructions to incorporate every finding in the critique. When it completes, the revised plan file is the truth; don't depend on its return. Commit it, with a message built from the critique's findings rather than from the agent's return.
 
 **The readability pass runs after round 1, whether or not that round produced a revision, and a critique round always follows it.** This is the same shape as the spec loop in 1d, and for the same reason: a critic reading the rewritten plan cold is what catches a rewrite that dropped something load-bearing. So the pass never lands after the last round: if round 1 found no legitimate flaws, run the pass anyway and let round 2 check it, and don't give that round the change note. Spawn the pass **on sonnet** with `prompts/readability-pass.md`, `prompts/writing-style.md`, `prompts/plan-template.md`, the plan path, the spec path, and `.speccy/<run-id>/readability-plan.md` as its change-note path. Commit it separately from the round's revision, then append `"plan"` to `readabilityPasses`. This one earns its keep twice over, because 2b is where the user reads the plan and decides whether to build from it.
