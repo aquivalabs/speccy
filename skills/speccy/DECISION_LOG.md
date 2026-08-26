@@ -624,3 +624,19 @@ Every spec the pipeline produced said `Draft`: the template opened with that wor
 The write sits at the planner spawn rather than at the critique loop's exit. Leaving that loop can mean the 3-round cap ran out, which is not acceptance of anything. Planning starts on the user's say-so: the loop's exit is an offer to clear or move on, and they answer it by re-invoking at planning or asking to continue. So a spec that reaches the planner is one the user chose to build from, which is what the field records.
 
 An instruction at a phase's start is skippable in a way an exit check is not: a context resuming at `plan-critique` never passes the spawn. So the 2a exit checks carry the field as a backstop. The readability pass gets one guard too, since it is the step allowed to remove and a lone bold line under the title is what it would read as removable.
+
+### The convergence table is built by a script, and triage reads the table (2026-08-26)
+
+Convergence is the panel's strongest signal and its most expensive one to find. Several independent lenses landing on one `file:line` says more than any single lens can, and the only way to see it was for the orchestrator to read eight files and hold every anchor in its head. At 30-60 findings a round that is a scan whose cost falls precisely on the context the triage judgement needs, and what it loses is the repeats: an anchor three lenses hit reads like three findings when they arrive in three files, an hour apart, at position 40 of a long context.
+
+The output contract already made the merge mechanical. Every lens writes `[<lens>-<n>] file:line · severity · verdict · summary`, which is a grammar, and grouping by file and nearby line is arithmetic over it. Nothing in that step is judgement, so it belongs where the metrics reader lives: a zero-dependency Node script the orchestrator invokes by absolute path.
+
+**The table ranks and points; it does not decide.** It carries the anchor, the lenses on it, the top severity, the verdicts, and one summary per lens, and the orchestrator opens the lens file for the mechanism and the fix before dispositioning anything. A script that summarised the finding would be a triage agent in a worse form, and the log already records why there is no triage agent: a filtering layer with no knowledge the lens lacks costs a real finding sooner or later.
+
+**Convergence outranks severity in the sort**, because severity is one lens's own estimate and convergence is several lenses agreeing. A blocker one lens is sure of sits below an anchor three lenses reached independently. Both are in the table, so the ordering is a reading order rather than a filter.
+
+Two smaller calls. The lens is taken from the **filename**, not from the finding id: the file is what makes a lens independent, so a lens that numbers its findings some other way still counts once rather than inflating a row. And a cluster admits a finding within the window of the line that **opened** it, not the last one added, because chaining off the last lets a dense file drift a single cluster across hundreds of lines five at a time.
+
+The `deferred.md` / `settled.md` flag came free with the grouping. The re-raise backstop was already written into the triage step as something to do by hand, and it is the same anchor match the table already performs, so the script prints which file already ruled on a row rather than leaving the orchestrator to remember.
+
+Nothing here may block a round. No node, no lens files, a bad round number: each prints one line and exits 0, and the step says to merge by hand if it does. A malformed header is skipped and counted in the notes rather than guessed at, since a guessed anchor is worse than an absent row.
