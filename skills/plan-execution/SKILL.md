@@ -74,24 +74,13 @@ Two tiers, deliberately asymmetric. They serve both a present user (who can corr
 
 When any line lands, confirm before acting: a slow `sf` deploy or test run is not a hang, and transcript mtime only ticks when a tool *returns*, so a single long-running tool call looks identical to a stall. Tail the newest `agent-*.jsonl`: if its last entry is a `tool_use` with no matching `tool_result`, a tool is still running and the build is working rather than stalled, so leave it alone. Emit each signal sparingly so the Monitor isn't auto-stopped for noise: the corrective-task warning fires once (a flag); the stall flag re-arms once activity resumes so a confirmed-benign stall doesn't blind the watchdog to a later real one; and the soft-cap health check-in recurs on its ~25-min interval (bump the threshold rather than flag it). The ~25-min interval keeps even a multi-hour run to a handful of beats, well under the noise-stop threshold. `TaskStop` the Monitor once the workflow's completion notification arrives so it doesn't linger.
 
-Sketch of the poll loop (adapt paths; `stat -f %m` is macOS, use `-c %Y` on Linux):
+The poll loop ships as `watchdog.sh` in this skill's own directory (alongside this SKILL.md). Give the `Monitor` this **one plain command**, with the script's **absolute path** and no `cd` prefix, no command substitution, and nothing chained onto it: a sandboxed session refuses a compound command, and the watchdog then never arms at all.
 
 ```bash
-BASE=<base-branch>; TDIR=<transcript-dir>
-START=$(git rev-parse HEAD); START_TS=$(date +%s); w_ct=0; cap=1500; w_stall=0   # cap = next soft-cap beat threshold (s)
-while true; do
-  now=$(date +%s); el=$(( now - START_TS ))
-  ct=$(git log "$START"..HEAD --format='%s' 2>/dev/null | grep -cE '^CT-')
-  lc=$(git log -1 --format=%ct 2>/dev/null || echo 0)
-  tm=$(stat -f %m "$TDIR"/agent-*.jsonl 2>/dev/null | sort -rn | head -1 || echo 0)  # newest transcript mtime
-  idle=$(( now - (lc > tm ? lc : tm) ))
-  if [ "$idle" -le 300 ]; then w_stall=0; fi   # re-arm once it's moving again
-  if [ "$idle" -gt 300 ] && [ "$w_stall" -eq 0 ]; then echo "STALL: idle $((idle/60))m (elapsed $((el/60))m, $ct corrective)"; w_stall=1; fi
-  if [ "$ct" -ge 2 ] && [ "$w_ct" -eq 0 ]; then echo "WARN: $ct corrective tasks — may be struggling (elapsed $((el/60))m)"; w_ct=1; fi
-  if [ "$el" -gt "$cap" ]; then echo "HEARTBEAT: elapsed $((el/60))m, still running ($ct corrective) — health check-in"; cap=$(( cap + 1500 )); fi   # recurring ~25m beat
-  sleep 75
-done
+bash <skill-dir>/watchdog.sh <base-branch> <transcript-dir> [checkout]
 ```
+
+`checkout` is the repository the script reads git state from, and defaults to the Monitor's working directory; pass it when that isn't the checkout the workflow commits to. The script prints nothing while the run is healthy, and emits the `STALL`, `WARN`, and `HEARTBEAT` lines on the thresholds described above.
 
 ## After the workflow completes
 
