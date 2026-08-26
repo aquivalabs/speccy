@@ -120,6 +120,12 @@ const STEP_SCHEMA = {
                   type: "array",
                   items: { type: "string" },
                   description: "Shell commands to verify the task is done"
+                },
+                worktree_init: {
+                  type: "array",
+                  items: { type: "integer" },
+                  description:
+                    "Numbers of the worktree init commands this task needs, from the numbered list in the prompt. Omit to run all of them; [] for a task that must not touch the shared environment they configure"
                 }
               },
               required: [
@@ -236,15 +242,39 @@ const COMPLETENESS_SCHEMA = {
 
 // ── Prompt assembly ─────────────────────────────────────────────────
 
-function worktreeInitSection() {
+// Breakdown selects the init a task needs by position in the list; an absent selection
+// means all of them, which keeps a breakdown that ignores the field on today's behaviour.
+function worktreeInitSection(task) {
   if (worktreeInit.length === 0) return "";
+  const requested = Array.isArray(task.worktree_init)
+    ? task.worktree_init
+    : null;
+  const picked = requested
+    ? requested
+        .filter(
+          (n) => Number.isInteger(n) && n >= 1 && n <= worktreeInit.length
+        )
+        .map((n) => worktreeInit[n - 1])
+    : worktreeInit;
+  // A selection naming nothing that exists is a misread list rather than a decision to
+  // skip: run everything, since missing init a task needs is the costlier failure.
+  const commands =
+    requested && requested.length > 0 && picked.length === 0
+      ? worktreeInit
+      : picked;
+  if (commands.length === 0)
+    return `
+
+## Worktree setup
+
+Nothing to run. This task was decomposed as needing none of the project's worktree init commands, so skip them: they configure state your task is not meant to touch.`;
   return `
 
 ## Worktree setup
 
-Your worktree is missing gitignored files the toolchain needs. Run these commands first, before any other work. Stop and report if any command fails.
+Your worktree is missing gitignored files the toolchain needs. Run these commands first, before any other work — they are the ones this task needs, and it needs no others. Stop and report if any command fails.
 
-${worktreeInit.map((c) => "- `" + c + "`").join("\n")}`;
+${commands.map((c) => "- `" + c + "`").join("\n")}`;
 }
 
 function execPrompt(task, { useWorktree = false } = {}) {
@@ -252,7 +282,7 @@ function execPrompt(task, { useWorktree = false } = {}) {
     (task.test_commands || []).length > 0
       ? task.test_commands.map((c) => "- `" + c + "`").join("\n")
       : "No task-specific test commands. Follow the verification steps above.";
-  const initSection = useWorktree ? worktreeInitSection() : "";
+  const initSection = useWorktree ? worktreeInitSection(task) : "";
   const priorSection =
     completedWork.length > 0
       ? `\n\n## Prior completed tasks\nThese tasks already ran. The code they describe is already committed — read the files to see their actual state rather than relying on your task description alone.\n${completedWork.map((w) => `- **${w.task_id}** ${w.title}: ${w.summary}`).join("\n")}`
@@ -385,11 +415,25 @@ async function integrateTask(task, result) {
 
 phase("Breakdown");
 
+// The list is numbered so a task can name the subset it needs by position; the commands
+// themselves are resolved per-developer, so breakdown sees them rather than the template.
+const worktreeInitBrief = worktreeInit.length
+  ? `
+
+## Worktree init commands
+
+A parallel task runs in a fresh worktree, which starts without the project's gitignored state. These are the project's init commands, in the order they must run:
+
+${worktreeInit.map((c, i) => `${i + 1}. \`${c}\``).join("\n")}
+
+Set each task's \`worktree_init\` to the numbers that task actually needs. Omit the field to run all of them, which is the right default for a task that builds, deploys, or runs the full gate suite. Use \`[]\` for a task whose own instructions forbid touching the environment these commands configure: handing it setup its brief tells it not to run leaves the agent arbitrating a contradiction it cannot resolve.`
+  : "";
+
 const breakdownPrompt = `${prompts.breakdown}
 
 ## Run ID
 
-${runId}
+${runId}${worktreeInitBrief}
 ${model ? `\n## Task sizing\n\nSubagents will use the model "${model}". Size tasks accordingly — smaller or less capable models need narrower, more explicit tasks with less ambiguity. Larger models can handle broader tasks with more judgment calls.` : ""}
 
 ## Plan

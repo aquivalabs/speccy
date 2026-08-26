@@ -26,7 +26,9 @@ Check whether CLAUDE.md has a `## Worktree init` section. If it does, resolve th
 
 1. Parse the **Gather** block, where each line has the form `NAME` — `command`. Run each command via Bash in the main checkout and capture its stdout (trimmed).
 2. Parse the **Apply** block, where each line is a shell command that may reference `${NAME}` variables from the gather step. Substitute the gathered values into each command. Make symlink commands idempotent: replace `ln -s ` with `ln -snf ` so re-runs don't create circular symlinks inside the existing target.
-3. Pass the resolved commands as the `worktreeInit` arg (string array) to the workflow.
+3. Pass the resolved commands as the `worktreeInit` arg (string array) to the workflow, in the order CLAUDE.md lists them.
+
+Order matters now that a task can run a subset: the workflow numbers the commands for the breakdown, which marks per task which ones it needs, so keep each command independently runnable rather than relying on a neighbour that may not be selected.
 
 If the section is missing and the plan has parallel tasks, tell the user. Worktree agents without init commands will lack gitignored state, which causes build failures, missing configs, and mid-task recovery friction. Offer to help draft the section before proceeding, the same way you would for missing verification tools.
 
@@ -59,7 +61,7 @@ Call the Workflow tool with the chosen workflow's `scriptPath` and these `args`:
 - `prompts`: the parsed prompts object
 - `model` (optional): when set, execution/integration/verify agents use that model and breakdown sizes tasks accordingly. Breakdown always uses Opus. When omitted, non-breakdown agents inherit the session model.
 - `retrospective` (optional, default true): when false, skips friction log synthesis
-- `worktreeInit` (optional): array of resolved shell commands to run at the start of every worktree agent (parallel tasks and corrective tasks only). Assembled from the gather/apply blocks in CLAUDE.md's `## Worktree init` section (see Prerequisites above). Pass the fully-substituted commands, with no unresolved `${VAR}` references. Sequential tasks run on the main checkout and don't need this.
+- `worktreeInit` (optional): array of resolved shell commands to run at the start of every worktree agent (parallel tasks and corrective tasks only). Assembled from the gather/apply blocks in CLAUDE.md's `## Worktree init` section (see Prerequisites above). Pass the fully-substituted commands, with no unresolved `${VAR}` references, in CLAUDE.md's order. The workflow shows breakdown the numbered list and runs per task whichever of them that task marked; a task that marks none is told so explicitly. Sequential tasks run on the main checkout and don't need this.
 
 ## While the workflow runs: watchdog
 
