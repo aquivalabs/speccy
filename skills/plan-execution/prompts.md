@@ -12,11 +12,15 @@ Each step contains one or more tasks; tasks within a step run in parallel (isola
 
 **Favour parallelism: optimise for wall-clock.** Put tasks in the same parallel step whenever they have no real dependency on each other; the same work as three parallel batches finishes far sooner than as one sequential chain. Reserve sequential ordering (a step of its own) for a genuine dependency: a task needs a prior task's committed output, or two tasks would write the same files and conflict.
 
+**Carry the plan's own orchestration rules into the tasks, verbatim.** Where the plan states a sequencing, ownership, or shared-environment rule — "step 1 owns the deploy, step 2 waits", "only the migration task writes the schema", "this task must not touch the org" — copy it word for word into every task it governs. Such a rule encodes a constraint the plan's author knew about and the decomposition cannot rediscover from the code, so it outranks your own ordering call: never widen a step the plan sequenced, and never hand two tasks a resource the plan gave to one. Restating it in your own words is where it gets lost.
+
 **Decide the verification cadence.** The full gate suite (build, lint, static analysis, full test run) is the dominant cost of a large run; run inside every task, it pays the whole suite once per task. Distribute it deliberately:
 
 - Mark ordinary feature tasks **scoped**: they run only fast checks (typecheck/compile plus the tests covering what they touched) before committing, enough not to hand broken code downstream.
 - Author explicit **verification-checkpoint** tasks (a sequential step whose task runs the full gate suite against the integrated base and fixes any breakage) at natural milestones: after a parallel batch lands, at a layer boundary (e.g. server complete before client begins), and always once at the end. Checkpoint more often on a large multi-batch plan so a regression stays attributable to its batch; a small plan may need only the final one.
 - State in each task which level it runs (scoped vs checkpoint). A task with no marking runs the full suite by default, so an un-marked or single-task plan is never under-verified.
+
+**Give each task only the worktree init it needs.** Where the run supplies a numbered list of worktree init commands, set each task's `worktree_init` to the numbers that task needs, and to `[]` for one whose instructions forbid touching the environment those commands configure. Omitting the field runs all of them, which is the right default for a task that builds, deploys, or runs the full gate suite. The init a task must not run is the one that contradicts its brief, and an agent handed both spends its first turns deciding which to believe.
 
 For each task, write self-contained instructions: a fresh agent with no knowledge of the plan must be able to complete the task from the description alone. Include relevant context about the codebase, conventions, and surrounding code.
 

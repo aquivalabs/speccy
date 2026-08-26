@@ -166,6 +166,20 @@ Cleanup ran `git worktree remove --force`. Measured: that destroys the tree's un
 
 Cleanup now checks `git -C <path> status --porcelain` first and removes only a clean tree. A dirty one is kept and reported with its dirty-file count. Keeping a tree that could have gone costs the next run some clutter; removing one that held work cannot be undone.
 
+### The plan's orchestration rules reach the tasks verbatim (2026-08-26)
+
+A plan said one task in a parallel step owned the deploy to a shared environment and the other waited on it. The breakdown dropped the rule: both tasks were independent by file footprint, so the parallelism guidance put them in one step with nothing said about who deployed. The rule only reached the tasks because the invoking orchestrator noticed and restated it in the breakdown prompt by hand.
+
+Breakdown now copies any sequencing, ownership, or shared-environment rule the plan states into every task it governs, word for word, and treats it as outranking its own ordering call. Such a rule usually encodes a constraint outside the plan's text — a shared org, a rate-limited service, a single writer for a schema — which a decomposition reading only the code and the file footprints cannot rediscover. Verbatim rather than paraphrased, because a rule restated in the breakdown's own words is where the part that mattered goes missing.
+
+### Worktree init is chosen per task (2026-08-26)
+
+Every worktree task got the whole init block — environment config, source-tracking reset, a full build — including tasks whose own brief forbade touching the shared environment. Two agents spent their opening turns arbitrating that contradiction, and an agent asked to resolve a conflict between its setup and its instructions has no basis for choosing either.
+
+The workflow now shows breakdown the resolved init commands as a numbered list and takes an optional `worktree_init` per task naming the ones it needs. Numbered rather than named, because the commands are resolved per developer, so there is no stable name to match on and a paraphrased command would silently match nothing. Three defaults keep a wrong or absent selection from costing more than it saves: an omitted field runs everything, which is what a breakdown that ignores the field gets; a selection naming nothing that exists is read as a misread list and also runs everything, since missing init a task needs is the more expensive failure; and an explicitly empty selection is honoured, with the task told it was decomposed as needing none, so the absence reads as a decision rather than an omission.
+
+The selection is by position in one flat list, which is as much structure as the CLAUDE.md contract carries. A project whose init steps have real dependencies between them has to keep each command independently runnable, and the skill's prerequisite section says so.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
