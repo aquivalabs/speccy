@@ -93,7 +93,7 @@ What remains is genuinely transient: the user is mid-read, a precondition passed
 
 On trigger, read `.speccy/.current-runid`, a pointer to the most recent run written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase.
 
-state.json names the spec, plan, and decision log, and no other file. **List `.speccy/<run-id>/` to see what else the run produced** — earlier rounds, spikes, readability change notes, deferred findings — and read what the phase you are resuming into needs.
+state.json names the spec, plan, and decision log, and no other file. **List `.speccy/<run-id>/` to see what else the run produced** — earlier rounds, spikes, readability change notes, deferred findings, the settled list — and read what the phase you are resuming into needs. A context resuming into the review loop needs `deferred.md` and `settled.md` in particular: they are what the next round's lenses are handed, and neither is reconstructible from the artifacts.
 
 **When an artifact is replaced, rename what reviewed it.** A re-plan leaves its critique rounds and readability change notes describing a draft that no longer exists, and a resumed context reading one cold will act on findings that no longer apply. Rename each to `SUPERSEDED-<original name>`, which groups them in a listing. They remain the run's history, and the wrap-up reads them for a reversal nobody logged, so rename rather than delete. A spike verdict is evidence about the world rather than a review of a draft, so it keeps its name.
 
@@ -347,11 +347,19 @@ If the implementation workflow exits incomplete, stop the pipeline. Report what'
 
 After implementation is complete, the code gets an independent review across several lenses, run in parallel. Completeness is already verified by the task execution skill, so this phase is about quality, spec fidelity, and fit.
 
+### The settled list
+
+`.speccy/<run-id>/settled.md` holds the decisions the panel may not reopen, one line each with the reason that closed it. Write it before spawning round 1, seeded from the plan's **Architecture decisions**: those were argued through the plan critique and approved by the user, so a lens re-opening one is re-running a debate that already finished. Each triage then appends what it declined, so a decision argued down in round 1 does not come back in round 2 from a different angle.
+
+It is not `deferred.md`. Deferred says a finding is real and belongs to another PR. Settled says the argument was heard and closed, and the code stands as it is.
+
+Every lens prompt carries the rule: a finding that argues against an entry is out of scope, and a finding showing an entry is *broken* — it does not do what its reason claims — is in scope and must name the entry.
+
 ### The lenses
 
 Each round spawns these reviewers as **parallel** subagents (one message, one Agent call each), all **read-only**; none edits code. Each writes its findings to its own file `.speccy/<run-id>/review-round-N-<lens>.md`. Pass each the base branch so it can diff `<base-branch>...HEAD`. All prompt paths are relative to this SKILL.md's directory.
 
-Pass each bespoke lens `prompts/review-output-contract.md` alongside its own prompt. It standardises the finding shape across lenses so triage is mechanical, and makes writing the file a hard contract: a lens that runs out of room mid-verification still leaves a file, marking the unconfirmed candidate `PLAUSIBLE`, rather than returning nothing. `code-review` is a built-in skill that won't read the contract; the orchestrator applies the same shape itself when it normalises `code-review`'s findings into the code-review lens file.
+Pass each bespoke lens `prompts/review-output-contract.md` and the run's `settled.md` alongside its own prompt. The contract standardises the finding shape across lenses so triage is mechanical, and makes writing the file a hard contract: a lens that runs out of room mid-verification still leaves a file, marking the unconfirmed candidate `PLAUSIBLE`, rather than returning nothing. `code-review` is a built-in skill that won't read the contract; the orchestrator applies the same shape itself when it normalises `code-review`'s findings into the code-review lens file. Neither it nor a project gate reads `settled.md`, so their findings meet the settled list at triage instead.
 
 - **Code review**: the built-in `code-review` skill, targeting `<base-branch>...HEAD` at `high` effort, with no `--fix` and no `--comment`. It covers correctness and general code quality, so the bespoke lenses handle only what it can't. Run it every round.
 
@@ -368,7 +376,7 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
 
 ### The loop (up to 3 rounds)
 
-1. **Review.** Spawn the bespoke lenses as parallel subagents in one message, and invoke the inline gates in the main conversation (see above): `code-review` every round, and the project review gate if the repo ships one. Their own fan-out overlaps with the spawned lenses. **Every round is a cold review**, rounds 2 and 3 included. Point each lens at the whole diff again, and add the round-(N-1) fixes as further ground to cover: verify they hold, and catch any regression they introduced. A round that *only* verifies the last round's fixes can never find what the panel missed the first time, and one cold pass is not enough: findings well within the panel's reach routinely surface in a later independent review of the same code. Always pass the `.speccy/<run-id>/deferred.md` list as accepted decisions it must not re-raise.
+1. **Review.** Spawn the bespoke lenses as parallel subagents in one message, and invoke the inline gates in the main conversation (see above): `code-review` every round, and the project review gate if the repo ships one. Their own fan-out overlaps with the spawned lenses. **Every round is a cold review**, rounds 2 and 3 included. Point each lens at the whole diff again, and add the round-(N-1) fixes as further ground to cover: verify they hold, and catch any regression they introduced. A round that *only* verifies the last round's fixes can never find what the panel missed the first time, and one cold pass is not enough: findings well within the panel's reach routinely surface in a later independent review of the same code. Always pass the `.speccy/<run-id>/deferred.md` list as accepted decisions it must not re-raise, and the run's `settled.md` as the decisions it must not reopen.
 
    Run all lenses every round by default. You may drop a lens only when the fix round provably didn't touch its surface (e.g. skip local-doc adherence when nothing under a governing doc changed). A lens finding nothing last round is **not** grounds to drop it: yield describes the round that ran rather than the code as it now stands, and the lenses whose clean result is the expected one (suppressions above all) are exactly the ones a fix round is most likely to break. Note any lens you drop and why.
 
@@ -376,6 +384,9 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
 2. **Triage & merge.** Consolidate the findings across lenses yourself: drop false positives, de-duplicate overlaps, and resolve contradictory suggestions. Don't spawn a separate agent for this. Every lens emits the shared finding shape, so merge on `file:line`: two lenses landing on the same anchor is a **convergence signal**, and independent lenses pointing at one spot raise confidence rather than being noise, so weight those up instead of collapsing them to a lone finding. As a backstop for anything the lenses re-raised despite being told not to, drop findings already in `.speccy/<run-id>/deferred.md`; a deferred finding must not churn back into the fix set. Then give each surviving finding a disposition:
    - **Fix**: route it to the fixer this round. Where the finding is a copied smell, tell the fixer whether to diverge (fix cleanly here) or fix wider (also fix the existing instance); a wider fix grows the diff, so choose it deliberately.
    - **Defer**: legitimate but out of scope for this PR, meaning one of three things: it isn't this slice's code, it needs a decision only the user can make, or it is genuinely larger than the slice. Append it to `.speccy/<run-id>/deferred.md` under `## Deferred by scope`: what, and why deferred.
+   - **Decline**: the finding argues against a decision this run has closed, and it doesn't show the decision broken. Append the decision to `.speccy/<run-id>/settled.md` in one line with the reason it stands, so the next round's lenses are told before they spend a pass on it. A finding that is simply wrong is a false positive and is dropped rather than settled; settling it would bind the panel to a mistake.
+
+   **A finding that shows a settled entry is broken unsettles it.** The entry claims a reason, and a finding proving the reason doesn't hold is in scope however settled the decision looked. Disposition it like any other finding and strike the entry, with what broke it going to the decision log as the reversal it is.
 
    **Diff size is not a reason to defer.** A real finding with a cheap fix is dispositioned Fix however many others share its shape. The review attention a small diff protects was already spent on finding them, so deferring saves nothing and ships a defect you have already written down; the fix costs a subagent's context rather than yours. (Observed alongside this: where an independent review followed, it rediscovered the deferred batch and fixed it on the same branch, so the diff arrived at its full size having been reviewed twice.) A fix that genuinely is wide is the deliberate fix-wider call above rather than a deferral.
 
@@ -398,11 +409,23 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
 
    After the last fix agent commits, re-run the load-bearing gates yourself and confirm the actual output before the next round; never advance on a fix agent's claim that the gates pass. (Gates passing doesn't prove coverage held; a dropped test still passes.) A fixer runs only the checks covering what it touched, so this is what covers the round's work as a whole, and it is where an unverified hand-back gets its verdict. Between batches nothing is gated but the blockers, which is the accepted cost of not paying for a full suite per batch: a breakage a batch's own checks miss surfaces here, with the round's other commits already on top of it.
 
+4. **Residue check.** A fix round leaves residue of its own, and the next cold round spends itself finding it: across one three-round run, most of round 2's findings were round 1's residue and most of round 3's were round 2's, rather than defects in the build. Three greps over `git diff <base-branch>...HEAD` catch what recurs. Run them once the round's batches have committed and the gates are green, and after any one batch big enough that you would rather not wait:
+
+   - **Review ids in the source**: `code-review-\d`, `spec-fidelity-\d`, `tests-\d`, `codebase-fit-\d`, `local-docs-\d`, `suppressions-\d`, `comments-\d`, `project-gate-\d`, and the prose forms ("as flagged", "per review", "round 2"). They point at a gitignored directory, so nothing on the merged branch can follow them.
+   - **Exports whose only importers are tests**: what a promotion or a last-consumer removal leaves behind. Take the symbols the round's commits touched and grep for who imports them.
+   - **Leftover markers**: conflict markers, and any `TODO` or `FIXME` the round added.
+
+   Hits go straight to a small fixer batch on the same prompt, and the gates are re-run after it. They never wait for the next round's triage: the panel would spend a whole pass rediscovering what three greps already named, and after the last round there is no next pass to spend.
+
 After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`).
+
+**The last round's fixes get a fixer batch and a residue check, not a fourth review.** The final round dispositions like any other: its Fix findings go to a bounded series of fixer batches, the gates are re-run, the residue check runs, and the phase ends there. No fourth cold round opens over those fixes, so they ship gated but never independently reviewed. Say that in the wrap-up rather than leaving the user to work it out. The alternative is a review-only final round, where every Fix disposition lands in `## Unaddressed at the round cap` instead; that is honest, but it ships defects one batch would have closed and it turns the cap section from "the rounds ran out" into "nobody applied these".
 
 **Exit checks.** Confirm each before leaving this phase (a resumed context has only what's on disk):
 
 - every finding still dispositioned Fix when the cap hit is in `.speccy/<run-id>/deferred.md` under `## Unaddressed at the round cap`, with the reason. These are not deferrals (the panel judged them in scope and the rounds ran out), so the heading is what lets the wrap-up report them as unfixed rather than as future work.
+- `.speccy/<run-id>/settled.md` exists and carries every decision a triage declined a finding against, each with its reason. The wrap-up reports it, and a resumed run has no other record of what the panel was told not to touch.
+- the residue check has run over the final round's fixes and come back clean, or its hits went to a fixer batch that committed
 - `reviewRounds` is current
 - `phase` is `"wrap-up"`, never `"complete"`. The wrap-up hasn't run yet, and `complete` is what tells a resumed session there is nothing left to do.
 
@@ -414,18 +437,19 @@ A completed run is a handoff. speccy has built and self-reviewed the work; the v
 
 When all phases complete, report concisely, both in the chat and in `.speccy/<run-id>/summary.md`, so the handoff survives a context clear and sits alongside the run's other artefacts. Cover:
 
-1. **Summary**: what was built, how many critique/review rounds ran, what changed, and that the branch is ready for review.
+1. **Summary**: what was built, how many critique/review rounds ran, what changed, and that the branch is ready for review. Name the last round's fixes as the part no lens reviewed: applied after the final review, gated and residue-checked, read by nothing independent (see Phase 4). One line, and it tells the user where to look hardest in the diff.
 2. **Decision log, co-authored**: `specs/<slug>-decision-log.md` has been accumulating since 1c, so this step completes it rather than writing it from scratch. Distil the key decisions from the spec and plan into it (including any review-phase divergence from an existing pattern), then check the critique and review rounds for a reversal the run made but never logged, and anything the readability pass flagged as possibly load-bearing (`readability-*.md`). Those files are the backstop; a reversal that reached the log when it happened needs no rewriting here. These are usually implementation-specific choices rather than the durable architecture decisions an ADR captures for the wider team. Each entry records what was proposed, what was decided, why, and its **origin**: **User**, **speccy, user-agreed**, or **speccy, alone** (carried from the artifacts: the spec's Decisions & rationale is tagged, plan decisions are tagged at 2b, and a review-phase disposition is *speccy, alone* unless the user raised the concern, in which case it's *User*). Before writing the log, probe only the one or two decisions that warrant it, each the way its origin calls for (see **Steering away from cognitive surrender**). For a **speccy, user-agreed** decision, ask what convinced them and whether they verified it or trusted the agent's confidence; borrowed confidence is the surrender signal worth catching while the code is fresh and they are about to own it. For a **User** decision, log the rationale as given when it's clear or the call is plainly right, but challenge one resting on a hunch they can't show is correct. A **speccy, alone** decision isn't a borrowed-confidence target (the user never agreed to it); surface a **load-bearing** one as speccy's own call in the spec or plan and invite them to own or challenge it (re-tagging it *speccy, user-agreed* or *User* by what they do), but leave the small and trivially-correct ones logged as speccy's without a question. Don't manufacture a probe where nothing warrants one. Commit the decision log.
-3. **Feedback not acted on**: read both files and report the three kinds separately, since they ask different things of the user:
+3. **Feedback not acted on**: read the three files and report the four kinds separately, since they ask different things of the user:
    - **Deferred by scope** (`.speccy/<run-id>/deferred.md`): review findings out of scope for this PR, with the why. Candidates for follow-up issues.
    - **Skipped at spec critique** (`.speccy/<run-id>/spec-critique-skipped.md`): findings the user declined, and any the 3-round cap left unaddressed. Also follow-up candidates.
    - **Unaddressed at the round cap** (`deferred.md`, its own section): findings the panel dispositioned Fix and the cap left unfixed. These are known defects in the branch about to merge rather than future work, so put them to the user as a decision: fix them now, or merge knowing they are there.
+   - **Settled, and not reopened** (`.speccy/<run-id>/settled.md`): the decisions the panel was told to stop arguing with, each with the reason it stands. Nothing here is an action; it is what the review was scoped away from, and the user is the one entitled to disagree with that scoping.
 4. **Retrospective**: if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns. If it has a `## Repo-doc suggestions (CLAUDE.md / ADR)` section, present those for the user to accept or decline; never auto-apply them.
 **Exit checks.** Only once all of these hold, set `phase: "complete"`:
 
 - `.speccy/<run-id>/summary.md` is written
 - `specs/<slug>-decision-log.md` is written and committed
-- all three kinds of unaddressed feedback are reported: deferred by scope, skipped at spec critique, and unaddressed at the round cap
+- all four kinds are reported: deferred by scope, skipped at spec critique, unaddressed at the round cap, and settled
 - the retrospective is saved, if the task execution skill produced one
 
 Set `complete` any earlier and a `/clear` during the wrap-up resumes as a finished run, silently dropping the decision log and the retrospective: the artifacts the handoff exists to produce.

@@ -16,4 +16,10 @@ AI builds only ever add tests: each task wrote its own in a fresh context, so th
 
 The contract on every consolidation finding: **reduce redundancy without reducing behavioural coverage.** Name the surviving test that still covers the behaviour, and confirm any merge keeps each distinct case and edge. When unsure whether two tests truly overlap, keep both and say so: a wrong cut is silent coverage loss that still passes every gate, far more expensive than a surviving near-duplicate. Cutting the test count is not the goal.
 
+## The settled list is binding
+
+You are given `settled.md`: the decisions this run has closed, each with the reason it stands. A finding that argues for a different testing approach, boundary, or seam than one of them settled is out of scope, however much you prefer yours. A finding that an entry leaves a behaviour untested, or makes a test unable to fail, is in scope and must name the entry.
+
+## Output
+
 Follow the shared review output contract you were given for the finding shape and the write guarantee. A consolidation cut that names no surviving coverage is not allowed.
