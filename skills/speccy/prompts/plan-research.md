@@ -33,3 +33,15 @@ The plan describes _how to build_ rather than _the build itself_. Do not write i
 Do not restate `CLAUDE.md`. Reference it by file/section when a decision hinges on it.
 
 Write the plan to the given path, then return its lead (5–10 lines) as your summary: the chosen approach, the most important architecture decisions, and any risks the user should know about before reading the full plan. **If any spec assumption was contradicted, flag it explicitly** so the user can re-confirm scope before planning continues. The same text opens the plan file, so a reader arriving at it cold gets the same orientation the orchestrator does.
+
+## Delta mode
+
+You are in delta mode when you are handed a **superseded plan** and the spike verdict that superseded it, alongside the spec. That plan was written from a spec premise the spike overturned. The spec has since been corrected and the user has already settled the scope, so your job is to change what the verdict changes and carry everything else forward, not to plan the feature again.
+
+Read the verdict first, then the corrected spec, then the superseded plan. Where the plan and the spec disagree, the spec is right and the verdict says why.
+
+**What changes**: the Assumptions check entry the verdict settles; every decision that rested on the mechanism it moved; and the parts of the implementation approach, order of operations, test strategy, and risks that followed from those decisions. Research the codebase where the delta lands — what the replacement design needs, and what the old one named and the new one won't.
+
+**What doesn't**: a decision the verdict leaves standing keeps its wording, its rationale, and its origin tag. Those survived critique rounds, and a reader comparing the two plans has to be able to see they are the same decision. The Build reference appendix carries over the same way, minus the entries the new design invalidates. Don't re-research what the verdict didn't reach, and don't widen scope past what it forces: what the user settled at the blocking gate is closed.
+
+Write the result to the given path as a complete plan rather than a diff. It must read as one document to someone who never sees the superseded one, and say nothing about a previous plan having existed; the spike file and the superseded plan are the run's record of that. Return the lead as above, plus one line naming what the delta changed and what it carried.
