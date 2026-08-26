@@ -4,7 +4,7 @@ Every lens emits findings in the one shape below, so they merge mechanically. Th
 
 ## Write guarantee
 
-Writing your findings file is your **final action**, and you write it even if you could not finish. If you surface a serious candidate and run out of room to verify it, still write the file with that candidate marked `PLAUSIBLE`. A lens that dies mid-verification must still leave a file. The orchestrator reads the file rather than your reply, so put no findings in your return; after writing, reply only `Done — <path>`.
+Writing your findings file is your **final action**, and you write it even if you could not finish. If you surface a serious candidate and run out of room to verify it, still write the file with that candidate marked `PLAUSIBLE`. A lens that dies mid-verification must still leave a file. The orchestrator reads the file rather than your reply, so your return carries the path and nothing else: no findings, no summary, and no count of them. A returned count has disagreed with the file it summarised, and the orchestrator cannot tell which is right without opening the file the count invited it to skip. After writing, reply only `Done — <path>`.
 
 ## Finding shape
 

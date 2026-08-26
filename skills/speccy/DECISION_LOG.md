@@ -624,3 +624,9 @@ Every spec the pipeline produced said `Draft`: the template opened with that wor
 The write sits at the planner spawn rather than at the critique loop's exit. Leaving that loop can mean the 3-round cap ran out, which is not acceptance of anything. Planning starts on the user's say-so: the loop's exit is an offer to clear or move on, and they answer it by re-invoking at planning or asking to continue. So a spec that reaches the planner is one the user chose to build from, which is what the field records.
 
 An instruction at a phase's start is skippable in a way an exit check is not: a context resuming at `plan-critique` never passes the spawn. So the 2a exit checks carry the field as a backstop. The readability pass gets one guard too, since it is the step allowed to remove and a lone bold line under the title is what it would read as removable.
+
+### A lens returns its path and nothing else (2026-08-26)
+
+The write guarantee already said to keep findings out of the return, and lenses kept returning a severity tally anyway: a line reading how many blockers and majors the file held. Several of those tallies did not match the file they summarised. A wrong count in a return is worse than no return at all, because it is the one thing the orchestrator can act on without opening the file, which is exactly what "trust files over returns" exists to stop.
+
+So the contract now names the count as something a return must not carry, alongside the findings and the summary, and the orchestrator is told to take every count it triages on or reports from the files. Nothing asks a lens for a number any more, which leaves nothing to disagree with the file.
