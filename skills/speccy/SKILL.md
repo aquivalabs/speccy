@@ -13,7 +13,7 @@ The orchestrator runs in the main conversation. Heavy work (adversarial critique
 
 ## Getting started
 
-When the skill triggers, **show the speccy banner first**, on every invocation. Run `banner.sh` from this skill's own directory (alongside this SKILL.md) by its **absolute path**: a relative path breaks when the Bash cwd has drifted or the skill is installed as a plugin. Don't prepend `cd` and don't use command substitution; both break the pre-approved permission match.
+When the skill triggers, **show the speccy banner first**, on every invocation. Run `banner.sh` from this skill's own directory (alongside this SKILL.md) by its **absolute path**: a relative path breaks when the Bash cwd has drifted or the skill is installed as a plugin. Send it as one plain command, per `prompts/tool-use.md`; anything wrapped around it breaks the pre-approved permission match.
 
 ```bash
 bash <skill-dir>/banner.sh
@@ -430,7 +430,7 @@ When all phases complete, report concisely, both in the chat and in `.speccy/<ru
 
 Set `complete` any earlier and a `/clear` during the wrap-up resumes as a finished run, silently dropping the decision log and the retrospective: the artifacts the handoff exists to produce.
 
-**Last, after `complete` is set: what the run cost.** Run the metrics script from this skill's own directory by its **absolute path**, the same way the banner runs (no `cd`, no command substitution, or the pre-approved permission match breaks).
+**Last, after `complete` is set: what the run cost.** Run the metrics script from this skill's own directory by its **absolute path**, the same way the banner runs, and as one plain command for the same reason.
 
 ```bash
 bash <skill-dir>/metrics.sh
