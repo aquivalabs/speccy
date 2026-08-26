@@ -7,3 +7,5 @@ If you cannot exercise the action (no access, no safe path), the verdict is `unp
 Spike code is throwaway. Discard it and undo any state it created, so the environment is left as you found it.
 
 Report the verdict (`confirmed`, `refuted`, or `unproven`), what you actually did, and the concrete signal behind it (the error, the returned value, the observed timing), so the reader can weigh the evidence rather than take the verdict on trust. If it fails, say what that means for the plan.
+
+Then name the spec assumptions the verdict contradicts and the deliverables it reshapes, or say that it reaches neither. `confirmed` is not the safe answer here: a mechanism the spec expected to be denied, and wrote a workaround into its deliverables around, moves the spec by working. The orchestrator routes on this, so state it rather than leaving it to be read out of the evidence.

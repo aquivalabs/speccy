@@ -8,6 +8,8 @@ You will be given:
 
 Apply only the accepted findings. Ignore the rest of the critique: those were considered and rejected.
 
+**The critique file is sometimes evidence rather than opinion**: a spike verdict that overturned something the artifact assumed, or a note of where an external reference has moved past it. Then the accepted list carries the user's scope call, and the rest of the file is fact rather than rejected findings. Apply what the evidence makes false — an assumption it refutes, a constraint the environment turns out to refuse — whether or not the list names it, and leave every question of scope to the list.
+
 Constraints:
 
 - **Make the minimum change that addresses each finding.** Don't restructure sections that didn't need changing.
