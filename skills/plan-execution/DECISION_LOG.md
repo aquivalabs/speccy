@@ -166,6 +166,14 @@ Cleanup ran `git worktree remove --force`. Measured: that destroys the tree's un
 
 Cleanup now checks `git -C <path> status --porcelain` first and removes only a clean tree. A dirty one is kept and reported with its dirty-file count. Keeping a tree that could have gone costs the next run some clutter; removing one that held work cannot be undone.
 
+### The watchdog ships as a script, not a sketch (2026-08-26)
+
+The poll loop lived in SKILL.md as a bash sketch the orchestrator was meant to adapt and hand to `Monitor` inline. A sandboxed session refuses a multi-line loop outright, so in one run the watchdog was refused twice and the workflow ran unwatched: the failure the section exists to prevent, arriving as the section is read.
+
+`watchdog.sh` is invoked the way speccy's `banner.sh` and `metrics.sh` already are — one plain command by absolute path, taking its inputs as arguments rather than as edits to a copied snippet. The thresholds, the one-shot corrective warning, the re-arming stall flag and the three emitted lines are the sketch's, unchanged.
+
+Three things the sketch left to the reader are now settled in the script. It declared a `BASE` variable and then read `HEAD`, which agree only while the orchestrator sits on the base branch, so the script reads the branch it is given and a checkout that has moved cannot silently start measuring something else. The macOS/Linux `stat` split was a parenthetical telling the reader to adapt; the script probes for it once at startup. And the checkout is an argument, because a `Monitor`'s working directory is not guaranteed to be the repository the workflow commits to.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
