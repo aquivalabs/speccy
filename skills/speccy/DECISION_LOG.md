@@ -624,3 +624,11 @@ Every spec the pipeline produced said `Draft`: the template opened with that wor
 The write sits at the planner spawn rather than at the critique loop's exit. Leaving that loop can mean the 3-round cap ran out, which is not acceptance of anything. Planning starts on the user's say-so: the loop's exit is an offer to clear or move on, and they answer it by re-invoking at planning or asking to continue. So a spec that reaches the planner is one the user chose to build from, which is what the field records.
 
 An instruction at a phase's start is skippable in a way an exit check is not: a context resuming at `plan-critique` never passes the spawn. So the 2a exit checks carry the field as a backstop. The readability pass gets one guard too, since it is the step allowed to remove and a lone bold line under the title is what it would read as removable.
+
+### Comments are written for the code's reader, never for the critic (2026-08-26)
+
+A fix round tempts the fixer to leave its answer in the source: a line above the changed code saying why it now does what the reviewer asked, sometimes naming the finding or the file it came from. It reads as diligence, and it is the same move `revise.md` already blocks in specs, where the cheap way to satisfy a critic is to append. Whoever reads that code was never party to the argument, and the artefacts the comment points at live in a gitignored run directory that outlives nothing.
+
+Both ends are closed. `implementation-fix.md` tells the fixer to comment the code it fixed by the project's normal rules, as though the review had never happened, and to put the reasoning in the commit message, which is where git keeps it. The comment lens gains the two matching finding categories: a comment addressed to a reviewer, and a reference to something the reader cannot reach (a review file, a round or finding number, a run directory, an agent, a scratch path). Both resolve by deletion, so they fit the lens's deletion-only remedy without widening it.
+
+The exemption for load-bearing justifications needed one clause, since a suppression rationale must stay thorough. What that exemption protects is the technical reason; a clause inside it arguing with a critic is still a span the lens may cut.
