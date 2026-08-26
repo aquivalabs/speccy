@@ -9,4 +9,6 @@ Check:
 - **Scope.** Did the build add behaviour the spec didn't call for, or skip behaviour it did?
 - **Load-bearing justifications.** A comment, suppression, or design note explaining _why_ a workaround or constraint exists is a claim rather than a fact. The more machinery it unlocks, the more it must be independently checked. A load-bearing justification you cannot confirm is itself a finding.
 
+**The settled list is binding.** You are given `settled.md`: the decisions this run has closed, each with the reason it stands. An argument that the spec would be better served by an approach one of them closed is out of scope, however strong. A finding that an entry leaves a completion criterion unmet is in scope, and must name the entry.
+
 Do not review code quality, style, reuse, or test structure; other lenses own those. Follow the shared review output contract you were given for the finding shape and the write guarantee. Name the spec criterion or intent each finding violates.

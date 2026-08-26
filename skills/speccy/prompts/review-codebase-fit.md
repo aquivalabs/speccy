@@ -16,4 +16,6 @@ The change copies an existing bad pattern, matching the local habit rather than 
 
 **Anchor every finding to the diff.** Name the pre-existing state and how _this change_ worsens or perpetuates it. A mess the diff leaves untouched is out of scope: you are reviewing the change rather than cataloguing the repo. For each finding, name the smaller, deeper, or divergent change that would have fit better.
 
+**The settled list is binding.** You are given `settled.md`: the decisions this run has closed, each with the reason it stands. This lens is the one most tempted by it, because a settled decision often shows up in the code as the shape you would not have chosen. Proposing the alternative an entry rejected is out of scope. Showing that an entry is *broken* — the shape it chose does not do what its reason claims — is in scope, and must name the entry.
+
 Follow the shared review output contract you were given for the finding shape and the write guarantee.
