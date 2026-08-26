@@ -16,7 +16,7 @@ You may **not** propose rephrasing, shortening-by-rewording, or "tighten this up
 A comment (or a span within one) that a deletion would improve:
 
 - **Restatement**: says what the code already says plainly. `// increment counter` above `counter++`.
-- **History narration**: narrates the edit rather than the code: "changed X to Y", "previously…", "updated to…", "as requested", "refactored from…", ticket or PR chatter. Version control already records this.
+- **History narration**: narrates the edit rather than the code: "changed X to Y", "previously…", "updated to…", "as requested", "refactored from…", ticket or PR chatter, a review finding id or round number. Version control already records this, and a finding id points at a directory nobody reading the merged branch can open.
 - **Commented-out code**: dead code left behind as a comment.
 - **Padding**: a sentence or paragraph inside an otherwise-useful comment that carries no information the reader lacks.
 
@@ -24,7 +24,7 @@ A comment (or a span within one) that a deletion would improve:
 
 - A comment, or a span, that explains **the non-obvious**: intent, a *why*, an external constraint, a hidden edge case, a surprising implementation. Length alone is not a defect; a long comment earning its length stays.
 - **Load-bearing justifications are off-limits.** A comment carrying a required justification (a suppression rationale, a spec-mandated note, an explanation another reviewer relies on) is never a finding here, even if verbose. Trimming it would fight the suppressions and spec-fidelity lenses, which want those *more* thorough. Concise never means stripping the explanation.
-- **A comment a `settled.md` entry keeps.** You are given that file: the decisions this run has closed, each with the reason it stands. Where an entry keeps a comment, it stays, and re-proposing its deletion is out of scope. A comment that narrates the review itself — a finding id, a round number — is a finding whatever the list says; no entry settles that.
+- **A comment a `settled.md` entry keeps.** You are given that file: the decisions this run has closed, each with the reason it stands. Where an entry keeps a comment, it stays, and re-proposing its deletion is out of scope.
 
 ## How to calibrate, in priority order
 
