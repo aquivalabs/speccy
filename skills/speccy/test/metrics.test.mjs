@@ -23,6 +23,8 @@ import {
   bucketByPhase,
   modelMismatch,
   discover,
+  projectDirName,
+  transcriptSearchDirs,
   readRunState,
   buildReport,
   render,
@@ -700,6 +702,125 @@ test('the run id comes from .current-runid when no argument is given', () => {
   fs.writeFileSync(path.join(cwd, '.speccy', '.current-runid'), `${RUN}\n`)
   assert.equal(resolveRunId(cwd, []), RUN)
   assert.equal(resolveRunId(cwd, ['explicit-run-20260101-0900']), 'explicit-run-20260101-0900')
+  fs.rmSync(cwd, { recursive: true, force: true })
+})
+
+// ------------------------------------------------- where the transcripts are
+
+// A run that moves checkout partway through lands its later transcripts under
+// a project directory named for the new cwd, which cwd no longer suggests.
+function movedTree() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-moved-'))
+  // Swept, and holds nothing for this run.
+  fs.mkdirSync(path.join(root, 'projects', '-repo'), { recursive: true })
+
+  const moved = path.join(root, 'elsewhere', '-repo--claude-worktrees-feature')
+  fs.mkdirSync(moved, { recursive: true })
+  fs.writeFileSync(path.join(moved, 'sess-m.jsonl'), [
+    bannerCall({ ts: at(9, 0) }),
+    stateWrite({ ts: at(9, 10), phase: 'spec-critique' }),
+    assistant({ ts: at(9, 20), out: 320 }),
+    stateWrite({ ts: at(9, 50), phase: 'complete' }),
+  ].join('\n') + '\n')
+
+  return { root, moved }
+}
+
+function twoProjectTree() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-two-'))
+  for (const [name, session] of [['-repo', 'sess-here'], ['-other', 'sess-there']]) {
+    const dir = path.join(root, 'projects', name)
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, `${session}.jsonl`), [
+      bannerCall({ ts: at(9, 0) }),
+      stateWrite({ ts: at(9, 10), phase: 'spec-critique' }),
+      assistant({ ts: at(9, 20), out: 10 }),
+    ].join('\n') + '\n')
+  }
+  return root
+}
+
+test('a cwd derives the project directory the harness named after it', () => {
+  assert.equal(projectDirName('/repo'), '-repo')
+  assert.equal(projectDirName('/Users/dev/proj/.claude/worktrees/feature'), '-Users-dev-proj--claude-worktrees-feature')
+  assert.equal(projectDirName('C:\\Users\\dev\\proj'), 'C:-Users-dev-proj')
+})
+
+test('the search list keeps the recorded directories that exist, in order, once each', () => {
+  const { root, moved } = movedTree()
+  const dirs = transcriptSearchDirs(root, {
+    transcriptDirs: [moved, moved, '-repo', path.join(root, 'projects', '-gone')],
+    cwd: '/repo',
+  })
+  assert.deepEqual(dirs, [moved, path.join(root, 'projects', '-repo')], 'a bare name resolves under projects/, a missing one is dropped, and cwd duplicates it')
+  assert.deepEqual(transcriptSearchDirs(root, {}), [], 'no hint, no list')
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a recorded transcript directory outside projects/ is where the run is found', () => {
+  const { root, moved } = movedTree()
+  assert.deepEqual(discover(root, RUN).sessions, [], 'the sweep alone cannot reach it')
+
+  const found = discover(root, RUN, { transcriptDirs: [moved] })
+  assert.deepEqual(found.sessions.map((s) => s.sessionId), ['sess-m'])
+  assert.equal(found.fellBack, false)
+  assert.equal(found.records.some((r) => r.out === 320), true, 'and its usage is read')
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('cwd narrows the walk to its own project directory', () => {
+  const root = twoProjectTree()
+  assert.deepEqual(discover(root, RUN, { cwd: '/repo' }).sessions.map((s) => s.sessionId), ['sess-here'])
+  assert.deepEqual(discover(root, RUN).sessions.map((s) => s.sessionId).sort(), ['sess-here', 'sess-there'])
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('a hint that holds nothing falls back to every project directory, and the report says so', () => {
+  const root = tree()
+  const stale = path.join(root, 'projects', '-stale')
+  fs.mkdirSync(stale, { recursive: true })
+
+  const found = discover(root, RUN, { transcriptDirs: [stale], cwd: '/gone' })
+  assert.deepEqual(found.sessions.map((s) => s.sessionId), ['sess-a'], 'the sweep still finds it')
+  assert.equal(found.fellBack, true)
+  assert.ok(buildReport(RUN, found).notes.some((n) => /held nothing for this run/.test(n)))
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('readRunState reads the recorded transcript directories, and tolerates their absence', () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-dirs-'))
+  const dir = path.join(cwd, '.speccy', RUN)
+  fs.mkdirSync(dir, { recursive: true })
+  const state = (extra) => {
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ runId: RUN, phase: 'complete', ...extra }))
+    return readRunState(cwd, RUN)
+  }
+
+  assert.deepEqual(state({ transcriptDirs: ['/a', '/b'] }).transcriptDirs, ['/a', '/b'])
+  assert.deepEqual(state({}).transcriptDirs, [], 'a run recorded before the field existed')
+  assert.deepEqual(state({ transcriptDirs: 'not-a-list' }).transcriptDirs, [])
+  assert.deepEqual(state({ transcriptDirs: ['/a', 7, ''] }).transcriptDirs, ['/a'])
+  fs.rmSync(cwd, { recursive: true, force: true })
+})
+
+test('the command finds a moved run from state.json alone', () => {
+  const { root, moved } = movedTree()
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-moved-cwd-'))
+  fs.mkdirSync(path.join(cwd, '.speccy', RUN), { recursive: true })
+  fs.writeFileSync(
+    path.join(cwd, '.speccy', RUN, 'state.json'),
+    JSON.stringify({ runId: RUN, phase: 'complete', checkoutPath: cwd, transcriptDirs: [moved] }, null, 2),
+  )
+
+  const stdout = execFileSync(process.execPath, [path.join(SKILL_DIR, 'metrics.mjs'), RUN], {
+    encoding: 'utf8',
+    cwd,
+    env: { ...process.env, CLAUDE_CONFIG_DIR: root },
+  })
+  assert.match(stdout, /### spec-critique/)
+  assert.doesNotMatch(stdout, /held nothing for this run/)
+  assert.match(fs.readFileSync(path.join(cwd, '.speccy', RUN, 'metrics.md'), 'utf8'), /# Run metrics/)
+  fs.rmSync(root, { recursive: true, force: true })
   fs.rmSync(cwd, { recursive: true, force: true })
 })
 

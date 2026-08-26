@@ -6,7 +6,9 @@ when_to_use: When another skill invokes it, or user has an approved plan and ask
 
 # Plan Execution
 
-Break an approved plan into tasks sized for a single agent context window, then execute them as subagents. Sequential tasks run directly on the main checkout; parallel tasks use git worktrees for isolation and are squash-merged back afterward.
+Break an approved plan into tasks sized for a single agent context window, then execute them as subagents. Sequential tasks run directly on the checkout the workflow is launched from; parallel tasks use git worktrees for isolation and are squash-merged back afterward.
+
+**That launch checkout is whatever the session is standing in, which is not necessarily the repository's main working tree.** A plan for a branch checked out in a git worktree has to be run from that worktree, and a shared main checkout can have been switched to another branch by another session. Confirm `git rev-parse --show-toplevel` and `git branch --show-current` are the intended repository and branch before launching, and enter the right checkout if they are not. Everything below that says "the checkout" means this one.
 
 If the plan fits a single context window, still use this skill: it produces one task and executes directly.
 
@@ -24,7 +26,7 @@ Worktrees must branch from the current HEAD so that parallel tasks see work comm
 
 Check whether CLAUDE.md has a `## Worktree init` section. If it does, resolve the gather/apply variables before running the workflow:
 
-1. Parse the **Gather** block, where each line has the form `NAME` — `command`. Run each command via Bash in the main checkout and capture its stdout (trimmed).
+1. Parse the **Gather** block, where each line has the form `NAME` — `command`. Run each command via Bash in the checkout, not in a worktree, and capture its stdout (trimmed).
 2. Parse the **Apply** block, where each line is a shell command that may reference `${NAME}` variables from the gather step. Substitute the gathered values into each command. Make symlink commands idempotent: replace `ln -s ` with `ln -snf ` so re-runs don't create circular symlinks inside the existing target.
 3. Pass the resolved commands as the `worktreeInit` arg (string array) to the workflow.
 
@@ -59,7 +61,7 @@ Call the Workflow tool with the chosen workflow's `scriptPath` and these `args`:
 - `prompts`: the parsed prompts object
 - `model` (optional): when set, execution/integration/verify agents use that model and breakdown sizes tasks accordingly. Breakdown always uses Opus. When omitted, non-breakdown agents inherit the session model.
 - `retrospective` (optional, default true): when false, skips friction log synthesis
-- `worktreeInit` (optional): array of resolved shell commands to run at the start of every worktree agent (parallel tasks and corrective tasks only). Assembled from the gather/apply blocks in CLAUDE.md's `## Worktree init` section (see Prerequisites above). Pass the fully-substituted commands, with no unresolved `${VAR}` references. Sequential tasks run on the main checkout and don't need this.
+- `worktreeInit` (optional): array of resolved shell commands to run at the start of every worktree agent (parallel tasks and corrective tasks only). Assembled from the gather/apply blocks in CLAUDE.md's `## Worktree init` section (see Prerequisites above). Pass the fully-substituted commands, with no unresolved `${VAR}` references. Sequential tasks run on the launch checkout and don't need this.
 
 ## While the workflow runs: watchdog
 

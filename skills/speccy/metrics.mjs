@@ -9,8 +9,15 @@
 // session directory.
 //
 // Phase boundaries come from the run's own state.json writes, which the
-// transcript records with their content and a timestamp. So no state.json field
-// is needed and its schema stays closed.
+// transcript records with their content and a timestamp, so nothing has to be
+// recorded for them.
+//
+// Where to look is the one question the transcripts cannot answer for
+// themselves. The harness files a session's transcript under a directory named
+// after its cwd, so a run that moves checkout partway through leaves its later
+// work somewhere else. state.json records every directory the run has written
+// to; this reader starts there and sweeps every project directory only when
+// that turns up nothing.
 
 import fs from 'node:fs'
 import os from 'node:os'
@@ -363,25 +370,93 @@ export function readRunState(cwd, runId) {
   const file = path.join(cwd, '.speccy', runId, 'state.json')
   const text = readIfFile(file)
   if (text === null) return null
-  let phase = null
+  let parsed
   try {
-    phase = JSON.parse(text)?.phase ?? null
+    parsed = JSON.parse(text)
   } catch {
     return null
   }
-  try {
-    return { phase, mtime: fs.statSync(file).mtimeMs }
-  } catch {
-    return { phase, mtime: null }
+  const state = {
+    phase: parsed?.phase ?? null,
+    transcriptDirs: Array.isArray(parsed?.transcriptDirs)
+      ? parsed.transcriptDirs.filter((d) => typeof d === 'string' && d)
+      : [],
   }
+  try {
+    return { ...state, mtime: fs.statSync(file).mtimeMs }
+  } catch {
+    return { ...state, mtime: null }
+  }
+}
+
+function isDir(dir) {
+  try {
+    return fs.statSync(dir).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The harness names a project directory after the session's cwd, flattening
+ * separators and dots to dashes. This is a guess about somebody else's naming,
+ * so a wrong one costs nothing: the directory is absent and the caller sweeps.
+ */
+export function projectDirName(cwd) {
+  return cwd.replace(/\\/g, '/').replace(/[/.]/g, '-')
+}
+
+/**
+ * Where to look first: the directories the run recorded, then the one the
+ * current checkout derives to. A recorded entry may be an absolute path or a
+ * bare directory name. An empty result means there is no hint to follow.
+ */
+export function transcriptSearchDirs(configRoot, { transcriptDirs = [], cwd = null } = {}) {
+  const projects = path.join(configRoot, 'projects')
+  const candidates = [...transcriptDirs]
+  if (cwd) candidates.push(path.join(projects, projectDirName(cwd)))
+
+  const seen = new Set()
+  const dirs = []
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string' || !candidate) continue
+    const full = path.isAbsolute(candidate) ? candidate : path.join(projects, candidate)
+    const key = path.resolve(full)
+    if (seen.has(key) || !isDir(full)) continue
+    seen.add(key)
+    dirs.push(full)
+  }
+  return dirs
+}
+
+function allProjectDirs(configRoot) {
+  const projects = path.join(configRoot, 'projects')
+  return listDir(projects)
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(projects, entry.name))
 }
 
 /**
  * Walk the transcripts for one run. `configRoot` is a parameter rather than an
  * environment read so a fixture tree can stand in for ~/.claude.
+ *
+ * `transcriptDirs` is the run's own record of where it wrote, and `cwd` the
+ * checkout it is being read from. Both narrow the walk to a directory the run
+ * is known to have used, which is what finds a run whose transcripts are not
+ * where cwd suggests. A narrowed walk that finds nothing is repeated across
+ * every project directory, so a stale hint costs a second pass rather than the
+ * report.
  */
-export function discover(configRoot, runId) {
-  const projects = path.join(configRoot, 'projects')
+export function discover(configRoot, runId, { transcriptDirs = [], cwd = null } = {}) {
+  const hinted = transcriptSearchDirs(configRoot, { transcriptDirs, cwd })
+  if (!hinted.length) return { ...scanProjectDirs(allProjectDirs(configRoot), runId), fellBack: false }
+
+  const found = scanProjectDirs(hinted, runId)
+  if (found.sessions.length) return { ...found, fellBack: false }
+  return { ...scanProjectDirs(allProjectDirs(configRoot), runId), fellBack: true }
+}
+
+function scanProjectDirs(projectDirs, runId) {
   const notBefore = runIdStart(runId)
   const sessions = []
   const mentionedOnly = []
@@ -391,9 +466,7 @@ export function discover(configRoot, runId) {
   let boundaries = []
   let marker = null
 
-  for (const project of listDir(projects)) {
-    if (!project.isDirectory()) continue
-    const projectDir = path.join(projects, project.name)
+  for (const projectDir of projectDirs) {
     for (const entry of listDir(projectDir)) {
       if (!entry.isFile() || !entry.name.endsWith('.jsonl')) continue
       const file = path.join(projectDir, entry.name)
@@ -448,7 +521,7 @@ export function discover(configRoot, runId) {
         })
       }
 
-      sessions.push({ file, sessionId, project: project.name })
+      sessions.push({ file, sessionId, project: path.basename(projectDir) })
     }
   }
 
@@ -583,6 +656,9 @@ export function buildReport(runId, found, { state = null } = {}) {
     const out = outsideRun.reduce((t, a) => t + a.totals.out, 0)
     notes.push(`${outsideRun.length} subagent(s) in these sessions ran wholly outside the run's window and are excluded, together with their ${num(out)} output tokens. They belong to other work the session did.`)
   }
+  if (found.fellBack) {
+    notes.push('The transcript directories `state.json` records held nothing for this run, so every project directory was searched instead. The run moved checkout without the move reaching state, so treat the record as stale rather than the numbers as wrong.')
+  }
   if (found.malformed) notes.push(`${found.malformed} unparseable transcript line(s) skipped.`)
   if (found.mentionedOnly.length) {
     notes.push(`${found.mentionedOnly.length} session(s) mention this run but never wrote its state file, so they are excluded.`)
@@ -698,13 +774,16 @@ export function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   }
 
   const configRoot = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-  const found = discover(configRoot, runId)
+  // `cwd` is the run's checkout, which the orchestrator confirms before every
+  // git-mutating step and before this call.
+  const state = readRunState(cwd, runId)
+  const found = discover(configRoot, runId, { transcriptDirs: state?.transcriptDirs ?? [], cwd })
   if (!found.sessions.length) {
     process.stderr.write(`speccy metrics: no transcripts found for run "${runId}"\n`)
     return 0
   }
 
-  const report = buildReport(runId, found, { state: readRunState(cwd, runId) })
+  const report = buildReport(runId, found, { state })
   const target = path.join(cwd, '.speccy', runId, 'metrics.md')
   try {
     fs.mkdirSync(path.dirname(target), { recursive: true })
