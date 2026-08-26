@@ -2,7 +2,7 @@
 name: speccy
 description: Guided specification writing, adversarial spec critique, and post-build review. Full pipeline from rough idea to reviewed implementation.
 when_to_use: When the user says "speccy", "spec mode", "adversarial mode", or similar. Also when about to execute a complex multi-step plan and adversarial critique would help.
-allowed-tools: Bash(bash *skills/speccy/banner.sh), Bash(bash *skills/speccy/metrics.sh), Bash(bash *skills/speccy/metrics.sh *), Read(.speccy/**), Write(.speccy/**), Edit(.speccy/**)
+allowed-tools: Bash(bash *skills/speccy/banner.sh), Bash(bash *skills/speccy/metrics.sh), Bash(bash *skills/speccy/metrics.sh *), Bash(bash *skills/speccy/triage.sh *), Read(.speccy/**), Write(.speccy/**), Edit(.speccy/**)
 ---
 
 # speccy
@@ -372,8 +372,18 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
 
    Run all lenses every round by default. You may drop a lens only when the fix round provably didn't touch its surface (e.g. skip local-doc adherence when nothing under a governing doc changed). A lens finding nothing last round is **not** grounds to drop it: yield describes the round that ran rather than the code as it now stands, and the lenses whose clean result is the expected one (suppressions above all) are exactly the ones a fix round is most likely to break. Note any lens you drop and why.
 
-   For the spawned lenses, don't branch on a returned summary (see **Subagent results: trust files over returns**); confirm the file exists instead. **Self-heal a stalled lens:** if a spawned lens's file is missing after it reports complete, `SendMessage` that agent to write its findings file as its final action, marking anything unconfirmed `PLAUSIBLE`, rather than re-spawning it from scratch. Once every lens file is present (the spawned lens files plus the inline-gate files you wrote: code-review, and the project gate if you ran one), read them (N from state.json) and move to triage.
-2. **Triage & merge.** Consolidate the findings across lenses yourself: drop false positives, de-duplicate overlaps, and resolve contradictory suggestions. Don't spawn a separate agent for this. Every lens emits the shared finding shape, so merge on `file:line`: two lenses landing on the same anchor is a **convergence signal**, and independent lenses pointing at one spot raise confidence rather than being noise, so weight those up instead of collapsing them to a lone finding. As a backstop for anything the lenses re-raised despite being told not to, drop findings already in `.speccy/<run-id>/deferred.md`; a deferred finding must not churn back into the fix set. Then give each surviving finding a disposition:
+   For the spawned lenses, don't branch on a returned summary (see **Subagent results: trust files over returns**); confirm the file exists instead. **Self-heal a stalled lens:** if a spawned lens's file is missing after it reports complete, `SendMessage` that agent to write its findings file as its final action, marking anything unconfirmed `PLAUSIBLE`, rather than re-spawning it from scratch. Once every lens file is present (the spawned lens files plus the inline-gate files you wrote: code-review, and the project gate if you ran one), move to triage (N from state.json).
+2. **Triage & merge.** Build the convergence table first and triage from it. Run the triage script from this skill's own directory by its **absolute path**, the same way the banner runs (no `cd`, no command substitution, or the pre-approved permission match breaks).
+
+   ```bash
+   bash <skill-dir>/triage.sh .speccy/<run-id> <N>
+   ```
+
+   Every lens emits the shared finding shape, so the merge on `file:line` is mechanical. The script does it: it groups the round's findings by file and nearby line and prints a row per anchor — the lenses on it, the top severity, the verdicts, and each lens's one-line summary — ranked by how many lenses converged. It also names any anchor already in `.speccy/<run-id>/deferred.md` (and `settled.md`, where a run has one) in a **prior call** column.
+
+   Two lenses landing on one anchor is a **convergence signal**: independent lenses pointing at one spot raise confidence rather than being noise, so weight the top of the table up instead of collapsing a row to a lone finding. A **prior call** row is the backstop for anything a lens re-raised despite being told not to: drop it, since a deferred finding must not churn back into the fix set.
+
+   The table carries anchors and summaries; the mechanism and the proposed fix stay in the lens files, so open a lens file for any finding you are about to disposition. Consolidate the rest yourself — drop false positives, resolve contradictory suggestions — and don't spawn a separate agent for it. If the script prints a skip line or finds no files, read the lens files and merge on `file:line` yourself; it must never hold up the round. Then give each surviving finding a disposition:
    - **Fix**: route it to the fixer this round. Where the finding is a copied smell, tell the fixer whether to diverge (fix cleanly here) or fix wider (also fix the existing instance); a wider fix grows the diff, so choose it deliberately.
    - **Defer**: legitimate but out of scope for this PR, meaning one of three things: it isn't this slice's code, it needs a decision only the user can make, or it is genuinely larger than the slice. Append it to `.speccy/<run-id>/deferred.md` under `## Deferred by scope`: what, and why deferred.
 
