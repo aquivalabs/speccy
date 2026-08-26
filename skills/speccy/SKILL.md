@@ -53,13 +53,16 @@ If the user's trigger message already includes a description of what to build, s
 
 ## Resuming a run
 
-Run state lives at `.speccy/<run-id>/state.json` and is written after every phase boundary. Schema:
+Run state lives at `.speccy/<run-id>/state.json` in the run's checkout and is written after every phase boundary. Schema:
 
 ```json
 {
   "runId": "auth-refactor-20260609-1430",
   "slug": "auth-refactor",
+  "checkoutPath": "/Users/dev/proj/.claude/worktrees/auth-refactor",
+  "workBranch": "auth-refactor",
   "baseBranch": "develop",
+  "transcriptDirs": ["/Users/dev/.claude/projects/-Users-dev-proj--claude-worktrees-auth-refactor"],
   "adversaryModel": "opus",
   "builderModel": "sonnet",
   "phase": "spec-critique" | "planning" | "plan-critique" | "implementation" | "review" | "wrap-up" | "complete",
@@ -89,6 +92,8 @@ The pull to add a field comes when a decision lands and the artifact hasn't caug
 
 What remains is genuinely transient: the user is mid-read, a precondition passed an hour ago, an agent is running. That dies with the context by design, and a resumed run re-checks or asks.
 
+**Three fields locate the run rather than describe it**: `checkoutPath`, `workBranch`, and `transcriptDirs` (see **The run's checkout**). They are in the schema because no artifact can hold them. An artifact records what the run decided, and where a run is running is not a decision; it is also the one thing a resumed context cannot recover, because the shell it wakes up in is exactly what may be wrong.
+
 `adversaryModel` defaults to `"opus"`: the tier for every critique round and the review panel's judgment lenses (the suppressions and comment lenses run a tier below; see **Getting started**). If the user pinned a different adversary model, store that name here instead and use it for every critique round and review lens.
 
 On trigger, read `.speccy/.current-runid`, a pointer to the most recent run written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase.
@@ -101,7 +106,31 @@ A resumed run skips the precondition checks, so if the recorded phase is anythin
 
 After completing each phase, update state.json and continue to the next phase. The user can `/clear` and re-invoke the skill at any point to resume from the recorded phase; no need to ask permission at phase boundaries.
 
+Resolve `.speccy/<run-id>/` from `checkoutPath` rather than from the shell's working directory, and address it absolutely. The two agree on a healthy run and diverge on exactly the run this record exists for.
+
 Read and write `.speccy/` state with the Read/Write tools: these paths are pre-approved in this skill's `allowed-tools`, so they won't prompt. Do **not** rely on the Glob tool: it isn't available in every session, which is why run discovery uses the `.current-runid` pointer. The pointer tracks the latest run; earlier runs remain in `.speccy/` if the user wants to revisit one.
+
+## The run's checkout
+
+A run lives in one checkout on one branch, and state.json names both. `checkoutPath` is the absolute repository root (`git rev-parse --show-toplevel`), and `workBranch` is the feature branch 1c creates. Write both when the run is created and rewrite them whenever the run moves.
+
+The shell is not that checkout by construction. Another session can switch the main checkout to a different branch, with its own uncommitted edits, while this run is mid-flight; the shell's working directory can also reset between calls. Neither is visible from inside a prompt, and the failure is silent: a `git commit -am` run in the wrong place commits somebody else's files to the wrong branch.
+
+**So confirm the checkout before every git-mutating step.** That is every commit, the plan-execution invocation in Phase 3, every fix batch in Phase 4, and every merge. Run `git rev-parse --show-toplevel` and `git branch --show-current`, and compare both against state:
+
+- They match: proceed.
+- They don't: enter the recorded checkout with `EnterWorktree`, passing `checkoutPath` as `path`, then confirm again. Proceed only on a match.
+- The recorded checkout is gone, or `EnterWorktree` is unavailable: stop and tell the user what is checked out where. This is a question about their working tree, and a run cannot answer it for itself.
+
+Rewriting state to match the shell is not how a mismatch is resolved. The record moves when the run moves, deliberately; a mismatch means the shell is wrong, which is the whole point of holding a record.
+
+**Give every subagent the path.** A prompt that says `git -C <checkoutPath> …` binds the agent to the run's checkout; one that says `git …` leaves it wherever it happens to start. This applies at every spawn site, like the writing-style and tool-use rules above.
+
+### Where the transcripts land
+
+`transcriptDirs` records the harness project directories the run has written to, and the metrics step at the end reads it. The harness files a session's transcript under a directory named after its working directory, so a run that moves checkout leaves its later transcripts somewhere the final working directory no longer points at; a run measured from one place then reports no transcripts for work that plainly happened.
+
+Write the current one at 1c and append the new one each time the run moves, so the list ends up naming every place the run worked. Derive it by flattening the working directory's separators and dots to dashes under `~/.claude/projects/`: `/Users/dev/proj/.claude/worktrees/auth-refactor` becomes `-Users-dev-proj--claude-worktrees-auth-refactor`. Getting it wrong is cheap, because the reader falls back to searching every project directory for the run id and says in its notes that it had to.
 
 ## Preconditions
 
@@ -125,11 +154,11 @@ Documented is not the same as working. **Smoke-test the tooling now, on the clea
 
 ### Worktree init
 
-Worktrees come into play only for **parallel** tasks. Plan-execution runs sequential tasks directly on the main checkout; only parallel tasks get git worktrees, which lack gitignored state. You won't know whether the plan produces parallel tasks until breakdown, so treat this as preparation that may not be exercised this run. Check whether CLAUDE.md has a `## Worktree init` section with gather/apply blocks. If it does, nothing to do: plan-execution will use it if parallel tasks arise. If it's missing:
+Worktrees come into play only for **parallel** tasks. Plan-execution runs sequential tasks directly on the run's checkout; only parallel tasks get git worktrees, which lack gitignored state. You won't know whether the plan produces parallel tasks until breakdown, so treat this as preparation that may not be exercised this run. Check whether CLAUDE.md has a `## Worktree init` section with gather/apply blocks. If it does, nothing to do: plan-execution will use it if parallel tasks arise. If it's missing:
 
 1. Note that worktree agents (parallel tasks only) will lack gitignored files (node_modules, tool configs, generated artifacts).
 2. Offer to help draft the section: look at `.gitignore` and the verification commands for clues about what needs recreating.
-3. The format is gather (commands run in the main checkout, capturing stdout as named variables) and apply (commands run in the worktree, substituting gathered values). See existing CLAUDE.md examples.
+3. The format is gather (commands run in the run's checkout, capturing stdout as named variables) and apply (commands run in the worktree, substituting gathered values). See existing CLAUDE.md examples.
 4. Have the user review and commit the section before proceeding.
 
 A purely sequential plan never touches worktrees, so a project that only runs sequential work can skip this, but it's cheap insurance for any run that fans out.
@@ -250,6 +279,8 @@ Start `specs/<slug>-decision-log.md` next to it (see **The decision log runs wit
 
 Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, specPath, decisionLogPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
 
+Record where the run is running in that same write: `checkoutPath` from `git rev-parse --show-toplevel`, `workBranch` from the branch just created, and the first entry of `transcriptDirs` (see **The run's checkout**). Everything after this point is checked against them.
+
 Tell the user about the directory: critique rounds, the plan, review notes, and run state will be saved there so they can open them in their editor rather than scrolling terminal output. Mention the path once here; don't repeat it at every save.
 
 ### 1d. Adversarial spec critique
@@ -334,6 +365,8 @@ Before starting implementation, verify all run state is in files: state.json cur
 ## Phase 3: Implementation
 
 The build kickoff is a handoff rather than a gate (see **Steering away from cognitive surrender**): 2b was the engagement point, so pose no pre-question and announce no check here. If you frame the handoff at all, keep it to a passing line: the build now runs autonomously and the user stays **on** the loop, free to watch it work and step in, rather than walking away from it, which is the vibe-coding failure mode speccy exists to avoid. ("In the loop" is for the spec and plan gates, where the user decides each acceptance; the build is supervision rather than decision-by-decision.) Then start the build.
+
+Confirm the checkout first (see **The run's checkout**). Plan-execution runs its sequential tasks and its gather commands wherever the session is standing, so this call is the single largest git-mutating step in the run and the one a wrong checkout costs most.
 
 Invoke the `plan-execution` skill directly via the Skill tool from the main conversation: as `speccy:plan-execution` when running from the installed plugin (plugin skills are namespaced `plugin:skill`), or bare `plan-execution` from a local `.claude/skills` checkout; use whichever name the available-skills listing shows. Pass the plan path as `args.planPath` (rather than the full plan text; the workflow reads the file itself, which keeps the orchestration call small and the plan editable mid-run) and the builder model as `args.model` (from state.json's `builderModel`, default sonnet). The breakdown agent inside plan-execution always uses Opus regardless; only execute/integrate/verify pick up the override.
 
@@ -435,6 +468,8 @@ Set `complete` any earlier and a `/clear` during the wrap-up resumes as a finish
 ```bash
 bash <skill-dir>/metrics.sh
 ```
+
+Run it from the run's checkout: it resolves `.speccy/` from the working directory, and reads `transcriptDirs` out of state.json to find where the run's transcripts landed.
 
 It reads the harness transcripts and writes `.speccy/<run-id>/metrics.md`: wall and active time per phase, tokens by model and reasoning effort, and a per-agent table. Report the headline in chat, a line or two at most (where the wall time went, which phase carried the tokens, anything the script flagged), and point the user at the file.
 
