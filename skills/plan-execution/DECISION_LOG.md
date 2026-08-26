@@ -166,6 +166,12 @@ Cleanup ran `git worktree remove --force`. Measured: that destroys the tree's un
 
 Cleanup now checks `git -C <path> status --porcelain` first and removes only a clean tree. A dirty one is kept and reported with its dirty-file count. Keeping a tree that could have gone costs the next run some clutter; removing one that held work cannot be undone.
 
+### The plan's orchestration rules reach the tasks verbatim (2026-08-26)
+
+A plan said one task in a parallel step owned the deploy to a shared environment and the other waited on it. The breakdown dropped the rule: both tasks were independent by file footprint, so the parallelism guidance put them in one step with nothing said about who deployed. The rule only reached the tasks because the invoking orchestrator noticed and restated it in the breakdown prompt by hand.
+
+Breakdown now copies any sequencing, ownership, or shared-environment rule the plan states into every task it governs, word for word, and treats it as outranking its own ordering call. Such a rule usually encodes a constraint outside the plan's text — a shared org, a rate-limited service, a single writer for a schema — which a decomposition reading only the code and the file footprints cannot rediscover. Verbatim rather than paraphrased, because a rule restated in the breakdown's own words is where the part that mattered goes missing.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
