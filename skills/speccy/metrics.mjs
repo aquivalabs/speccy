@@ -165,32 +165,60 @@ function phaseFromInput(name, input) {
   return null
 }
 
-/** Is this Bash command a state.mjs call that mutates this run? */
+/** Is this Bash command a state.mjs call scoped to this run? */
 function commandWritesState(command, runId) {
   if (typeof command !== 'string' || !command.includes('state.mjs')) return false
   return new RegExp(`--run\\s+${runId}\\b`).test(command)
 }
 
-// state.mjs owns the writes now, so a phase boundary shows up as a `node
-// ...state.mjs <verb> --run <id>` Bash call rather than a Write of state.json.
-// `init` opens the run at the first phase; `advance` names its target phase as a
-// token. Everything else (record-round, etc.) mutates without moving the phase.
-function phaseFromCommand(command, runId) {
-  if (!commandWritesState(command, runId)) return null
-  if (/\bstate\.mjs\s+init\b/.test(command)) return FIRST_PHASE
-  if (!/\bstate\.mjs\s+advance\b/.test(command)) return null
-  return command.split(/\s+/).find((tok) => PHASE_ORDER.includes(tok)) ?? null
+// state.mjs owns the writes now, so a phase boundary is a `node ...state.mjs
+// <verb> --run <id>` Bash call rather than a Write of state.json. The landing
+// phase is read from the call's *result*, not its command: on success state.mjs
+// prints one line naming where the run landed (`initialised … at phase X`,
+// `advanced Y -> X`, `replanned: phase -> X`), while a refused verb writes only
+// to stderr and exits non-zero, leaving no such line. Reading the result means a
+// refused advance is never counted as a move it didn't make, and a `replan` back
+// to planning is counted (the command's verb alone would miss both). The
+// success verbs — initialised, advanced, replanned — never appear in a refusal.
+function phaseFromStateResult(resultText) {
+  if (typeof resultText !== 'string') return null
+  const m =
+    resultText.match(/\binitialised\b[^\n]*\bat phase\s+([a-z-]+)/) ||
+    resultText.match(/\badvanced\s+[a-z-]+\s+->\s+([a-z-]+)/) ||
+    resultText.match(/\breplanned:\s+phase\s+->\s+([a-z-]+)/)
+  return m && PHASE_ORDER.includes(m[1]) ? m[1] : null
+}
+
+/** tool_use id -> its tool_result text, for reading a call's outcome. */
+function resultsById(entries) {
+  const byId = new Map()
+  for (const e of entries) {
+    const content = e.message?.content
+    if (!Array.isArray(content)) continue
+    for (const c of content) {
+      if (c?.type !== 'tool_result' || typeof c.tool_use_id !== 'string') continue
+      byId.set(c.tool_use_id, toolResultText(c.content))
+    }
+  }
+  return byId
+}
+
+function toolResultText(content) {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) return content.map((p) => (typeof p === 'string' ? p : p?.text ?? '')).join('')
+  return ''
 }
 
 /** Entries -> [{ts, phase}] for every state write that assigns a phase. */
 export function phaseBoundaries(entries, runId) {
   const found = []
+  const results = resultsById(entries)
   for (const { entry, use } of toolUses(entries)) {
     let phase = null
     if (isStateWrite(use.input?.file_path, runId)) {
       phase = phaseFromInput(use.name, use.input) // a round-counter bump leaves `phase` untouched
-    } else if (use.name === 'Bash') {
-      phase = phaseFromCommand(use.input?.command, runId)
+    } else if (use.name === 'Bash' && commandWritesState(use.input?.command, runId)) {
+      phase = phaseFromStateResult(results.get(use.id)) // null on a refused verb or a non-moving one
     }
     if (!phase) continue
     const ts = Date.parse(entry.timestamp)
