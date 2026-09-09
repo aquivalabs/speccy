@@ -62,7 +62,7 @@ Run state lives at `.speccy/<run-id>/state.json` and is written after every phas
   "baseBranch": "develop",
   "adversaryModel": "opus",
   "builderModel": "sonnet",
-  "phase": "spec-critique" | "planning" | "plan-critique" | "implementation" | "review" | "wrap-up" | "complete",
+  "phase": "spec-draft" | "spec-critique" | "planning" | "plan-critique" | "implementation" | "review" | "wrap-up" | "complete",
   "specPath": "specs/auth-refactor.md",
   "planPath": ".speccy/auth-refactor-20260609-1430/plan.md",
   "decisionLogPath": "specs/auth-refactor-decision-log.md",
@@ -97,7 +97,7 @@ state.json names the spec, plan, and decision log, and no other file. **List `.s
 
 **When an artifact is replaced, rename what reviewed it.** A re-plan leaves its critique rounds and readability change notes describing a draft that no longer exists, and a resumed context reading one cold will act on findings that no longer apply. Rename each to `SUPERSEDED-<original name>`, which groups them in a listing. They remain the run's history, and the wrap-up reads them for a reversal nobody logged, so rename rather than delete. A spike verdict is evidence about the world rather than a review of a draft, so it keeps its name.
 
-A resumed run skips the precondition checks, so if the recorded phase is anything past the spec interview, suggest auto-accept mode (shift+tab) first: the rest of the run is autonomous tool calls.
+A resumed run skips the precondition checks, so if the recorded phase is `spec-critique` or later, suggest auto-accept mode (shift+tab) first: the rest of the run is autonomous tool calls. A resume at `spec-draft` just re-presents the draft for reading, so it needs no such nudge.
 
 After completing each phase, update state.json and continue to the next phase. The user can `/clear` and re-invoke the skill at any point to resume from the recorded phase; no need to ask permission at phase boundaries.
 
@@ -240,17 +240,17 @@ The template defines what each section holds. Two things about **Decisions & rat
 - **Draw the reasoning out, but only where the user hasn't given it.** When a choice has a real alternative and the description doesn't explain the pick, ask why they lean that way rather than recording it silently. Don't re-ask about a decision the input already settles: a stated preference, mandate, or existing convention is a complete rationale on its own.
 - **Capture it now, because the decision log distils that section.** Rationale recorded here is rationale the user isn't reconstructing from memory at the end of the run.
 
-Let the user read and edit the draft until satisfied. This is their first read rather than a gate, so pose no engagement question here; the pre-question comes at the 1d critique, once they have the draft in hand.
-
 Create a feature branch before committing anything. Pick a short, descriptive name for the work; if it collides with an existing branch, adjust it. Then `git checkout -b <branch>`.
 
 Save to `specs/<slug>.md`.
 
 Start `specs/<slug>-decision-log.md` next to it (see **The decision log runs with the run**). Open it with what the run is working from: the seed and how it was treated, and any decision already taken that the spec's Decisions & rationale cannot hold, such as a point where the seed was overruled. If the interview produced no such history, the file opens with the seed alone and stays short. Commit both.
 
-Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-critique`, with runId, slug, baseBranch, adversaryModel, builderModel, specPath, decisionLogPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
+Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-draft`, with runId, slug, baseBranch, adversaryModel, builderModel, specPath, decisionLogPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
 
 Tell the user about the directory: critique rounds, the plan, review notes, and run state will be saved there so they can open them in their editor rather than scrolling terminal output. Mention the path once here; don't repeat it at every save.
+
+Now present the draft and **stop**: the user reads and edits it until satisfied, and 1d's critique does not begin until they hand it on. Commit any edits they make. This is their first read rather than a gate, so pose no engagement question here; the pre-question comes at the 1d critique, once they have the draft in hand. Put the hand-off prompt last in the turn and wait, the way the gate stops do. The run sits at `spec-draft` for the whole read, so a `/clear` mid-read resumes here; when the user hands it on, set `phase` to `spec-critique` and continue to 1d.
 
 ### 1d. Adversarial spec critique
 

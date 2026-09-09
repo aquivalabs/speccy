@@ -347,6 +347,7 @@ function tree() {
   write(path.join(project, 'sess-a.jsonl'), [
     bannerCall({ ts: at(9, 0) }),
     assistant({ ts: at(9, 10), out: 1000, cr: 50_000 }),
+    stateWrite({ ts: at(9, 20), phase: 'spec-draft' }),
     stateWrite({ ts: at(9, 30), phase: 'spec-critique' }),
     assistant({ ts: at(9, 40), out: 500 }),
     stateWrite({ ts: at(10, 0), phase: 'planning' }),
@@ -447,7 +448,7 @@ test('a discovered run reports contiguous phases whose totals sum to the whole',
   const report = buildReport(RUN, found)
 
   // `complete` closes the timeline rather than becoming a phase of its own.
-  assert.deepEqual(report.phases.map((p) => p.phase), ['spec', 'spec-critique', 'planning'])
+  assert.deepEqual(report.phases.map((p) => p.phase), ['spec', 'spec-draft', 'spec-critique', 'planning'])
   for (let i = 1; i < report.phases.length; i++) {
     assert.equal(report.phases[i].from, report.phases[i - 1].to, 'phases must be contiguous')
   }
@@ -566,6 +567,7 @@ function treeWithStrays() {
 
   write(path.join(project, 'sess-d.jsonl'), [
     bannerCall({ ts: at(9, 0) }),
+    stateWrite({ ts: at(9, 5), phase: 'spec-draft' }),
     stateWrite({ ts: at(9, 10), phase: 'spec-critique' }),
     stateWrite({ ts: at(10, 0), phase: 'complete' }),
     assistant({ ts: at(15, 0), out: 5 }),
@@ -656,9 +658,9 @@ test('a state file that is stale, unfinished, or absent leaves the run open', ()
     return found
   }
   // Older than the last phase boundary, so it cannot be that phase's end.
-  assert.equal(buildReport(RUN, open(), { state: { phase: 'complete', mtime: ms(9, 0) } }).openPhase, 2)
-  assert.equal(buildReport(RUN, open(), { state: { phase: 'wrap-up', mtime: ms(10, 46) } }).openPhase, 2)
-  assert.equal(buildReport(RUN, open(), { state: null }).openPhase, 2)
+  assert.equal(buildReport(RUN, open(), { state: { phase: 'complete', mtime: ms(9, 0) } }).openPhase, 3)
+  assert.equal(buildReport(RUN, open(), { state: { phase: 'wrap-up', mtime: ms(10, 46) } }).openPhase, 3)
+  assert.equal(buildReport(RUN, open(), { state: null }).openPhase, 3)
   fs.rmSync(root, { recursive: true, force: true })
 })
 
