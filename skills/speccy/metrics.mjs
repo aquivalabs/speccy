@@ -20,9 +20,10 @@ import { fileURLToPath } from 'node:url'
 const ACTIVE_GAP_MS = 120_000
 const MODEL_FAMILIES = ['opus', 'sonnet', 'haiku', 'fable']
 
-// The first phase state.json can record. A timeline opening on any other phase
-// has lost its earlier state writes.
-const FIRST_PHASE = 'spec-critique'
+// The first phase state.json can record: the run is created at `spec-draft`,
+// when the first draft is ready for the user to read. A timeline opening on any
+// other phase has lost its earlier state writes.
+const FIRST_PHASE = 'spec-draft'
 
 // ---------------------------------------------------------------- parsing
 
