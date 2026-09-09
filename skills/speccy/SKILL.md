@@ -2,7 +2,7 @@
 name: speccy
 description: Guided specification writing, adversarial spec critique, and post-build review. Full pipeline from rough idea to reviewed implementation.
 when_to_use: When the user says "speccy", "spec mode", "adversarial mode", or similar. Also when about to execute a complex multi-step plan and adversarial critique would help.
-allowed-tools: Bash(bash *skills/speccy/banner.sh), Bash(bash *skills/speccy/metrics.sh), Bash(bash *skills/speccy/metrics.sh *), Read(.speccy/**), Write(.speccy/**), Edit(.speccy/**)
+allowed-tools: Bash(bash *skills/speccy/banner.sh), Bash(bash *skills/speccy/metrics.sh), Bash(bash *skills/speccy/metrics.sh *), Bash(node *skills/speccy/state.mjs *), Read(.speccy/**), Write(.speccy/**), Edit(.speccy/**)
 ---
 
 # speccy
@@ -53,30 +53,9 @@ If the user's trigger message already includes a description of what to build, s
 
 ## Resuming a run
 
-Run state lives at `.speccy/<run-id>/state.json` and is written after every phase boundary. Schema:
+Run state lives at `.speccy/<run-id>/state.json`, written after every phase boundary by `state.mjs`, its **only** writer. You read it directly with the Read tool (resume, the round number N, prior engagement questions, the models, whether a readability pass has run) and never hand-write it. Its fields: runId, slug, baseBranch, adversaryModel, builderModel, phase, specPath, planPath, decisionLogPath, the three round counters, readabilityPasses, engagementQuestions. The schema is closed; the CLI rejects anything else.
 
-```json
-{
-  "runId": "auth-refactor-20260609-1430",
-  "slug": "auth-refactor",
-  "baseBranch": "develop",
-  "adversaryModel": "opus",
-  "builderModel": "sonnet",
-  "phase": "spec-draft" | "spec-critique" | "planning" | "plan-critique" | "implementation" | "review" | "wrap-up" | "complete",
-  "specPath": "specs/auth-refactor.md",
-  "planPath": ".speccy/auth-refactor-20260609-1430/plan.md",
-  "decisionLogPath": "specs/auth-refactor-decision-log.md",
-  "specCritiqueRounds": 1,
-  "planCritiqueRounds": 0,
-  "reviewRounds": 0,
-  "readabilityPasses": ["spec"],
-  "engagementQuestions": [
-    { "gate": "spec-critique", "asked": "the finding you'd bet the reviewer raises" }
-  ]
-}
-```
-
-**The schema is closed.** Write these fields and no others.
+Run the CLI by its **absolute path**, `node <skill-dir>/state.mjs <verb> --run <runId> …` (the same literal-path, no-`cd`, no-substitution rule as the banner; `--run` is required on every verb). It writes loudly: a bad transition or an unmet guard prints the reasons and exits non-zero, leaving state untouched, and every call prints the phase you land in and a one-line hint at what comes next. Each phase below gives the exact call to make; you never need `--help`.
 
 The pull to add a field comes when a decision lands and the artifact hasn't caught up. Write it to the artifact then and there:
 
@@ -91,17 +70,17 @@ What remains is genuinely transient: the user is mid-read, a precondition passed
 
 `adversaryModel` defaults to `"opus"`: the tier for every critique round and the review panel's judgment lenses (the suppressions and comment lenses run a tier below; see **Getting started**). If the user pinned a different adversary model, store that name here instead and use it for every critique round and review lens.
 
-On trigger, read `.speccy/.current-runid`, a pointer to the most recent run written when the run is created (see Phase 1c). If it exists, read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase.
+On trigger, read `.speccy/.current-runid`, a pointer to the most recent run written when the run is created (see Phase 1c). If it exists, Read that run's `state.json`; if `phase` is not `"complete"`, surface the run to the user and ask whether to resume or start fresh. To resume, read the artifacts state.json references (spec, plan, latest critique round) and continue from the recorded phase.
 
 state.json names the spec, plan, and decision log, and no other file. **List `.speccy/<run-id>/` to see what else the run produced** — earlier rounds, spikes, readability change notes, deferred findings — and read what the phase you are resuming into needs.
 
-**When an artifact is replaced, rename what reviewed it.** A re-plan leaves its critique rounds and readability change notes describing a draft that no longer exists, and a resumed context reading one cold will act on findings that no longer apply. Rename each to `SUPERSEDED-<original name>`, which groups them in a listing. They remain the run's history, and the wrap-up reads them for a reversal nobody logged, so rename rather than delete. A spike verdict is evidence about the world rather than a review of a draft, so it keeps its name.
+**When an artifact is replaced, rename what reviewed it.** A re-plan leaves its critique rounds and readability change notes describing a draft that no longer exists, and a resumed context reading one cold will act on findings that no longer apply. For a re-plan, `state.mjs replan` does this: it renames the plan-review files to `SUPERSEDED-<original name>` (a spike verdict is evidence about the world rather than a review of a draft, so it keeps its name). They remain the run's history, grouped in a listing, and the wrap-up reads them for a reversal nobody logged, so they are renamed rather than deleted.
 
 A resumed run skips the precondition checks, so if the recorded phase is `spec-critique` or later, suggest auto-accept mode (shift+tab) first: the rest of the run is autonomous tool calls. A resume at `spec-draft` just re-presents the draft for reading, so it needs no such nudge.
 
-After completing each phase, update state.json and continue to the next phase. The user can `/clear` and re-invoke the skill at any point to resume from the recorded phase; no need to ask permission at phase boundaries.
+After completing each phase, `state.mjs advance` to the next and continue. The user can `/clear` and re-invoke the skill at any point to resume from the recorded phase; no need to ask permission at phase boundaries.
 
-Read and write `.speccy/` state with the Read/Write tools: these paths are pre-approved in this skill's `allowed-tools`, so they won't prompt. Do **not** rely on the Glob tool: it isn't available in every session, which is why run discovery uses the `.current-runid` pointer. The pointer tracks the latest run; earlier runs remain in `.speccy/` if the user wants to revisit one.
+Read `.speccy/` artifacts with the Read tool and write run artifacts (spec, engagement-question files, review notes) with the Write tool; both are pre-approved in `allowed-tools`, as is `state.mjs`, so none prompt. `state.json` itself is written only through `state.mjs`, never by hand. Do **not** rely on the Glob tool: it isn't available in every session, which is why run discovery uses the `.current-runid` pointer. The pointer tracks the latest run; earlier runs remain in `.speccy/` if the user wants to revisit one.
 
 ## Preconditions
 
@@ -190,7 +169,7 @@ Apply these habits at the run's three human gates and nowhere else: the spec cri
 
 Ask these as ordinary questions inside the flow of the gate; never announce that you're doing them and never give them a label to the user (no "engagement check", no "cognitive surrender"): a prompt flagged as a check gets performed rather than thought about. A user who would rather not be asked can simply decline, or say so at the start; honour that, and you need not advertise the possibility.
 
-**Vary the questions across gates.** The job repeats at each gate but the wording must not: the same pre-question framing heard three times decays into a ritual the user pattern-matches and shrugs past, which is the ritualization this whole section fights. Before posing a pre-question or a "what convinced you", read `engagementQuestions` from state.json to see what earlier gates already asked, and come at this one from a fresh angle (a different referent, a different way in) rather than reciting the template. After you ask, append a short paraphrase of what you actually posed (`{ gate, asked }`) to `engagementQuestions` and save state.json. The list starts empty and survives a `/clear`, so a resumed context still knows what framings are spent. The point is to avoid repeating yourself, and it never demands perfect wording: the engagement comes from the loop, and variation only keeps the loop from going stale.
+**Vary the questions across gates.** The job repeats at each gate but the wording must not: the same pre-question framing heard three times decays into a ritual the user pattern-matches and shrugs past, which is the ritualization this whole section fights. Before posing a pre-question or a "what convinced you", read `engagementQuestions` from state.json to see what earlier gates already asked, and come at this one from a fresh angle (a different referent, a different way in) rather than reciting the template. After you ask, write a short paraphrase of what you actually posed to a file and record it with `state.mjs engagement-add --run <id> --gate <gate> --from-file <path>` (the text goes through a file, never a flag). The list starts empty and survives a `/clear`, so a resumed context still knows what framings are spent. The point is to avoid repeating yourself, and it never demands perfect wording: the engagement comes from the loop, and variation only keeps the loop from going stale.
 
 **Each of these questions is a stop.** Ask it as the last thing in the turn and wait: the question fails precisely when the orchestrator asks, then keeps thinking and running tool calls until it scrolls off unanswered. Nothing follows the question until the user replies, and a pre-question never reveals the critique in the same turn (which would pre-empt the answer and lose the anti-anchoring). Put it on its own line at the end of the reply.
 
@@ -246,11 +225,11 @@ Save to `specs/<slug>.md`.
 
 Start `specs/<slug>-decision-log.md` next to it (see **The decision log runs with the run**). Open it with what the run is working from: the seed and how it was treated, and any decision already taken that the spec's Decisions & rationale cannot hold, such as a point where the seed was overruled. If the interview produced no such history, the file opens with the seed alone and stays short. Commit both.
 
-Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create `.speccy/<run-id>/` and ensure `.speccy/` is in `.gitignore`. Write the initial `state.json` (phase: `spec-draft`, with runId, slug, baseBranch, adversaryModel, builderModel, specPath, decisionLogPath). Also write the runId to `.speccy/.current-runid` (plain text, no newline needed) so a later session can find this run without globbing.
+Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`). Create the run with `state.mjs init --run <id> --slug <slug> --base-branch <base> --spec-path specs/<slug>.md --decision-log-path specs/<slug>-decision-log.md` (add `--adversary-model` / `--builder-model` if the user pinned either). This writes `state.json` at `spec-draft`, writes `.speccy/.current-runid` so a later session finds the run without globbing, and gitignores `.speccy/`.
 
 Tell the user about the directory: critique rounds, the plan, review notes, and run state will be saved there so they can open them in their editor rather than scrolling terminal output. Mention the path once here; don't repeat it at every save.
 
-Now present the draft and **stop**: the user reads and edits it until satisfied, and 1d's critique does not begin until they hand it on. Commit any edits they make. This is their first read rather than a gate, so pose no engagement question here; the pre-question comes at the 1d critique, once they have the draft in hand. Put the hand-off prompt last in the turn and wait, the way the gate stops do. The run sits at `spec-draft` for the whole read, so a `/clear` mid-read resumes here; when the user hands it on, set `phase` to `spec-critique` and continue to 1d.
+Now present the draft and **stop**: the user reads and edits it until satisfied, and 1d's critique does not begin until they hand it on. Commit any edits they make. This is their first read rather than a gate, so pose no engagement question here; the pre-question comes at the 1d critique, once they have the draft in hand. Put the hand-off prompt last in the turn and wait, the way the gate stops do. The run sits at `spec-draft` for the whole read, so a `/clear` mid-read resumes here; when the user hands it on, `state.mjs advance --run <id> spec-critique` and continue to 1d.
 
 ### 1d. Adversarial spec critique
 
@@ -260,22 +239,19 @@ Run the loop to exhaustion before offering to clear or move on. The user is in t
 
 For each round (up to 3):
 
-1. **Critique.** Spawn an adversary subagent (Agent tool) with the spec critique prompt and the path to the spec. Instruct it to **write its review to `.speccy/<run-id>/spec-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one). Tell it whether the readability pass has run (`readabilityPasses` in state.json): before the pass it critiques substance only and skips the reader lens, since the pass rewrites the prose anyway and the user shouldn't spend triage on findings that get fixed regardless.
+1. **Critique.** Start the round with `state.mjs record-round --run <id> spec-critique`; the new count is this round's **N**. Spawn an adversary subagent (Agent tool) with the spec critique prompt and the path to the spec. Instruct it to **write its review to `.speccy/<run-id>/spec-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one). Tell it whether the readability pass has run (read `readabilityPasses` from state.json): before the pass it critiques substance only and skips the reader lens, since the pass rewrites the prose anyway and the user shouldn't spend triage on findings that get fixed regardless.
 2. **Present.** Before showing the critique, ask the user to predict it: the finding they'd bet the reviewer raises, or the part of the spec they'd defend least confidently (see **Steering away from cognitive surrender**). If they have none and you can see a genuine soft spot, offer to look at it together; if the spec is solid, let it go. Then read `.speccy/<run-id>/spec-critique-round-N.md` (N from state.json), present its findings, and close the loop against their prediction ("you expected X; it flagged Y. Surprised?"). Point the user to the file for the full text. Ask which findings to incorporate, and on the most consequential finding they choose to adopt, ask what convinced them: adopting the adversary's call is where borrowed confidence lives; a finding they reject on their own judgement is their call, so leave it. Log their answer in their words, along with any position the round reversed. If the round surfaced no valuable criticism, the critique is done, but don't leave the loop until the readability pass has run and a round has read the result (see below).
 3. **Revise.** Spawn a revise subagent (Agent tool) **on opus** with `prompts/revise.md`, the spec path, the critique file path, and the list of accepted findings. The subagent rewrites the spec in place. Once it completes, commit the updated spec with a message summarising the accepted findings you incorporated: you already have that list, so build the message from it rather than from the agent's return. Then run the next round to check the revisions and probe deeper.
 
-**The readability pass runs after round 1, once per run, whether or not that round produced a revision.** Spawn a subagent **on sonnet** with `prompts/readability-pass.md`, `prompts/writing-style.md`, `prompts/spec-template.md`, the spec path, and `.speccy/<run-id>/readability-spec.md` as its change-note path. It rewrites the spec for its reader and changes nothing the spec says. Commit it separately from the round's revision, so the user can read a rewrite-only diff, and append `"spec"` to `readabilityPasses` in state.json so a resumed context doesn't run it twice. Sonnet is the tier because rewriting to a written style guide is execution against an instruction, and the critique round that follows is what checks the result; a pinned `adversaryModel` doesn't govern this agent, which isn't a critic.
+**The readability pass runs after round 1, once per run, whether or not that round produced a revision.** Spawn a subagent **on sonnet** with `prompts/readability-pass.md`, `prompts/writing-style.md`, `prompts/spec-template.md`, the spec path, and `.speccy/<run-id>/readability-spec.md` as its change-note path. It rewrites the spec for its reader and changes nothing the spec says. Commit it separately from the round's revision, so the user can read a rewrite-only diff, and record it with `state.mjs record-readability --run <id> spec` so a resumed context doesn't run it twice. Sonnet is the tier because rewriting to a written style guide is execution against an instruction, and the critique round that follows is what checks the result; a pinned `adversaryModel` doesn't govern this agent, which isn't a critic.
 
 **A critique round always follows the pass.** A rewrite is the one step that can silently drop a load-bearing fact, and a critic reading the rewritten spec cold is what catches that: missing deliverables and unstated constraints are already its first two finding classes. So the pass never lands after the last round: if round 1 surfaced no valuable criticism, run the pass anyway and let round 2 check it. **Don't give that round the change note.** A critic told what was cut checks those cuts and reads past everything else, and the cut nobody declared is the failure this round exists to catch. `readability-spec.md` is for you, the user, and the wrap-up: tell the user what the pass cut before they read the round's findings.
 
-After 3 rounds, proceed regardless. Update state.json after each round (`specCritiqueRounds`).
+After 3 rounds, proceed regardless. (Step 1's `record-round` keeps `specCritiqueRounds` current.)
 
-**Exit checks.** Confirm each before leaving this phase (a resumed context has only what's on disk):
+**Leaving the phase.** `state.mjs advance --run <id> planning` refuses until the mechanical exits hold. One thing it can't check, so do it first:
 
-- the revised spec is committed
-- `readabilityPasses` includes `"spec"`, and a critique round ran after it
-- the findings the user skipped, and any the 3-round cap left unaddressed, are in `.speccy/<run-id>/spec-critique-skipped.md` with the reason. The wrap-up reports them, and the `/clear` suggested just below deletes anything held only in conversation. Keep them out of `deferred.md`: the review panel is told not to re-raise anything in that file, and a skipped spec finding is a decision about the spec rather than acceptance of the matching defect in the code.
-- `phase` is `"planning"`
+- the findings the user skipped, and any the 3-round cap left unaddressed, go in `.speccy/<run-id>/spec-critique-skipped.md` with the reason. The wrap-up reports them, and the `/clear` suggested just below deletes anything held only in conversation. Keep them out of `deferred.md`: the review panel is told not to re-raise anything in that file, and a skipped spec finding is a decision about the spec rather than acceptance of the matching defect in the code.
 
 Only once the loop has fully exited, reach the primary context-clearing point. The spec interview and critique are the heaviest interactive context in the run, and the approved spec now captures every decision in a committed file, so the window can reset before planning, which is largely subagent-driven. Verify all run state is in files (state.json current, spec committed, external references recorded in the spec rather than left only in conversation), then suggest the user `/clear` and re-invoke to resume at planning. If they'd rather continue, proceed to Phase 2.
 
@@ -291,9 +267,9 @@ Planning research happens in a subagent to keep the codebase-reading noise out o
 
 Spawn a planning subagent (Agent tool) with the plan-research prompt, the spec path, the target plan path (`.speccy/<run-id>/plan.md`), the paths to `prompts/plan-template.md` and `prompts/writing-style.md`, and the path to `prompts/plan-spike.md` so the planner can prove any load-bearing mechanism (preferably by spawning a spike subagent, or inline). If the spec recorded external context (docs, standards, related projects), pass those references too. Read them from the spec rather than relying on conversation memory, since planning may run in a freshly cleared context.
 
-When it completes, brief the user on the approach, key decisions, and risks from `.speccy/<run-id>/plan.md`; point them there for the full text rather than dumping it inline. Update state.json with `planPath` and `phase: "plan-critique"`.
+When it completes, brief the user on the approach, key decisions, and risks from `.speccy/<run-id>/plan.md`; point them there for the full text rather than dumping it inline. Then `state.mjs advance --run <id> plan-critique --plan-path .speccy/<run-id>/plan.md`, which records the plan path.
 
-**If the plan flags a contradicted spec assumption**, stop before the plan-critique loop and put it to the user as a blocking choice: accept the adjusted scope, or revise the spec and re-plan. A falsified assumption can invalidate scope, so this blocking gate always fires.
+**If the plan flags a contradicted spec assumption**, stop before the plan-critique loop and put it to the user as a blocking choice: accept the adjusted scope, or revise the spec and re-plan (`state.mjs replan --run <id>`, which resets the plan loop and supersedes the stale plan-review files). A falsified assumption can invalidate scope, so this blocking gate always fires.
 
 ### 2a. Adversarial plan critique
 
@@ -301,21 +277,15 @@ The spec has already been hardened. Now the plan gets an independent review. Thi
 
 For each round (up to 3):
 
-1. **Critique.** Spawn an adversary subagent with the plan critique prompt, the path to the plan, and the path to the spec (for context; the spec itself should not be re-reviewed). Instruct it to **write its review to `.speccy/<run-id>/plan-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one). Tell it whether the readability pass has run (`readabilityPasses` in state.json): before the pass it critiques substance only and skips the reader lens. Read the critique file (N from state.json) to triage. If no legitimate flaws found, the critique is done, but don't leave the loop until the readability pass has run and a round has read the result (see below).
+1. **Critique.** Start the round with `state.mjs record-round --run <id> plan-critique`; the new count is this round's **N**. Spawn an adversary subagent with the plan critique prompt, the path to the plan, and the path to the spec (for context; the spec itself should not be re-reviewed). Instruct it to **write its review to `.speccy/<run-id>/plan-critique-round-N.md`**. Use **opus** for the model override on every round (or the user's pinned model, if they set one). Tell it whether the readability pass has run (read `readabilityPasses` from state.json): before the pass it critiques substance only and skips the reader lens. Read the critique file (N from state.json) to triage. If no legitimate flaws found, the critique is done, but don't leave the loop until the readability pass has run and a round has read the result (see below).
 2. **Spike, if the critique flags an unproven load-bearing mechanism.** The critic judges the plan's evidence but does not spike; when it flags a mechanism whose feasibility the plan hasn't proven, prove it before revising. Spawn a spike subagent with `prompts/plan-spike.md` and the mechanism to prove, writing its verdict to `.speccy/<run-id>/spike-round-N.md`. Read the verdict:
    - `confirmed` → carry its evidence into the revise step so the plan records it in the Assumptions check.
-   - `refuted` or `unproven` → a load-bearing mechanism that can't be proven can invalidate scope, so treat it like a contradicted spec assumption. Stop the loop and put a blocking choice to the user: accept a redesign around a mechanism that works, or revise the spec and re-plan. Like the contradicted-assumption gate, this one always fires.
+   - `refuted` or `unproven` → a load-bearing mechanism that can't be proven can invalidate scope, so treat it like a contradicted spec assumption. Stop the loop and put a blocking choice to the user: accept a redesign around a mechanism that works, or revise the spec and re-plan (`state.mjs replan --run <id>`). Like the contradicted-assumption gate, this one always fires.
 3. **Revise.** Spawn a revise subagent **on opus** with `prompts/revise.md`, the plan path, the critique file path, and instructions to incorporate every finding in the critique. When it completes, the revised plan file is the truth; don't depend on its return. Commit it, with a message built from the critique's findings rather than from the agent's return.
 
-**The readability pass runs after round 1, whether or not that round produced a revision, and a critique round always follows it.** This is the same shape as the spec loop in 1d, and for the same reason: a critic reading the rewritten plan cold is what catches a rewrite that dropped something load-bearing. So the pass never lands after the last round: if round 1 found no legitimate flaws, run the pass anyway and let round 2 check it, and don't give that round the change note. Spawn the pass **on sonnet** with `prompts/readability-pass.md`, `prompts/writing-style.md`, `prompts/plan-template.md`, the plan path, the spec path, and `.speccy/<run-id>/readability-plan.md` as its change-note path. Commit it separately from the round's revision, then append `"plan"` to `readabilityPasses`. This one earns its keep twice over, because 2b is where the user reads the plan and decides whether to build from it.
+**The readability pass runs after round 1, whether or not that round produced a revision, and a critique round always follows it.** This is the same shape as the spec loop in 1d, and for the same reason: a critic reading the rewritten plan cold is what catches a rewrite that dropped something load-bearing. So the pass never lands after the last round: if round 1 found no legitimate flaws, run the pass anyway and let round 2 check it, and don't give that round the change note. Spawn the pass **on sonnet** with `prompts/readability-pass.md`, `prompts/writing-style.md`, `prompts/plan-template.md`, the plan path, the spec path, and `.speccy/<run-id>/readability-plan.md` as its change-note path. Commit it separately from the round's revision, then record it with `state.mjs record-readability --run <id> plan`. This one earns its keep twice over, because 2b is where the user reads the plan and decides whether to build from it.
 
-After 3 rounds, exit the loop regardless. Update state.json after each round (`planCritiqueRounds`). When the loop exits, surface a one-line note of how many rounds ran and what changed, then proceed to 2b.
-
-**Exit checks.** Confirm each before leaving this phase (a resumed context has only what's on disk):
-
-- the spec's **Status** is `Accepted`
-- the revised plan is committed
-- `readabilityPasses` includes `"plan"`, and a critique round ran after it
+After 3 rounds, exit the loop regardless. (Step 1's `record-round` keeps `planCritiqueRounds` current.) When the loop exits, surface a one-line note of how many rounds ran and what changed, then proceed to 2b. The move to `implementation` happens at the end of 2b once the user approves; its guard (plan file present, a critique round after the plan readability pass) is checked there.
 
 ### 2b. User review
 
@@ -325,9 +295,9 @@ This is the highest-stakes human gate, so engage it deliberately (see **Steering
 - **Then present, candidly.** Have them read the plan file directly rather than re-dumping it into the conversation. Walk through the two or three load-bearing decisions, and for each surface the alternative the plan rejected and its best argument. Include any **load-bearing** call the 2a critique settled autonomously: flag it as speccy's own and invite the user to own or challenge it (re-tag it *speccy, user-agreed* if they ratify it, *User* if they change it). Leave the trivial or clearly-correct revisions unremarked, since parading them just trains the user to skim. Flag where the plan is genuinely uncertain, and don't let a confident passage stand in for a verified one.
 - **Name what convinced you.** On the single most consequential decision, ask the user to say what persuaded them, and whether they checked it or are trusting the plan's confidence.
 
-**Recommend a builder.** With the plan's shape now clear, tell the user whether Sonnet (the default) or Opus suits this build, and why: weigh complexity and novelty, how much is left to build-time judgment versus mechanical execution, and how tightly the plan pins down each task. They set `builderModel`.
+**Recommend a builder.** With the plan's shape now clear, tell the user whether Sonnet (the default) or Opus suits this build, and why: weigh complexity and novelty, how much is left to build-time judgment versus mechanical execution, and how tightly the plan pins down each task. Record their choice with `state.mjs set-model --run <id> --builder <model>`.
 
-The adversary has already cleaned up obvious issues; this is the user's chance to raise concerns it missed, adjust the approach on their own knowledge, or approve as-is. Iterate until the user is satisfied. Tag each load-bearing plan decision's **origin** in the plan's decision body: one the user reshapes or overrides on their own knowledge is **User**; one speccy proposed that the user examined and signed off here is **speccy, user-agreed**; one the 2a critique settled autonomously that never surfaced at this gate stays **speccy, alone**. That provenance lets the wrap-up probe each the right way, and stops it re-asking the user to justify a steer they made themselves. When approved, set `phase: "implementation"` in state.json.
+The adversary has already cleaned up obvious issues; this is the user's chance to raise concerns it missed, adjust the approach on their own knowledge, or approve as-is. Iterate until the user is satisfied. Tag each load-bearing plan decision's **origin** in the plan's decision body: one the user reshapes or overrides on their own knowledge is **User**; one speccy proposed that the user examined and signed off here is **speccy, user-agreed**; one the 2a critique settled autonomously that never surfaced at this gate stays **speccy, alone**. That provenance lets the wrap-up probe each the right way, and stops it re-asking the user to justify a steer they made themselves. When approved, `state.mjs advance --run <id> implementation`.
 
 Before starting implementation, verify all run state is in files: state.json current, spec and plan committed, review decisions reflected in the plan. The main clear already happened after the spec, so this is conditional: if plan critique and review accumulated heavy context, suggest the user `/clear` and re-invoke to resume at implementation; if planning stayed lean, just proceed.
 
@@ -339,7 +309,7 @@ Invoke the `plan-execution` skill directly via the Skill tool from the main conv
 
 Do _not_ wrap this in an Agent subagent: Agent subagents lack `Workflow`, so the call breaks. Plan-execution already backgrounds its own work (breakdown, execute, integrate, verify); only the final result returns.
 
-When the workflow reports complete, do not advance on its "gates pass" / "0 violations" summary: a build agent can satisfy a gate by fabricating or inverting a rule and still report green. Re-run the project's load-bearing gates yourself (the build, lint / static-analysis, and test commands from CLAUDE.md) and confirm the actual tool output. If a gate fails, the run isn't done: carry the real tool output into a fix round (the Phase 4 implementation-fix agent handles exactly this), re-run the gates after it, and repeat until you have seen them pass. Only then set `phase: "review"` in state.json and continue.
+When the workflow reports complete, do not advance on its "gates pass" / "0 violations" summary: a build agent can satisfy a gate by fabricating or inverting a rule and still report green. Re-run the project's load-bearing gates yourself (the build, lint / static-analysis, and test commands from CLAUDE.md) and confirm the actual tool output. If a gate fails, the run isn't done: carry the real tool output into a fix round (the Phase 4 implementation-fix agent handles exactly this), re-run the gates after it, and repeat until you have seen them pass. Only then `state.mjs advance --run <id> review` and continue.
 
 If the implementation workflow exits incomplete, stop the pipeline. Report what's done and what remains: the user has a branch with partial progress. State.json remains at `phase: "implementation"` so the run can be resumed later.
 
@@ -368,7 +338,7 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
 
 ### The loop (up to 3 rounds)
 
-1. **Review.** Spawn the bespoke lenses as parallel subagents in one message, and invoke the inline gates in the main conversation (see above): `code-review` every round, and the project review gate if the repo ships one. Their own fan-out overlaps with the spawned lenses. **Every round is a cold review**, rounds 2 and 3 included. Point each lens at the whole diff again, and add the round-(N-1) fixes as further ground to cover: verify they hold, and catch any regression they introduced. A round that *only* verifies the last round's fixes can never find what the panel missed the first time, and one cold pass is not enough: findings well within the panel's reach routinely surface in a later independent review of the same code. Always pass the `.speccy/<run-id>/deferred.md` list as accepted decisions it must not re-raise.
+1. **Review.** Start the round with `state.mjs record-round --run <id> review`; the new count is this round's **N**. Spawn the bespoke lenses as parallel subagents in one message, and invoke the inline gates in the main conversation (see above): `code-review` every round, and the project review gate if the repo ships one. Their own fan-out overlaps with the spawned lenses. **Every round is a cold review**, rounds 2 and 3 included. Point each lens at the whole diff again, and add the round-(N-1) fixes as further ground to cover: verify they hold, and catch any regression they introduced. A round that *only* verifies the last round's fixes can never find what the panel missed the first time, and one cold pass is not enough: findings well within the panel's reach routinely surface in a later independent review of the same code. Always pass the `.speccy/<run-id>/deferred.md` list as accepted decisions it must not re-raise.
 
    Run all lenses every round by default. You may drop a lens only when the fix round provably didn't touch its surface (e.g. skip local-doc adherence when nothing under a governing doc changed). A lens finding nothing last round is **not** grounds to drop it: yield describes the round that ran rather than the code as it now stands, and the lenses whose clean result is the expected one (suppressions above all) are exactly the ones a fix round is most likely to break. Note any lens you drop and why.
 
@@ -398,13 +368,11 @@ Run the bespoke lenses on **opus**, except suppressions and comments on **sonnet
 
    After the last fix agent commits, re-run the load-bearing gates yourself and confirm the actual output before the next round; never advance on a fix agent's claim that the gates pass. (Gates passing doesn't prove coverage held; a dropped test still passes.) A fixer runs only the checks covering what it touched, so this is what covers the round's work as a whole, and it is where an unverified hand-back gets its verdict. Between batches nothing is gated but the blockers, which is the accepted cost of not paying for a full suite per batch: a breakage a batch's own checks miss surfaces here, with the round's other commits already on top of it.
 
-After 3 rounds, proceed regardless. Update state.json after each round (`reviewRounds`).
+After 3 rounds, proceed regardless. (Step 1's `record-round` keeps `reviewRounds` current.)
 
-**Exit checks.** Confirm each before leaving this phase (a resumed context has only what's on disk):
+**Leaving the phase.** `state.mjs advance --run <id> wrap-up` enforces the mechanical exit (a review round ran) and refuses to jump straight to `complete`. One thing it can't check, so do it first:
 
-- every finding still dispositioned Fix when the cap hit is in `.speccy/<run-id>/deferred.md` under `## Unaddressed at the round cap`, with the reason. These are not deferrals (the panel judged them in scope and the rounds ran out), so the heading is what lets the wrap-up report them as unfixed rather than as future work.
-- `reviewRounds` is current
-- `phase` is `"wrap-up"`, never `"complete"`. The wrap-up hasn't run yet, and `complete` is what tells a resumed session there is nothing left to do.
+- every finding still dispositioned Fix when the cap hit goes in `.speccy/<run-id>/deferred.md` under `## Unaddressed at the round cap`, with the reason. These are not deferrals (the panel judged them in scope and the rounds ran out), so the heading is what lets the wrap-up report them as unfixed rather than as future work.
 
 Any `deferred.md` items surface at wrap-up.
 
@@ -421,16 +389,14 @@ When all phases complete, report concisely, both in the chat and in `.speccy/<ru
    - **Skipped at spec critique** (`.speccy/<run-id>/spec-critique-skipped.md`): findings the user declined, and any the 3-round cap left unaddressed. Also follow-up candidates.
    - **Unaddressed at the round cap** (`deferred.md`, its own section): findings the panel dispositioned Fix and the cap left unfixed. These are known defects in the branch about to merge rather than future work, so put them to the user as a decision: fix them now, or merge knowing they are there.
 4. **Retrospective**: if the task execution skill produced one, save it to `.speccy/<run-id>/retrospective.md` and surface the cross-cutting patterns. If it has a `## Repo-doc suggestions (CLAUDE.md / ADR)` section, present those for the user to accept or decline; never auto-apply them.
-**Exit checks.** Only once all of these hold, set `phase: "complete"`:
+**Complete the run.** `state.mjs advance --run <id> complete` enforces that `.speccy/<run-id>/summary.md` is written and `specs/<slug>-decision-log.md` is committed, and refuses until they hold. Two more are yours to confirm before you call it:
 
-- `.speccy/<run-id>/summary.md` is written
-- `specs/<slug>-decision-log.md` is written and committed
 - all three kinds of unaddressed feedback are reported: deferred by scope, skipped at spec critique, and unaddressed at the round cap
 - the retrospective is saved, if the task execution skill produced one
 
-Set `complete` any earlier and a `/clear` during the wrap-up resumes as a finished run, silently dropping the decision log and the retrospective: the artifacts the handoff exists to produce.
+Advance to `complete` any earlier and a `/clear` during the wrap-up resumes as a finished run, silently dropping the decision log and the retrospective: the artifacts the handoff exists to produce.
 
-**Last, after `complete` is set: what the run cost.** Run the metrics script from this skill's own directory by its **absolute path**, the same way the banner runs (no `cd`, no command substitution, or the pre-approved permission match breaks).
+**Last, after the run is `complete`: what the run cost.** Run the metrics script from this skill's own directory by its **absolute path**, the same way the banner runs (no `cd`, no command substitution, or the pre-approved permission match breaks).
 
 ```bash
 bash <skill-dir>/metrics.sh
