@@ -18,6 +18,7 @@ import {
   firstPromptLine,
   isStateWrite,
   phaseBoundaries,
+  writesRunState,
   bannerMarker,
   buildTimeline,
   bucketByPhase,
@@ -81,6 +82,16 @@ function bannerCall({ ts }) {
     ts,
     out: 1,
     content: [{ type: 'tool_use', name: 'Bash', id: 'tu3', input: { command: 'bash /plugins/speccy/skills/speccy/banner.sh' } }],
+  })
+}
+
+// A state.mjs invocation, the way the orchestrator now writes state: a Bash call
+// rather than a Write of state.json.
+function cliCall({ ts, args }) {
+  return assistant({
+    ts,
+    out: 1,
+    content: [{ type: 'tool_use', name: 'Bash', id: 'tu4', input: { command: `node /plugins/speccy/skills/speccy/state.mjs ${args}` } }],
   })
 }
 
@@ -234,6 +245,39 @@ test('the first bucket covers the interview, before state.json exists', () => {
     { phase: 'spec', from: ms(9), to: ms(9, 30) },
     { phase: 'spec-critique', from: ms(9, 30), to: ms(10) },
   ])
+})
+
+// ------------------------------------------------ phase timeline via state.mjs
+
+test('a state.mjs advance is a boundary at its target phase', () => {
+  const found = phaseBoundaries(entriesOf(cliCall({ ts: at(9, 30), args: `advance spec-critique --run ${RUN}` })), RUN)
+  assert.deepEqual(found, [{ ts: ms(9, 30), phase: 'spec-critique' }])
+})
+
+test('a state.mjs init opens the run at the first phase', () => {
+  const found = phaseBoundaries(entriesOf(cliCall({ ts: at(9), args: `init --run ${RUN} --slug demo --base-branch main` })), RUN)
+  assert.deepEqual(found, [{ ts: ms(9), phase: 'spec-draft' }])
+})
+
+test('the target phase is found whatever the flag order', () => {
+  const found = phaseBoundaries(entriesOf(cliCall({ ts: at(10), args: `advance --run ${RUN} --plan-path x planning` })), RUN)
+  assert.deepEqual(found, [{ ts: ms(10), phase: 'planning' }])
+})
+
+test('a non-phase state.mjs call is not a boundary', () => {
+  const found = phaseBoundaries(entriesOf(cliCall({ ts: at(9, 40), args: `record-round spec-critique --run ${RUN}` })), RUN)
+  assert.deepEqual(found, [])
+})
+
+test('a state.mjs call for another run is ignored', () => {
+  const other = cliCall({ ts: at(9, 30), args: 'advance planning --run other-run-20260101-0900' })
+  assert.deepEqual(phaseBoundaries(entriesOf(other), RUN), [])
+  assert.equal(writesRunState(entriesOf(other), RUN), false)
+})
+
+test('a session that writes state only through state.mjs still counts as the run', () => {
+  const text = cliCall({ ts: at(9), args: `init --run ${RUN} --slug demo --base-branch main` })
+  assert.equal(writesRunState(entriesOf(text), RUN), true)
 })
 
 // ------------------------------------------------------------ attribution

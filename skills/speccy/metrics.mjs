@@ -17,13 +17,16 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { PHASE_ORDER } from './state.mjs'
+
 const ACTIVE_GAP_MS = 120_000
 const MODEL_FAMILIES = ['opus', 'sonnet', 'haiku', 'fable']
 
 // The first phase state.json can record: the run is created at `spec-draft`,
 // when the first draft is ready for the user to read. A timeline opening on any
-// other phase has lost its earlier state writes.
-const FIRST_PHASE = 'spec-draft'
+// other phase has lost its earlier state writes. Sourced from state.mjs so the
+// phase enum lives in one place.
+const FIRST_PHASE = PHASE_ORDER[0]
 
 // ---------------------------------------------------------------- parsing
 
@@ -162,13 +165,34 @@ function phaseFromInput(name, input) {
   return null
 }
 
+/** Is this Bash command a state.mjs call that mutates this run? */
+function commandWritesState(command, runId) {
+  if (typeof command !== 'string' || !command.includes('state.mjs')) return false
+  return new RegExp(`--run\\s+${runId}\\b`).test(command)
+}
+
+// state.mjs owns the writes now, so a phase boundary shows up as a `node
+// ...state.mjs <verb> --run <id>` Bash call rather than a Write of state.json.
+// `init` opens the run at the first phase; `advance` names its target phase as a
+// token. Everything else (record-round, etc.) mutates without moving the phase.
+function phaseFromCommand(command, runId) {
+  if (!commandWritesState(command, runId)) return null
+  if (/\bstate\.mjs\s+init\b/.test(command)) return FIRST_PHASE
+  if (!/\bstate\.mjs\s+advance\b/.test(command)) return null
+  return command.split(/\s+/).find((tok) => PHASE_ORDER.includes(tok)) ?? null
+}
+
 /** Entries -> [{ts, phase}] for every state write that assigns a phase. */
 export function phaseBoundaries(entries, runId) {
   const found = []
   for (const { entry, use } of toolUses(entries)) {
-    if (!isStateWrite(use.input?.file_path, runId)) continue
-    const phase = phaseFromInput(use.name, use.input)
-    if (!phase) continue // a round-counter bump leaves `phase` untouched
+    let phase = null
+    if (isStateWrite(use.input?.file_path, runId)) {
+      phase = phaseFromInput(use.name, use.input) // a round-counter bump leaves `phase` untouched
+    } else if (use.name === 'Bash') {
+      phase = phaseFromCommand(use.input?.command, runId)
+    }
+    if (!phase) continue
     const ts = Date.parse(entry.timestamp)
     if (!Number.isNaN(ts)) found.push({ ts, phase })
   }
@@ -177,7 +201,11 @@ export function phaseBoundaries(entries, runId) {
 
 /** Does this session actually belong to the run, or merely mention it? */
 export function writesRunState(entries, runId) {
-  return toolUses(entries).some(({ use }) => isStateWrite(use.input?.file_path, runId))
+  return toolUses(entries).some(
+    ({ use }) =>
+      isStateWrite(use.input?.file_path, runId) ||
+      (use.name === 'Bash' && commandWritesState(use.input?.command, runId)),
+  )
 }
 
 /** The banner is shown on every speccy invocation, so it marks the run's start. */
