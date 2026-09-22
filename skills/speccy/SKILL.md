@@ -41,7 +41,7 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 
 Each phase has its own model default:
 
-- **Spec and plan critique**: the adversary runs on opus every round, up to 3 rounds. These are short, high-leverage artifacts where cheaper tiers cost more in false-positive triage than they save. The revise agent and readability pass inside each loop run on sonnet: each executes a written instruction, checked by the critique round that follows.
+- **Spec and plan critique**: the adversary runs on opus every round, up to 3 rounds. These are short, high-leverage artifacts where cheaper tiers cost more in false-positive triage than they save. The revise agent and readability pass inside each loop run on sonnet: each executes a written instruction.
 - **Implementation review**: parallel review lenses, up to 3 rounds (see Phase 4). The four judgment lenses (spec fidelity, tests, codebase fit, local-doc adherence) run on opus, and the suppressions and comments lenses on sonnet; the built-in `code-review` skill runs alongside them at `high` effort and manages its own models.
 - **Builder** (execute/integrate/verify inside plan-execution): sonnet; plan-execution's breakdown agent always uses opus.
 
