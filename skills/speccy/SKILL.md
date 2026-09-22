@@ -189,7 +189,7 @@ The phase bodies live in one file each, under `phases/` (relative to this SKILL.
 | `phase` in state.json | Read |
 | --- | --- |
 | `spec-draft`, `spec-critique` | `phases/spec.md` (Phase 1) |
-| `planning`, `plan-critique` | `phases/plan.md` (Phase 2) |
+| `planning`, `plan-critique`, `plan-review` | `phases/plan.md` (Phase 2) |
 | `implementation`, `review`, `wrap-up` | `phases/build.md` (Phases 3–4 + wrap-up) |
 | `complete` | none; report and run metrics (see `phases/build.md`, wrap-up) |
 
