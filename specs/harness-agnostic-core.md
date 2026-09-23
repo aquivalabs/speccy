@@ -33,6 +33,7 @@ Two decisions shape everything below:
 
 - No new harness beyond Codex is built. The contract is designed to admit OpenCode, Pi, and others; none is implemented or verified here.
 - A harness that provides no spawn capability — neither native subagents nor a headless subprocess mode — is out of scope. Supporting one would be a later change.
+- This PR targets Claude Code and Codex, both of which have native subagents. Pi (native subagents absent, headless mode present) is dropped from this PR along with the headless-spawn polyfill it would need; the contract must still admit it later.
 - speccy's pipeline semantics do not change. Phases, gates, critique loops, and review lenses behave as they do today; this is a restructuring, not a redesign.
 - Claude Code behaviour and output are preserved. The core is neutralised, but a Claude Code run produces what it does now.
 - No general plugin framework. The binding layer covers what speccy's two skills need, nothing more.
@@ -100,9 +101,9 @@ Two decisions shape everything below:
   **Why**: Intent-level is vendor-neutral and free for the actions every harness has; the beyond-baseline capabilities are exactly where intent underspecifies (structured spawn, parallel, monitor), so they need an explicit, deterministic binding. Neither approach fits both halves. User-facing commands speccy issues (Claude Code's `/clear`, `shift+tab`, `/effort`) are baseline interaction, expressed at intent level ("clear the context and re-invoke").
   **Origin**: User.
 
-- **Decision**: Treat the spawn capability — a fresh-context agent that returns a result — as required of any target, satisfied by a native subagent or a headless subprocess. A harness offering neither is out of scope until a later change adds it.
-  **Alternatives**: Synthesise spawn from lower primitives on any harness, however limited; or restrict speccy to harnesses with native subagents only.
-  **Why**: speccy is a delegation pipeline end to end, so a harness that cannot spawn cannot run it without a redesign; requiring spawn is honest rather than limiting. Every target we care about provides it — Codex natively and via `codex exec`, OpenCode and Pi via their headless modes.
+- **Decision**: Spawn is a required capability of any target, met by a native subagent or a headless subprocess. This PR implements the native form only: orchestrator-level spawns use Claude's `Agent` tool and Codex's native subagents, and since speccy reads the file an agent writes rather than its returned summary, Codex's natural-language return costs nothing. The generic headless-subprocess spawn polyfill — for a future harness without native subagents, such as Pi — is deferred; its insertion point will be clear once the binding exists. The workflow runtime's structured, parallel spawns are a separate matter and use `codex exec --output-schema` (see the workflow runtime contract).
+  **Alternatives**: Build the headless spawn polyfill now, to keep Pi in this PR.
+  **Why**: Both built targets have native subagents, and the read-the-file result pattern makes them sufficient, so the polyfill would serve only Pi — which we drop to simplify. Deferring it costs nothing structural: spawn stays in the contract with one implementation for now, and the contract still admits the headless form later.
   **Origin**: User.
 
 - **Decision**: Give harnesses that lack a capability a portable polyfill, and bind to the native capability where the harness has one.
