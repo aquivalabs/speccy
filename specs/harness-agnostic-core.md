@@ -8,7 +8,7 @@ speccy is welded to Claude Code. Its two skills (`speccy`, `plan-execution`) cal
 
 Two decisions shape everything below:
 
-- **The core targets a harness capability contract, bound at first run from what the package carries.** Each capability (spawn a subagent, run tasks in parallel, monitor a long job, and the rest) resolves to a native adapter or a portable polyfill, read from a binding file that shipped in the install rather than probed for. The running agent never branches on which harness it is in.
+- **The core targets a harness capability contract, bound once at first run.** Each capability (spawn a subagent, run tasks in parallel, monitor a long job, and the rest) resolves to a native adapter or a portable polyfill, from a binding established once at first run and recorded, never probed for. The running agent never branches on which harness it is in.
 - **Semantics are authored once, with no vendor leakage; Codex is the reference target, not the mould.** A change to what speccy does happens once in the core and reaches every harness. Codex exists to verify the contract holds against a second real harness; the contract's shape must admit a third without touching the core.
 
 ## Deliverables
@@ -25,9 +25,9 @@ Two decisions shape everything below:
 
 - **A shared instruction file, `AGENTS.md`**, read by both harnesses, replacing today's Claude-only `CLAUDE.md` for the project instructions speccy relies on.
 
-- **A packaging step** that assembles a working install for a named target from the shared core and its adapter, and drops the target's binding record into the package. This runs when speccy is packaged, not on the user's machine.
+- **A packaging step** that assembles a working install for a named target from the shared core and its adapter. This runs when speccy is packaged, not on the user's machine.
 
-- **A binding record**, shipped in the per-harness package, that names the target and maps each capability and each model rung to its concrete mechanism. A first-run precondition loads and validates it into the run, so every phase reads the binding rather than re-deriving it.
+- **A first-run identity-and-binding precondition.** It establishes the harness identity once from a declared source, resolves the binding record (target, capability→mechanism map, model-rung→model map), records it, and validates it. Every phase then reads the binding rather than re-deriving it. The declared source is a per-harness detail — a package that carries it, a one-time user declaration, or a reliable harness-provided signal — decided in planning; the precondition never probes to guess the harness.
 
 ## Scope boundaries
 
@@ -40,7 +40,7 @@ Two decisions shape everything below:
 ## Constraints
 
 - **One source of truth for semantics.** A semantic change is authored once in the core. Duplication is confined to the binding layer, and minimised there.
-- **No runtime harness branching.** The core never inspects or names its host. Every harness difference is settled in the package and loaded once at first run.
+- **No runtime harness branching.** The core never inspects or names its host. Every harness difference is declared once at first run and recorded.
 - **No vendor leakage in the core.** Adding a harness requires a new adapter and zero edits to core files. This is a structural property of the contract, not a coding-style preference.
 - **Harness facts are verified against current documentation, never memory.** Both harnesses move; Codex's subagent, model, and skill surfaces changed in 2026 and its docs warn of more. The contract must not hard-code a volatile specific where a role or capability name will do.
 - **The existing verification survives.** `node --test "skills/speccy/test/*.test.mjs"` keeps passing, and the CI `status-check` job keeps its name (branch protection depends on it).
@@ -56,9 +56,9 @@ Two decisions shape everything below:
 
 ## Decisions & rationale
 
-- **Decision**: Bind capabilities from the packaged binding, loaded at first run; the core never branches on its harness.
+- **Decision**: Bind capabilities from a binding established once at first run; the core never branches on its harness.
   **Alternatives**: A runtime shim the core queries for "which harness am I in?" and switches on.
-  **Why**: Runtime branching scatters harness knowledge through every instruction and grows with each new target; loading a packaged binding keeps the core ignorant of its host and confines harness knowledge to one adapter.
+  **Why**: Runtime branching scatters harness knowledge through every instruction and grows with each new target; loading a resolved binding keeps the core ignorant of its host and confines harness knowledge to one adapter.
   **Origin**: User.
 
 - **Decision**: Share the whole semantic core; isolate only harness connections, tolerating duplication solely in the execution layer.
@@ -76,9 +76,9 @@ Two decisions shape everything below:
   **Why**: A single instruction file both harnesses read removes a whole class of duplication. This rests on Claude Code's `AGENTS.md` support (see Assumptions).
   **Origin**: User.
 
-- **Decision**: Resolve the binding once — declared in the per-harness package, loaded by a first-run precondition — and record it; no phase re-derives or detects it.
+- **Decision**: Resolve the harness identity once, at a first-run precondition, from a declared source, and record it; no phase re-derives or detects it. The declared source is fixed per harness.
   **Alternatives**: Detect the harness at runtime by probing the environment; or re-resolve the binding wherever the pipeline needs it.
-  **Why**: Packaging is per-harness, so the binding ships as a known fact where runtime probing would guess. Harnesses are converging (Codex reads `CLAUDE_PLUGIN_ROOT`; both speak `agentskills.io`), which makes detection ambiguous. Resolving once removes per-phase deliberation, the cost this avoids.
+  **Why**: A declared identity is a known fact where runtime probing would guess, and harnesses are converging (Codex reads `CLAUDE_PLUGIN_ROOT`; both speak `agentskills.io`), which makes probing ambiguous. Resolving once removes per-phase deliberation, the cost this avoids. Leaving the *source* per-harness avoids assuming a distribution model that holds for Claude Code and Codex but is unverified elsewhere.
   **Origin**: User.
 
 - **Decision**: Give harnesses that lack a capability a portable polyfill, and bind to the native capability where the harness has one.
@@ -95,7 +95,7 @@ Two decisions shape everything below:
 
 - The Codex acceptance bar is a full end-to-end run on a small real feature, producing the same artifacts and gates as Claude Code. A representative subset would be cheaper but would not prove the pipeline holds.
 - Prose-neutralisation aims for zero harness tool-names in the core, with capability references resolved by the binding. Whether a thin per-harness glossary is an acceptable middle ground is left open below.
-- No post-install script runs on the user's machine. Each harness installs the skill into its own directory, so the per-harness package ships the binding file beside the core, and the first-run precondition finds it relative to the skill directory.
+- No post-install script runs on the user's machine, so the harness identity is declared at a first-run precondition rather than configured beforehand. Reading a file beside the skill is harness-neutral (any `agentskills.io` harness allows it); whether that file can be *harness-specific* depends on distribution being per-harness, which is unverified beyond Claude Code and Codex (see Open questions).
 - Both skills (`speccy` and `plan-execution`) are in scope for this effort, per the decision to tackle the workflow crux directly.
 - The `agentskills.io` `SKILL.md` standard is compatible enough between the two harnesses that the core skill files load and trigger under Codex with only packaging and discovery-path changes.
 - Claude Code reads `AGENTS.md`, so the shared instruction file works on both harnesses. This is recent and the user is unsure of its status; the AGENTS.md decision falls back to a per-harness file if it proves unavailable.
@@ -106,5 +106,6 @@ Two decisions shape everything below:
 - **Does the shared `SKILL.md` actually load and trigger under Codex** with only packaging and path changes, or does the body need edits? Resolve by installing one core skill into Codex and invoking it.
 - **How pure must prose-neutralisation be?** Zero tool-names in the core, or a tolerated per-harness glossary the binding substitutes? Weigh the neutralisation cost against readability of the core instructions.
 - **Does Claude Code read `AGENTS.md`** in the installed version, and with what precedence against `CLAUDE.md`? Confirm before the shared instruction file is relied on.
-- **What is the packaging-and-binding mechanism, and where is the binding record kept?** A build step that generates each target's tree and drops in its binding file, versus symlinks; the record as a standalone manifest the first-run precondition reads, kept out of `state.json` so run state stays harness-neutral. There is no post-install script on the user's machine, so the package must carry everything the precondition needs. Decide in planning against the no-runtime-branching constraint.
+- **Is distribution per-harness, so a shipped file can carry the binding, or do targets install from one shared repo?** Directory structure distinguishes Claude Code from Codex, but Pi, OpenCode, and others are unverified. If a harness installs from a structurally identical repo, the binding cannot lean on directory or package and must come from an explicit first-run declaration (a user answer, or a reliable harness identity signal). Verify each target's distribution and skill model; it decides the identity source.
+- **What is the binding record and where is it kept?** A standalone manifest the first-run precondition reads, kept out of `state.json` so run state stays harness-neutral. Decide in planning against the no-runtime-branching constraint.
 - **The exact Codex acceptance feature and its verification steps.** Pick something small that still exercises a parallel build.
