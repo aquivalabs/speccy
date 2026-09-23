@@ -13,17 +13,21 @@ Two decisions shape everything below:
 
 ## Deliverables
 
-- **A harness capability contract.** The named set of capabilities the core depends on, each with the input it takes and the result it returns. Current set: spawn-subagent (prompt + model-role + optional result schema + optional isolation → result), run-parallel, structured-output, worktree isolation, monitor/watchdog, model-role resolution, invocation entrypoint, permission/approval configuration, instruction-file location.
+- **A harness capability contract.** The named set of capabilities the core depends on, each with the input it takes and the result it returns. Current set: spawn-subagent (prompt + model-ladder rung + optional result schema + optional isolation → result), run-parallel, structured-output, worktree isolation, monitor/watchdog, model-ladder resolution (S/M/L/XL → a concrete model), invocation entrypoint, permission/approval configuration, instruction-file (`AGENTS.md`) location.
 
-- **The shared semantic core**, carrying no harness-specific tool names, invocation syntax, or model aliases: `SKILL.md` and `phases/*.md` for both skills, `prompts/*.md`, the spec and plan templates, `state.mjs`, `metrics.mjs`, and `plan-execution`'s orchestration script (`workflow.js`, `workflow-simple.js`).
+- **The shared semantic core**, carrying no harness-specific tool names, invocation syntax, or model aliases: `SKILL.md` and `phases/*.md` for both skills, `prompts/*.md`, the spec and plan templates, `state.mjs`, and `plan-execution`'s orchestration script (`workflow.js`, `workflow-simple.js`).
 
 - **A workflow runtime contract.** `workflow.js` runs unchanged against an injected runtime (`agent`, `parallel`, `phase`, `log`, `args`, plus schema-validated results and worktree isolation). Claude Code's native `Workflow` tool is one implementation of this runtime; the Codex binding supplies another.
 
 - **The Claude Code binding**: a native adapter that maps each contract capability to the tool speccy uses today, plus the plugin packaging (`plugin.json`, `marketplace.json`, `.claude/skills` discovery).
 
-- **The Codex binding**: an adapter that packages the core as Codex skills (`agentskills.io` `SKILL.md` under `.agents/skills`, `AGENTS.md`), maps model roles to Codex models, generates permission/sandbox configuration, and provides three polyfills where Codex has no native equivalent — a workflow runner over `codex exec`, structured spawn via `codex exec --output-schema`, and a monitor/watchdog.
+- **The Codex binding**: an adapter that packages the core as Codex skills (`agentskills.io` `SKILL.md` under `.agents/skills`), maps the S/M/L/XL ladder to Codex models, generates permission/sandbox configuration, and provides three polyfills where Codex has no native equivalent — a workflow runner over `codex exec`, structured spawn via `codex exec --output-schema`, and a monitor/watchdog.
+
+- **A shared instruction file, `AGENTS.md`**, read by both harnesses, replacing today's Claude-only `CLAUDE.md` for the project instructions speccy relies on.
 
 - **An install-time binding mechanism** that produces a working install for a named target from the shared core and its adapter.
+
+- **A resolved binding record**, written by the install, that names the target and maps each capability and each model rung to its concrete mechanism. A startup precondition loads and validates it into the run, so every phase reads the binding rather than re-deriving it.
 
 ## Scope boundaries
 
@@ -31,6 +35,7 @@ Two decisions shape everything below:
 - speccy's pipeline semantics do not change. Phases, gates, critique loops, and review lenses behave as they do today; this is a restructuring, not a redesign.
 - Claude Code behaviour and output are preserved. The core is neutralised, but a Claude Code run produces what it does now.
 - No general plugin framework. The binding layer covers what speccy's two skills need, nothing more.
+- Metrics reporting (`metrics.mjs`, `metrics.sh`) is out of scope for now. It is neither neutralised nor ported; its tests stay in CI.
 
 ## Constraints
 
@@ -46,7 +51,7 @@ Two decisions shape everything below:
 - [ ] The same core drives a full run on Claude Code, producing today's artifacts and behaviour.
 - [ ] `plan-execution`'s `workflow.js` runs unmodified on both harnesses through their respective runtime implementations.
 - [ ] The shared core contains no Claude- or Codex-specific tool name, invocation syntax, or model alias, checked by grep against a denylist.
-- [ ] Model tiers appear in the core as roles and resolve to concrete models per harness.
+- [ ] Model tiers appear in the core as ladder rungs (S/M/L/XL) and resolve to a concrete model per harness.
 - [ ] `node --test "skills/speccy/test/*.test.mjs"` passes.
 
 ## Decisions & rationale
@@ -61,10 +66,20 @@ Two decisions shape everything below:
   **Why**: A fork means every semantic change is made twice and drifts; the point of the effort is that a change to speccy's behaviour happens once.
   **Origin**: User.
 
-- **Decision**: Express model choice as roles (e.g. "the hardest-thinking tier") in the core, resolved to concrete models per harness.
-  **Alternatives**: Keep model aliases like `opus` in the shared code.
-  **Why**: `opus` is a Claude token; `workflow.js` already hard-codes it for breakdown. A role survives a harness swap and a model rename; an alias does not.
-  **Origin**: speccy, user-agreed.
+- **Decision**: Express model choice in the core as a fixed ladder — S, M, L, XL — resolved to a concrete model per harness. On Claude Code, S/M/L/XL are Haiku, Sonnet, Opus, Fable.
+  **Alternatives**: Keep model aliases like `opus` in the shared code; or open-ended semantic role names.
+  **Why**: `opus` is a Claude token that `workflow.js` already hard-codes for breakdown. A fixed ladder survives a harness swap and a model rename, and a closed set of four rungs maps cleanly onto any harness's tiers where free-form role names would not.
+  **Origin**: User.
+
+- **Decision**: Target `AGENTS.md` as the shared project-instruction file, read by every harness, rather than a per-harness file.
+  **Alternatives**: Keep `CLAUDE.md` for Claude Code and rename or symlink per harness.
+  **Why**: A single instruction file both harnesses read removes a whole class of duplication. This rests on Claude Code's `AGENTS.md` support (see Assumptions).
+  **Origin**: User.
+
+- **Decision**: Resolve the binding once, from the install, and record it; a startup precondition loads it and no phase re-derives or detects it.
+  **Alternatives**: Detect the harness at runtime by probing the environment; or re-resolve the binding wherever the pipeline needs it.
+  **Why**: The install knows its target for certain, so recording the binding there is reliable where runtime probing guesses. Harnesses are converging (Codex reads `CLAUDE_PLUGIN_ROOT`; both speak `agentskills.io`), which makes detection ambiguous. Resolving once removes per-phase deliberation, the cost this avoids.
+  **Origin**: User.
 
 - **Decision**: Give harnesses that lack a capability a portable polyfill, and bind to the native capability where the harness has one.
   **Alternatives**: Always polyfill, for uniformity; or never polyfill, restricting the core to the lowest common capability.
@@ -82,11 +97,13 @@ Two decisions shape everything below:
 - Prose-neutralisation aims for zero harness tool-names in the core, with capability references resolved by the binding. Whether a thin per-harness glossary is an acceptable middle ground is left open below.
 - Both skills (`speccy` and `plan-execution`) are in scope for this effort, per the decision to tackle the workflow crux directly.
 - The `agentskills.io` `SKILL.md` standard is compatible enough between the two harnesses that the core skill files load and trigger under Codex with only packaging and discovery-path changes.
+- Claude Code reads `AGENTS.md`, so the shared instruction file works on both harnesses. This is recent and the user is unsure of its status; the AGENTS.md decision falls back to a per-harness file if it proves unavailable.
 
 ## Open questions
 
 - **The workflow polyfill is a feasibility assumption; spike it before planning commits.** The whole crux rests on a Codex runtime that reproduces the injected `agent`/`parallel`/`phase` API — including schema-validated results and worktree isolation — over `codex exec --output-schema` and parallel subprocesses. Prove a minimal `workflow.js` runs green on Codex before the plan builds on it.
 - **Does the shared `SKILL.md` actually load and trigger under Codex** with only packaging and path changes, or does the body need edits? Resolve by installing one core skill into Codex and invoking it.
 - **How pure must prose-neutralisation be?** Zero tool-names in the core, or a tolerated per-harness glossary the binding substitutes? Weigh the neutralisation cost against readability of the core instructions.
-- **What is the install-time binding mechanism?** A build step that generates each target's tree, symlinks, or a runtime loader resolved once at install. Decide in planning against the no-runtime-branching constraint.
+- **Does Claude Code read `AGENTS.md`** in the installed version, and with what precedence against `CLAUDE.md`? Confirm before the shared instruction file is relied on.
+- **What is the install-time binding mechanism, and where is the binding record kept?** A build step that generates each target's tree, symlinks, or a loader resolved at install; the record as a standalone manifest the precondition reads, kept out of `state.json` so run state stays harness-neutral. Decide in planning against the no-runtime-branching constraint.
 - **The exact Codex acceptance feature and its verification steps.** Pick something small that still exercises a parallel build.

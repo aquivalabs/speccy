@@ -19,6 +19,10 @@ The load-bearing decisions and their origins live in the spec's Decisions & rati
 
 - Install-time capability binding, no runtime harness branching — User.
 - Share the whole semantic core, duplicate only the execution layer — User.
-- Model roles, not aliases, in the core — speccy, user-agreed.
+- Model ladder S/M/L/XL in the core (Claude: Haiku/Sonnet/Opus/Fable) — User.
+- `AGENTS.md` as the shared instruction file, not per-harness `CLAUDE.md` — User.
 - Native capability where present, polyfill only genuine gaps — User.
 - Codex as the reference target; portability proven structurally — User.
+- Resolve the binding once from the install and record it; a precondition loads it, no phase re-derives or detects it — User. The user proposed a precondition that "figures out what it's running in"; the design settled on the install writing the binding and the precondition loading it, since runtime detection is fragile where harnesses converge.
+
+Scope, set during the first-draft review: metrics reporting (`metrics.mjs`, `metrics.sh`) is excluded from this effort for now.
