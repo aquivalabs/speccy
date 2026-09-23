@@ -55,3 +55,12 @@ An opus adversary critiqued the spec (substance only; the readability pass had n
 - **"Both skills in scope" promoted from an assumption to a decision** (alternative: port `speccy` first, defer `plan-execution`; rejected because the `workflow.js` runtime is the crux). Origin: User.
 
 Adopted without reframing: the stale full-run acceptance assumption deleted (finding 1); `AGENTS.md` support recorded as conditional, suppressed by any shadowing `CLAUDE.md`, per the Claude Code memory docs (3); the dead intent-vs-tool-map cross-reference deleted (4); the identical-files criterion made conditional on the build-step install (8); self-duplication removed (9); the metrics denylist exclusion and the no-extensibility-criterion note added (10). Nothing was skipped.
+
+## Spec critique round 2 (2026-09-23)
+
+An opus adversary read the rewritten spec cold, with the reader lens, and was not told what the readability pass had cut. It confirmed no deliverable was dropped and the architecture was described faithfully against the real `workflow.js`. Twelve findings, all adopted; no decision reversed and no origin changed, so the underlying positions still stand as the spec states them. Full findings in `.speccy/harness-agnostic-core-20260923-0904/spec-critique-round-2.md`. Two clarified the load-bearing architecture:
+
+- **The Codex monitor's liveness signal is now named.** The watchdog keys off Claude Code `agent-*.jsonl` transcript mtimes, which Codex never writes (verified against `skills/plan-execution/SKILL.md`); the spec now specifies the Codex monitor polls each `codex exec` subprocess's state and its output files' mtimes, and the completion criterion checks the monitor is armed and polling rather than "fires" (a healthy watchdog stays silent).
+- **spawn-subagent is split into two bindings.** Orchestrator-native (prose, no schema, read-the-file; also covers orchestrator fan-out) and workflow-module (file/git-derived result, optional schema and worktree), with the injected `agent` identified as the workflow-module binding.
+
+The rest were de-duplication and reader fixes: the workflow mechanism collapsed to one home, `CLAUDE.md` removed from the harness-agnostic layer in favour of "the instruction file's `## Worktree init` section", the seven-probe smoke criterion split into one line each, and three redundant Assumptions bullets cut. Nothing was skipped.
