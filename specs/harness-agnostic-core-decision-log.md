@@ -21,6 +21,10 @@ The user asked, before critique, whether other harnesses install like Claude and
 - Native subagents are not universal: Pi omits them by design, so on Pi nearly the whole pipeline runs through the headless-subprocess polyfill. This confirmed the polyfill strategy rather than changing it.
 - Identity has no universal signal (Pi exposes one, OpenCode ships none), confirming the one-time user declaration as the floor.
 
+## Acceptance is a smoke test, not a build
+
+The user ruled out a full speccy run as the Codex acceptance: any feature small enough to be cheap is a poor fit for speccy, and any feature real enough is too expensive. Since the pipeline semantics are shared and already proven on Claude, the port's only new surface is the binding, so acceptance became a capability smoke test plus a thin orchestrator thread on each harness. A full end-to-end run drops to optional manual validation. Origin: User.
+
 ## Decisions carried into the spec
 
 The load-bearing decisions and their origins live in the spec's Decisions & rationale. All were the user's calls or user-agreed defaults, taken during intake:

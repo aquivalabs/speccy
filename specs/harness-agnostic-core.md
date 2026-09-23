@@ -38,6 +38,7 @@ Two decisions shape everything below:
 - Claude Code behaviour and output are preserved. The core is neutralised, but a Claude Code run produces what it does now.
 - No general plugin framework. The binding layer covers what speccy's two skills need, nothing more.
 - Metrics reporting (`metrics.mjs`, `metrics.sh`) is out of scope for now. It is neither neutralised nor ported; its tests stay in CI.
+- A full end-to-end speccy run on Codex for a real feature is not a PR gate. It is optional manual validation; the semantics are shared and proven on Claude, so the gate is the binding smoke test, not the pipeline.
 - The baseline tool set — read, write, and edit files; run shell commands; the agent's own inference — is assumed present on every harness and excluded from the port. It is expressed at intent level with no binding; only capabilities beyond the baseline are in scope.
 
 ## Constraints
@@ -51,8 +52,9 @@ Two decisions shape everything below:
 
 ## Completion criteria
 
-- [ ] A full speccy run completes on Codex for a small real feature: spec, spec critique rounds, plan, plan critique, plan review, build, and review, with the human gates, all driven from the shared core.
-- [ ] The same core drives a full run on Claude Code, producing today's artifacts and behaviour.
+- [ ] A capability smoke test passes on Codex: the skill loads and triggers, the first-run binding resolves, and each contract capability executes once — a spawned subagent writes a file speccy reads; a minimal `workflow.js` fans out parallel schema-valid tasks with worktree isolation; the monitor fires; the model ladder resolves to concrete models.
+- [ ] A thin orchestrator thread runs on Codex: skill load → one delegated subagent round-tripped through its file → `state.mjs` advances a phase, without the full critique/build/review loops.
+- [ ] The same smoke test and thin thread pass on Claude Code, and its behaviour is unchanged from today.
 - [ ] `plan-execution`'s `workflow.js` runs unmodified on both harnesses through their respective runtime implementations.
 - [ ] The shared core contains no Claude- or Codex-specific tool name, user-facing command (e.g. `/clear`, `shift+tab`), invocation syntax, or model alias, checked by grep against a denylist. Concrete names live only in the adapters and the binding.
 - [ ] The semantic files (both skills' `SKILL.md` and `phases/`, `prompts/`, the templates, and `workflow.js`) are identical between the Claude Code and Codex installs; any difference is an adapter or the binding.
@@ -127,9 +129,9 @@ Two decisions shape everything below:
 
 ## Open questions
 
-- **The workflow polyfill is a feasibility assumption; spike it before planning commits.** The whole crux rests on a Codex runtime that reproduces the injected `agent`/`parallel`/`phase` API — including schema-validated results and worktree isolation — over `codex exec --output-schema` and parallel subprocesses. Prove a minimal `workflow.js` runs green on Codex before the plan builds on it. This is also where spawn-as-fundamental is confirmed: a fresh-context agent returning a structured result, run in parallel, over the headless mechanism. The headless-with-structured-output substrate the runner needs is verified present on all four targets (see the OpenCode/Pi spike); the residual risk is fidelity — worktree isolation and schema reliability — not availability.
+- **The workflow polyfill is a feasibility assumption; spike it before planning commits.** The whole crux rests on a Codex runtime that reproduces the injected `agent`/`parallel`/`phase` API — including schema-validated results and worktree isolation — over `codex exec --output-schema` and parallel subprocesses. Prove a minimal `workflow.js` runs green on Codex before the plan builds on it. This is also where spawn-as-fundamental is confirmed: a fresh-context agent returning a structured result, run in parallel, over the headless mechanism. The headless-with-structured-output substrate the runner needs is verified present on all four targets (see the OpenCode/Pi spike); the residual risk is fidelity — worktree isolation and schema reliability — not availability. This spike is the heart of the Codex smoke test (see Completion criteria).
 - **Does the shared `SKILL.md` actually load and trigger under Codex** with only packaging and path changes, or does the body need edits? Resolve by installing one core skill into Codex and invoking it.
 - **Does Claude Code read `AGENTS.md`** in the installed version, and with what precedence against `CLAUDE.md`? Confirm before the shared instruction file is relied on.
 - **What is the binding record and where is it kept?** A standalone manifest the first-run precondition reads, kept out of `state.json` so run state stays harness-neutral. Decide in planning against the no-runtime-branching constraint.
 - **How is each target's install produced?** The preference is to ship the shared tree so every harness reads the same files in place (the bundle-everything decision makes this plausible), avoiding any transform that splits the installed artifact from its source. A build step that generates per-target trees is allowed but a last resort. Decide in planning per target's discovery rules.
-- **The exact Codex acceptance feature and its verification steps.** Pick something small that still exercises a parallel build.
+- **The smoke test's exact steps.** Which capabilities to exercise, the minimal `workflow.js` to run, and how to assert each probe and the thin thread. Pin down in planning.
