@@ -23,7 +23,7 @@ Two decisions shape everything below:
 
 - **The Codex binding**: an adapter that packages the core as Codex skills (`agentskills.io` `SKILL.md` under `.agents/skills`), maps the S/M/L/XL ladder to Codex models, generates permission/sandbox configuration, and provides three polyfills where Codex has no native equivalent — a workflow runner over `codex exec`, structured spawn via `codex exec --output-schema`, and a monitor/watchdog.
 
-- **A shared instruction file, `AGENTS.md`**, read by both harnesses, replacing today's Claude-only `CLAUDE.md` for the project instructions speccy relies on.
+- **Compatibility with the `AGENTS.md` convention** for the project instructions speccy relies on, so those instructions are read by every harness that supports the standard, instead of a Claude-only `CLAUDE.md`.
 
 - **A packaging step** that assembles a working install for a named target from the shared core and its adapter. This runs when speccy is packaged, not on the user's machine.
 
@@ -74,9 +74,9 @@ Two decisions shape everything below:
   **Why**: `opus` is a Claude token that `workflow.js` already hard-codes for breakdown. A fixed ladder survives a harness swap and a model rename, and a closed set of four rungs maps cleanly onto any harness's tiers where free-form role names would not.
   **Origin**: User.
 
-- **Decision**: Target `AGENTS.md` as the shared project-instruction file, read by every harness, rather than a per-harness file.
+- **Decision**: Rely on the `AGENTS.md` convention for project instructions, read by every harness that supports it, rather than a per-harness file.
   **Alternatives**: Keep `CLAUDE.md` for Claude Code and rename or symlink per harness.
-  **Why**: A single instruction file both harnesses read removes a whole class of duplication. This rests on Claude Code's `AGENTS.md` support (see Assumptions).
+  **Why**: One convention every harness reads removes a whole class of duplication. This rests on Claude Code's `AGENTS.md` support (see Assumptions).
   **Origin**: User.
 
 - **Decision**: Ship every adapter and polyfill to every target; the first-run precondition selects which binding the agent loads.
