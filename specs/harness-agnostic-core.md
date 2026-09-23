@@ -43,6 +43,7 @@ Two decisions shape everything below:
 - **No runtime harness branching.** The core never inspects or names its host. Every harness difference is declared once at first run and recorded.
 - **No vendor leakage in the core.** Adding a harness requires a new adapter and zero edits to core files. This is a structural property of the contract, not a coding-style preference.
 - **Harness facts are verified against current documentation, never memory.** Both harnesses move; Codex's subagent, model, and skill surfaces changed in 2026 and its docs warn of more. The contract must not hard-code a volatile specific where a role or capability name will do.
+- **Optimise for lean agent context, not disk footprint.** Every target may ship every adapter and polyfill, used or not; extra files on disk cost nothing. What must stay lean is the agent's context: it loads only the resolved binding and is never presented a tool-choice. Runtime deliberation over which tool to use is the cost this design removes, not bytes.
 - **The existing verification survives.** `node --test "skills/speccy/test/*.test.mjs"` keeps passing, and the CI `status-check` job keeps its name (branch protection depends on it).
 
 ## Completion criteria
@@ -76,6 +77,11 @@ Two decisions shape everything below:
   **Why**: A single instruction file both harnesses read removes a whole class of duplication. This rests on Claude Code's `AGENTS.md` support (see Assumptions).
   **Origin**: User.
 
+- **Decision**: Ship every adapter and polyfill to every target; the first-run precondition selects which binding the agent loads.
+  **Alternatives**: Ship only the target's adapter, via per-harness packaging.
+  **Why**: Disk footprint is free; the scarce resource is the agent's context and attention. Bundling everything removes the need for per-harness packaging to carry the binding, so the design no longer rests on a distribution model unverified beyond Claude Code and Codex. Only the resolved binding enters context.
+  **Origin**: User.
+
 - **Decision**: Resolve the harness identity once, at a first-run precondition, from a declared source, and record it; no phase re-derives or detects it. The declared source is fixed per harness.
   **Alternatives**: Detect the harness at runtime by probing the environment; or re-resolve the binding wherever the pipeline needs it.
   **Why**: A declared identity is a known fact where runtime probing would guess, and harnesses are converging (Codex reads `CLAUDE_PLUGIN_ROOT`; both speak `agentskills.io`), which makes probing ambiguous. Resolving once removes per-phase deliberation, the cost this avoids. Leaving the *source* per-harness avoids assuming a distribution model that holds for Claude Code and Codex but is unverified elsewhere.
@@ -95,7 +101,7 @@ Two decisions shape everything below:
 
 - The Codex acceptance bar is a full end-to-end run on a small real feature, producing the same artifacts and gates as Claude Code. A representative subset would be cheaper but would not prove the pipeline holds.
 - Prose-neutralisation aims for zero harness tool-names in the core, with capability references resolved by the binding. Whether a thin per-harness glossary is an acceptable middle ground is left open below.
-- No post-install script runs on the user's machine, so the harness identity is declared at a first-run precondition rather than configured beforehand. Reading a file beside the skill is harness-neutral (any `agentskills.io` harness allows it); whether that file can be *harness-specific* depends on distribution being per-harness, which is unverified beyond Claude Code and Codex (see Open questions).
+- No post-install script runs on the user's machine, so the harness identity is declared at a first-run precondition rather than configured beforehand. Because every target ships every binding, this does not depend on per-harness distribution: the precondition selects the right binding once and records it.
 - Both skills (`speccy` and `plan-execution`) are in scope for this effort, per the decision to tackle the workflow crux directly.
 - The `agentskills.io` `SKILL.md` standard is compatible enough between the two harnesses that the core skill files load and trigger under Codex with only packaging and discovery-path changes.
 - Claude Code reads `AGENTS.md`, so the shared instruction file works on both harnesses. This is recent and the user is unsure of its status; the AGENTS.md decision falls back to a per-harness file if it proves unavailable.
@@ -106,6 +112,6 @@ Two decisions shape everything below:
 - **Does the shared `SKILL.md` actually load and trigger under Codex** with only packaging and path changes, or does the body need edits? Resolve by installing one core skill into Codex and invoking it.
 - **How pure must prose-neutralisation be?** Zero tool-names in the core, or a tolerated per-harness glossary the binding substitutes? Weigh the neutralisation cost against readability of the core instructions.
 - **Does Claude Code read `AGENTS.md`** in the installed version, and with what precedence against `CLAUDE.md`? Confirm before the shared instruction file is relied on.
-- **Is distribution per-harness, so a shipped file can carry the binding, or do targets install from one shared repo?** Directory structure distinguishes Claude Code from Codex, but Pi, OpenCode, and others are unverified. If a harness installs from a structurally identical repo, the binding cannot lean on directory or package and must come from an explicit first-run declaration (a user answer, or a reliable harness identity signal). Verify each target's distribution and skill model; it decides the identity source.
+- **On each target, does the skill model fit and how is identity declared?** Bundling all bindings removes the need for per-harness packaging to carry them, so what remains per target is: does it support `agentskills.io` skills and read `AGENTS.md`, and is there a reliable identity signal, or must the user declare the harness once at first run? Verify per target (spike underway for OpenCode and Pi).
 - **What is the binding record and where is it kept?** A standalone manifest the first-run precondition reads, kept out of `state.json` so run state stays harness-neutral. Decide in planning against the no-runtime-branching constraint.
 - **The exact Codex acceptance feature and its verification steps.** Pick something small that still exercises a parallel build.
