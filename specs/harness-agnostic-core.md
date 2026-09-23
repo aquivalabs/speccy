@@ -13,7 +13,7 @@ Two decisions shape everything below:
 
 ## Deliverables
 
-- **A harness capability contract.** The named set of capabilities the core depends on, each with the input it takes and the result it returns. Current set: spawn-subagent (prompt + model-ladder rung + optional result schema + optional isolation → result), run-parallel, structured-output, worktree isolation, monitor/watchdog, model-ladder resolution (S/M/L/XL → a concrete model), invocation entrypoint, permission/approval configuration, instruction-file (`AGENTS.md`) location.
+- **A harness capability contract, covering only what exceeds the baseline.** A baseline tool set — read, write, and edit files; run shell commands; the agent's own inference — is assumed on every harness and sits outside the contract (see Scope boundaries). The contract names the capabilities beyond it: spawn-subagent (prompt + model-ladder rung + optional result schema + optional worktree isolation → result), run-parallel, monitor/watchdog, and model-ladder resolution (S/M/L/XL → a concrete model). Packaging concerns the binding also settles — invocation entrypoint, permission/approval configuration, instruction-file (`AGENTS.md`) location, identity resolution — are handled at package and first-run, not as runtime tool calls.
 
 - **The shared semantic core**, carrying no harness-specific tool names, invocation syntax, or model aliases: `SKILL.md` and `phases/*.md` for both skills, `prompts/*.md`, the spec and plan templates, `state.mjs`, and `plan-execution`'s orchestration script (`workflow.js`, `workflow-simple.js`).
 
@@ -36,6 +36,7 @@ Two decisions shape everything below:
 - Claude Code behaviour and output are preserved. The core is neutralised, but a Claude Code run produces what it does now.
 - No general plugin framework. The binding layer covers what speccy's two skills need, nothing more.
 - Metrics reporting (`metrics.mjs`, `metrics.sh`) is out of scope for now. It is neither neutralised nor ported; its tests stay in CI.
+- The baseline tool set — read, write, and edit files; run shell commands; the agent's own inference — is assumed present on every harness and excluded from the port. It is expressed at intent level with no binding; only capabilities beyond the baseline are in scope.
 
 ## Constraints
 
@@ -85,6 +86,11 @@ Two decisions shape everything below:
 - **Decision**: Resolve the harness identity once, at a first-run precondition, from a declared source, and record it; no phase re-derives or detects it. A one-time user answer is the floor that works on every target; a harness-provided signal is used only where one exists (spike: Pi exposes one, OpenCode ships none).
   **Alternatives**: Detect the harness at runtime by probing the environment; or re-resolve the binding wherever the pipeline needs it.
   **Why**: A declared identity is a known fact where runtime probing would guess, and harnesses are converging (Codex reads `CLAUDE_PLUGIN_ROOT`; both speak `agentskills.io`), which makes probing ambiguous. Resolving once removes per-phase deliberation, the cost this avoids. Leaving the *source* per-harness avoids assuming a distribution model that holds for Claude Code and Codex but is unverified elsewhere.
+  **Origin**: User.
+
+- **Decision**: Assume a baseline tool set on every harness — read, write, and edit files; run shell; the agent's own inference — and exclude it from the contract and the port. Only capabilities beyond the baseline get a binding.
+  **Alternatives**: Bind every action, baseline included, for total explicitness.
+  **Why**: Every target verified has the baseline (spike), so binding it adds machinery for capabilities that never vary. Shrinking the contract to the beyond-baseline few — structured spawn, parallel, monitor, model rungs — is what keeps the abstraction small.
   **Origin**: User.
 
 - **Decision**: Give harnesses that lack a capability a portable polyfill, and bind to the native capability where the harness has one.
