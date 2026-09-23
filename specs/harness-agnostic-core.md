@@ -17,7 +17,7 @@ Two decisions shape everything below:
 
 - **The shared semantic core**, carrying no harness-specific tool names, user-facing commands (e.g. `/clear`, `shift+tab`), invocation syntax, or model aliases: `SKILL.md` and `phases/*.md` for both skills, `prompts/*.md`, the spec and plan templates, `state.mjs`, and `plan-execution`'s orchestration script (`workflow.js`, `workflow-simple.js`).
 
-- **A workflow runtime contract.** `workflow.js` runs unchanged against an injected runtime (`agent`, `parallel`, `phase`, `log`, `args`, plus schema-validated results and worktree isolation). Claude Code's native `Workflow` tool is one implementation of this runtime; the Codex binding supplies another.
+- **A workflow runtime contract.** One `workflow.js` runs on every harness against an injected runtime (`agent`, `parallel`, `phase`, `log`, `args`, plus schema-validated results and worktree isolation); model rungs resolve to concrete names through `args`. Claude Code's native `Workflow` tool is one implementation of this runtime; the Codex binding supplies another.
 
 - **The Claude Code binding**: a native adapter that maps each contract capability to the tool speccy uses today, plus the plugin packaging (`plugin.json`, `marketplace.json`, `.claude/skills` discovery).
 
@@ -69,9 +69,9 @@ Two decisions shape everything below:
   **Why**: A fork means every semantic change is made twice and drifts; the point of the effort is that a change to speccy's behaviour happens once.
   **Origin**: User.
 
-- **Decision**: Express model choice in the core as a fixed ladder — S, M, L, XL — resolved to a concrete model per harness. On Claude Code, S/M/L/XL are Haiku, Sonnet, Opus, Fable.
-  **Alternatives**: Keep model aliases like `opus` in the shared code; or open-ended semantic role names.
-  **Why**: `opus` is a Claude token that `workflow.js` already hard-codes for breakdown. A fixed ladder survives a harness swap and a model rename, and a closed set of four rungs maps cleanly onto any harness's tiers where free-form role names would not.
+- **Decision**: Express model choice in the core as a fixed ladder — S, M, L, XL — resolved to a concrete model per harness. On Claude Code, S/M/L/XL are Haiku, Sonnet, Opus, Fable. The concrete model per rung reaches `workflow.js` through its runtime `args` (resolved from the binding), so the shared code names rungs, never model aliases, and the native runtime still receives real model names.
+  **Alternatives**: Keep model aliases like `opus` in the shared code and reverse-map other harnesses' names onto them; or open-ended semantic role names.
+  **Why**: `opus` is a Claude token that `workflow.js` currently hard-codes for breakdown. Keeping the aliases would reintroduce that leak and privilege one vendor's vocabulary; a fixed neutral ladder survives a harness swap and a model rename, and a closed set of four rungs maps cleanly onto any harness's tiers where free-form role names would not. The cost is one token in `workflow.js` (`"opus"` → `args.models.L`), not a rewrite.
   **Origin**: User.
 
 - **Decision**: Rely on the `AGENTS.md` convention for project instructions, read by every harness that supports it, rather than a per-harness file.
