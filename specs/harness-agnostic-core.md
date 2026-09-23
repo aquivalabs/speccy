@@ -82,14 +82,14 @@ Two decisions shape everything below:
   **Why**: Disk footprint is free; the scarce resource is the agent's context and attention. Bundling everything removes the need for per-harness packaging to carry the binding, so the design no longer rests on a distribution model unverified beyond Claude Code and Codex. Only the resolved binding enters context.
   **Origin**: User.
 
-- **Decision**: Resolve the harness identity once, at a first-run precondition, from a declared source, and record it; no phase re-derives or detects it. The declared source is fixed per harness.
+- **Decision**: Resolve the harness identity once, at a first-run precondition, from a declared source, and record it; no phase re-derives or detects it. A one-time user answer is the floor that works on every target; a harness-provided signal is used only where one exists (spike: Pi exposes one, OpenCode ships none).
   **Alternatives**: Detect the harness at runtime by probing the environment; or re-resolve the binding wherever the pipeline needs it.
   **Why**: A declared identity is a known fact where runtime probing would guess, and harnesses are converging (Codex reads `CLAUDE_PLUGIN_ROOT`; both speak `agentskills.io`), which makes probing ambiguous. Resolving once removes per-phase deliberation, the cost this avoids. Leaving the *source* per-harness avoids assuming a distribution model that holds for Claude Code and Codex but is unverified elsewhere.
   **Origin**: User.
 
 - **Decision**: Give harnesses that lack a capability a portable polyfill, and bind to the native capability where the harness has one.
   **Alternatives**: Always polyfill, for uniformity; or never polyfill, restricting the core to the lowest common capability.
-  **Why**: A polyfill can drift from the real thing, so native is preferred where available; but the lowest common denominator would strip parallel builds and monitoring, which are core to speccy. Polyfill fills genuine gaps only.
+  **Why**: A polyfill can drift from the real thing, so native is preferred where available; but the lowest common denominator would strip parallel builds and monitoring, which are core to speccy. Polyfill fills genuine gaps only. The gap can be large: Pi omits native subagents by design, so on it nearly the whole pipeline runs through the headless-subprocess polyfill — a mechanism every target provides.
   **Origin**: User.
 
 - **Decision**: Codex is the reference target and the verification bar; portability to other harnesses is proven structurally, not empirically.
@@ -104,14 +104,13 @@ Two decisions shape everything below:
 - No post-install script runs on the user's machine, so the harness identity is declared at a first-run precondition rather than configured beforehand. Because every target ships every binding, this does not depend on per-harness distribution: the precondition selects the right binding once and records it.
 - Both skills (`speccy` and `plan-execution`) are in scope for this effort, per the decision to tackle the workflow crux directly.
 - The `agentskills.io` `SKILL.md` standard is compatible enough between the two harnesses that the core skill files load and trigger under Codex with only packaging and discovery-path changes.
-- Claude Code reads `AGENTS.md`, so the shared instruction file works on both harnesses. This is recent and the user is unsure of its status; the AGENTS.md decision falls back to a per-harness file if it proves unavailable.
+- Codex, OpenCode, and Pi read `AGENTS.md` (verified in the spike); Claude Code's support is unconfirmed and the user is unsure. The shared instruction file works everywhere but Claude Code, where the decision falls back to a per-harness file if `AGENTS.md` proves unavailable.
 
 ## Open questions
 
-- **The workflow polyfill is a feasibility assumption; spike it before planning commits.** The whole crux rests on a Codex runtime that reproduces the injected `agent`/`parallel`/`phase` API — including schema-validated results and worktree isolation — over `codex exec --output-schema` and parallel subprocesses. Prove a minimal `workflow.js` runs green on Codex before the plan builds on it.
+- **The workflow polyfill is a feasibility assumption; spike it before planning commits.** The whole crux rests on a Codex runtime that reproduces the injected `agent`/`parallel`/`phase` API — including schema-validated results and worktree isolation — over `codex exec --output-schema` and parallel subprocesses. Prove a minimal `workflow.js` runs green on Codex before the plan builds on it. The headless-with-structured-output substrate the runner needs is verified present on all four targets (see the OpenCode/Pi spike); the residual risk is fidelity — worktree isolation and schema reliability — not availability.
 - **Does the shared `SKILL.md` actually load and trigger under Codex** with only packaging and path changes, or does the body need edits? Resolve by installing one core skill into Codex and invoking it.
 - **Intent-level instructions or an explicit tool map?** Two ways to keep vendor tools out of the core, and it is genuinely undecided which is better. *Intent-level*: the core says "read the file" or "delegate a critique to a fresh context" and each harness maps intent to its own tool — vendor-neutral by construction and near-zero binding, but weaker where intent underspecifies (structured spawn, parallel workflow), where the harness may act unreliably. *Tool map*: the core names capabilities that a per-harness binding resolves to concrete mechanisms — deterministic and explicit, at the cost of a map covering every capability and maintained per harness. A hybrid is plausible (intent for commodity actions, a mapped mechanism for the distinctive ones). Resolve in planning, ideally by trying both on one representative capability.
 - **Does Claude Code read `AGENTS.md`** in the installed version, and with what precedence against `CLAUDE.md`? Confirm before the shared instruction file is relied on.
-- **On each target, does the skill model fit and how is identity declared?** Bundling all bindings removes the need for per-harness packaging to carry them, so what remains per target is: does it support `agentskills.io` skills and read `AGENTS.md`, and is there a reliable identity signal, or must the user declare the harness once at first run? Verify per target (spike underway for OpenCode and Pi).
 - **What is the binding record and where is it kept?** A standalone manifest the first-run precondition reads, kept out of `state.json` so run state stays harness-neutral. Decide in planning against the no-runtime-branching constraint.
 - **The exact Codex acceptance feature and its verification steps.** Pick something small that still exercises a parallel build.

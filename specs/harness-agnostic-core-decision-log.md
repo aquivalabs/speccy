@@ -13,6 +13,14 @@ The run began as "port the speccy skill from Claude Code to Codex; the hardest p
 
 - **"Codex has no subagents" was wrong.** An early assumption, from memory, was that Codex lacked an agent-spawn primitive. The user flagged it and web research confirmed Codex has first-class subagents, though they return natural-language summaries rather than schema-validated results — which is why the design reaches for `codex exec --output-schema` for the deterministic pipeline. Recorded because it set the rule for the run: verify every harness fact against current docs, never memory.
 
+## Spike: OpenCode and Pi (2026-09-23)
+
+The user asked, before critique, whether other harnesses install like Claude and Codex — if so, the binding cannot lean on directory structure. A web spike checked OpenCode and Pi (full findings in `.speccy/harness-agnostic-core-20260923-0904/spike-opencode-pi-distribution.md`). It settled three things:
+
+- The contract fits both: all four targets share the `agentskills.io` skill standard, `AGENTS.md` (Claude Code still unconfirmed), headless structured runs, and model/effort selection.
+- Native subagents are not universal: Pi omits them by design, so on Pi nearly the whole pipeline runs through the headless-subprocess polyfill. This confirmed the polyfill strategy rather than changing it.
+- Identity has no universal signal (Pi exposes one, OpenCode ships none), confirming the one-time user declaration as the floor.
+
 ## Decisions carried into the spec
 
 The load-bearing decisions and their origins live in the spec's Decisions & rationale. All were the user's calls or user-agreed defaults, taken during intake:
