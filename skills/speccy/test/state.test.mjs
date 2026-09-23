@@ -237,6 +237,46 @@ test('planning -> plan-critique needs an accepted spec and a plan file', () => {
   cleanup()
 })
 
+test('plan-critique -> plan-review enforces a critique round after the plan readability pass', () => {
+  const { root, cleanup } = repo()
+  const dir = path.join(root, '.speccy', RUN)
+  const planRel = `.speccy/${RUN}/plan.md`
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(path.join(dir, 'plan.md'), '# Plan\n')
+
+  // Readability pass ran at round 1 but no round has read it yet.
+  putState(root, {
+    phase: 'plan-critique', planPath: planRel,
+    planCritiqueRounds: 1, readabilityPasses: [{ artifact: 'plan', atRound: 1 }],
+  })
+  const early = cli(root, ['advance', 'plan-review', '--run', RUN])
+  assert.equal(early.status, 1)
+  assert.match(early.stderr, /no critique round ran after the plan readability pass/)
+
+  // A round after the pass clears the guard.
+  cli(root, ['record-round', 'plan-critique', '--run', RUN])       // round 2, after the pass
+  const ok = cli(root, ['advance', 'plan-review', '--run', RUN])
+  assert.equal(ok.status, 0, ok.stderr)
+  assert.equal(readState(root, RUN).phase, 'plan-review')
+  cleanup()
+})
+
+test('plan-review -> implementation needs the plan file present', () => {
+  const { root, cleanup } = repo()
+  const planRel = `.speccy/${RUN}/plan.md`
+  putState(root, { phase: 'plan-review', planPath: planRel })
+
+  const blocked = cli(root, ['advance', 'implementation', '--run', RUN])
+  assert.equal(blocked.status, 1)
+  assert.match(blocked.stderr, /plan .* is missing/)
+
+  fs.writeFileSync(path.join(root, '.speccy', RUN, 'plan.md'), '# Plan\n')
+  const ok = cli(root, ['advance', 'implementation', '--run', RUN])
+  assert.equal(ok.status, 0, ok.stderr)
+  assert.equal(readState(root, RUN).phase, 'implementation')
+  cleanup()
+})
+
 test('wrap-up -> complete needs a summary and a committed decision log', () => {
   const { root, g, cleanup } = repo()
   putState(root, { phase: 'wrap-up', reviewRounds: 2 })
@@ -325,11 +365,22 @@ test('replan resets the plan loop and supersedes its review files', () => {
   cleanup()
 })
 
+test('replan is allowed from the plan-review gate', () => {
+  const { root, cleanup } = repo()
+  putState(root, { phase: 'plan-review', planCritiqueRounds: 2 })
+  const r = cli(root, ['replan', '--run', RUN])
+  assert.equal(r.status, 0, r.stderr)
+  const state = readState(root, RUN)
+  assert.equal(state.phase, 'planning')
+  assert.equal(state.planCritiqueRounds, 0)
+  cleanup()
+})
+
 test('replan is refused outside the plan phases', () => {
   const { root, cleanup } = repo()
   putState(root, { phase: 'review' })
   const r = cli(root, ['replan', '--run', RUN])
   assert.equal(r.status, 1)
-  assert.match(r.stderr, /replan only from planning or plan-critique/)
+  assert.match(r.stderr, /replan only from planning, plan-critique or plan-review/)
   cleanup()
 })

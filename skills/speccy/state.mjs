@@ -23,6 +23,7 @@ export const PHASE_ORDER = [
   'spec-critique',
   'planning',
   'plan-critique',
+  'plan-review',
   'implementation',
   'review',
   'wrap-up',
@@ -34,7 +35,8 @@ export const TRANSITIONS = {
   'spec-draft': ['spec-critique'],
   'spec-critique': ['planning'],
   planning: ['plan-critique'],
-  'plan-critique': ['implementation'],
+  'plan-critique': ['plan-review'],
+  'plan-review': ['implementation'],
   implementation: ['review'],
   review: ['wrap-up'],
   'wrap-up': ['complete'],
@@ -48,7 +50,8 @@ const NEXT = {
   'spec-draft': 'present the draft to the user and stop; advance to spec-critique when they hand it on',
   'spec-critique': 'run the spec-critique loop (record-round, critique, revise; readability after round 1), then advance to planning',
   planning: 'dispatch the planner, then advance to plan-critique with --plan-path',
-  'plan-critique': 'run the plan-critique loop, then the user review, then advance to implementation',
+  'plan-critique': 'run the plan-critique loop, then advance to plan-review',
+  'plan-review': 'run the user review of the plan, then advance to implementation',
   implementation: 'run the build via plan-execution',
   review: 'run the review panel (record-round each round), then advance to wrap-up',
   'wrap-up': 'write summary.md and the decision log, then advance to complete',
@@ -195,12 +198,19 @@ export function transitionGuards(from, to, state, cwd) {
       else missing(path.join(cwd, state.planPath), `plan (${state.planPath})`)
       break
     }
-    case 'plan-critique->implementation':
-      // The plan lives in gitignored .speccy/, so it is checked for existence,
-      // not for a commit.
+    case 'plan-critique->plan-review':
+      // Loop exit: the plan file is present and a critique round read the
+      // readability rewrite. The plan lives in gitignored .speccy/, so it is
+      // checked for existence, not for a commit.
       if (!state.planPath) reasons.push('planPath is not set')
       else missing(path.join(cwd, state.planPath), `plan (${state.planPath})`)
       ordering('plan')
+      break
+    case 'plan-review->implementation':
+      // The user gate. The loop-exit invariants held at plan-review; re-check
+      // only that the plan still exists before the build reads it.
+      if (!state.planPath) reasons.push('planPath is not set')
+      else missing(path.join(cwd, state.planPath), `plan (${state.planPath})`)
       break
     case 'implementation->review':
       // "Gates seen to pass this session" is the agent's to confirm; state
@@ -350,8 +360,8 @@ function verbSetModel(cwd, runId, flags) {
 
 function verbReplan(cwd, runId) {
   const state = loadOrFail(cwd, runId)
-  if (!['planning', 'plan-critique'].includes(state.phase)) {
-    fail(`replan only from planning or plan-critique, not ${state.phase}`)
+  if (!['planning', 'plan-critique', 'plan-review'].includes(state.phase)) {
+    fail(`replan only from planning, plan-critique or plan-review, not ${state.phase}`)
   }
   const dir = runDir(cwd, runId)
   const superseded = []
