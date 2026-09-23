@@ -23,6 +23,6 @@ The load-bearing decisions and their origins live in the spec's Decisions & rati
 - `AGENTS.md` as the shared instruction file, not per-harness `CLAUDE.md` — User.
 - Native capability where present, polyfill only genuine gaps — User.
 - Codex as the reference target; portability proven structurally — User.
-- Resolve the binding once from the install and record it; a precondition loads it, no phase re-derives or detects it — User. The user proposed a precondition that "figures out what it's running in"; the design settled on the install writing the binding and the precondition loading it, since runtime detection is fragile where harnesses converge.
+- Resolve the binding once, declared in the per-harness package and loaded by a first-run precondition; no phase re-derives or detects it — User. The user proposed a precondition that "figures out what it's running in." First pass called this "install-time binding"; the user corrected that there is no post-install script, so the resolution point is a first-run precondition reading a binding file the package ships. Runtime detection stays rejected as fragile where harnesses converge.
 
 Scope, set during the first-draft review: metrics reporting (`metrics.mjs`, `metrics.sh`) is excluded from this effort for now.
