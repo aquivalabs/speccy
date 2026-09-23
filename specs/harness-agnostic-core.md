@@ -51,7 +51,7 @@ Two decisions shape everything below:
 - [ ] A full speccy run completes on Codex for a small real feature: spec, spec critique rounds, plan, plan critique, plan review, build, and review, with the human gates, all driven from the shared core.
 - [ ] The same core drives a full run on Claude Code, producing today's artifacts and behaviour.
 - [ ] `plan-execution`'s `workflow.js` runs unmodified on both harnesses through their respective runtime implementations.
-- [ ] The shared core contains no Claude- or Codex-specific tool name, invocation syntax, or model alias, checked by grep against a denylist.
+- [ ] The shared core contains no Claude- or Codex-specific tool name, invocation syntax, or model alias, checked by grep against a denylist. Concrete names live only in the adapters and the binding.
 - [ ] Model tiers appear in the core as ladder rungs (S/M/L/XL) and resolve to a concrete model per harness.
 - [ ] `node --test "skills/speccy/test/*.test.mjs"` passes.
 
@@ -100,7 +100,7 @@ Two decisions shape everything below:
 ## Assumptions
 
 - The Codex acceptance bar is a full end-to-end run on a small real feature, producing the same artifacts and gates as Claude Code. A representative subset would be cheaper but would not prove the pipeline holds.
-- Prose-neutralisation aims for zero harness tool-names in the core, with capability references resolved by the binding. Whether a thin per-harness glossary is an acceptable middle ground is left open below.
+- However the core expresses actions, no vendor tool name reaches the agent's context: concrete tool names live only in the adapters and the binding, never in the shared core. Which expression achieves this best — intent-level instructions or an explicit tool map — is genuinely undecided (see Open questions).
 - No post-install script runs on the user's machine, so the harness identity is declared at a first-run precondition rather than configured beforehand. Because every target ships every binding, this does not depend on per-harness distribution: the precondition selects the right binding once and records it.
 - Both skills (`speccy` and `plan-execution`) are in scope for this effort, per the decision to tackle the workflow crux directly.
 - The `agentskills.io` `SKILL.md` standard is compatible enough between the two harnesses that the core skill files load and trigger under Codex with only packaging and discovery-path changes.
@@ -110,7 +110,7 @@ Two decisions shape everything below:
 
 - **The workflow polyfill is a feasibility assumption; spike it before planning commits.** The whole crux rests on a Codex runtime that reproduces the injected `agent`/`parallel`/`phase` API — including schema-validated results and worktree isolation — over `codex exec --output-schema` and parallel subprocesses. Prove a minimal `workflow.js` runs green on Codex before the plan builds on it.
 - **Does the shared `SKILL.md` actually load and trigger under Codex** with only packaging and path changes, or does the body need edits? Resolve by installing one core skill into Codex and invoking it.
-- **How pure must prose-neutralisation be?** Zero tool-names in the core, or a tolerated per-harness glossary the binding substitutes? Weigh the neutralisation cost against readability of the core instructions.
+- **Intent-level instructions or an explicit tool map?** Two ways to keep vendor tools out of the core, and it is genuinely undecided which is better. *Intent-level*: the core says "read the file" or "delegate a critique to a fresh context" and each harness maps intent to its own tool — vendor-neutral by construction and near-zero binding, but weaker where intent underspecifies (structured spawn, parallel workflow), where the harness may act unreliably. *Tool map*: the core names capabilities that a per-harness binding resolves to concrete mechanisms — deterministic and explicit, at the cost of a map covering every capability and maintained per harness. A hybrid is plausible (intent for commodity actions, a mapped mechanism for the distinctive ones). Resolve in planning, ideally by trying both on one representative capability.
 - **Does Claude Code read `AGENTS.md`** in the installed version, and with what precedence against `CLAUDE.md`? Confirm before the shared instruction file is relied on.
 - **On each target, does the skill model fit and how is identity declared?** Bundling all bindings removes the need for per-harness packaging to carry them, so what remains per target is: does it support `agentskills.io` skills and read `AGENTS.md`, and is there a reliable identity signal, or must the user declare the harness once at first run? Verify per target (spike underway for OpenCode and Pi).
 - **What is the binding record and where is it kept?** A standalone manifest the first-run precondition reads, kept out of `state.json` so run state stays harness-neutral. Decide in planning against the no-runtime-branching constraint.
