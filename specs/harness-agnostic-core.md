@@ -32,6 +32,7 @@ Two decisions shape everything below:
 ## Scope boundaries
 
 - No new harness beyond Codex is built. The contract is designed to admit OpenCode, Pi, and others; none is implemented or verified here.
+- A harness that provides no spawn capability — neither native subagents nor a headless subprocess mode — is out of scope. Supporting one would be a later change.
 - speccy's pipeline semantics do not change. Phases, gates, critique loops, and review lenses behave as they do today; this is a restructuring, not a redesign.
 - Claude Code behaviour and output are preserved. The core is neutralised, but a Claude Code run produces what it does now.
 - No general plugin framework. The binding layer covers what speccy's two skills need, nothing more.
@@ -94,6 +95,16 @@ Two decisions shape everything below:
   **Why**: Every target verified has the baseline (spike), so binding it adds machinery for capabilities that never vary. Shrinking the contract to the beyond-baseline few — structured spawn, parallel, monitor, model rungs — is what keeps the abstraction small.
   **Origin**: User.
 
+- **Decision**: Express the baseline at intent level; bind the beyond-baseline capabilities explicitly.
+  **Alternatives**: One uniform approach for everything — all intent-level, or all mapped.
+  **Why**: Intent-level is vendor-neutral and free for the actions every harness has; the beyond-baseline capabilities are exactly where intent underspecifies (structured spawn, parallel, monitor), so they need an explicit, deterministic binding. Neither approach fits both halves. User-facing commands speccy issues (Claude Code's `/clear`, `shift+tab`, `/effort`) are baseline interaction, expressed at intent level ("clear the context and re-invoke").
+  **Origin**: User.
+
+- **Decision**: Treat the spawn capability — a fresh-context agent that returns a result — as required of any target, satisfied by a native subagent or a headless subprocess. A harness offering neither is out of scope until a later change adds it.
+  **Alternatives**: Synthesise spawn from lower primitives on any harness, however limited; or restrict speccy to harnesses with native subagents only.
+  **Why**: speccy is a delegation pipeline end to end, so a harness that cannot spawn cannot run it without a redesign; requiring spawn is honest rather than limiting. Every target we care about provides it — Codex natively and via `codex exec`, OpenCode and Pi via their headless modes.
+  **Origin**: User.
+
 - **Decision**: Give harnesses that lack a capability a portable polyfill, and bind to the native capability where the harness has one.
   **Alternatives**: Always polyfill, for uniformity; or never polyfill, restricting the core to the lowest common capability.
   **Why**: A polyfill can drift from the real thing, so native is preferred where available; but the lowest common denominator would strip parallel builds and monitoring, which are core to speccy. Polyfill fills genuine gaps only. The gap can be large: Pi omits native subagents by design, so on it nearly the whole pipeline runs through the headless-subprocess polyfill — a mechanism every target provides.
@@ -115,9 +126,8 @@ Two decisions shape everything below:
 
 ## Open questions
 
-- **The workflow polyfill is a feasibility assumption; spike it before planning commits.** The whole crux rests on a Codex runtime that reproduces the injected `agent`/`parallel`/`phase` API — including schema-validated results and worktree isolation — over `codex exec --output-schema` and parallel subprocesses. Prove a minimal `workflow.js` runs green on Codex before the plan builds on it. The headless-with-structured-output substrate the runner needs is verified present on all four targets (see the OpenCode/Pi spike); the residual risk is fidelity — worktree isolation and schema reliability — not availability.
+- **The workflow polyfill is a feasibility assumption; spike it before planning commits.** The whole crux rests on a Codex runtime that reproduces the injected `agent`/`parallel`/`phase` API — including schema-validated results and worktree isolation — over `codex exec --output-schema` and parallel subprocesses. Prove a minimal `workflow.js` runs green on Codex before the plan builds on it. This is also where spawn-as-fundamental is confirmed: a fresh-context agent returning a structured result, run in parallel, over the headless mechanism. The headless-with-structured-output substrate the runner needs is verified present on all four targets (see the OpenCode/Pi spike); the residual risk is fidelity — worktree isolation and schema reliability — not availability.
 - **Does the shared `SKILL.md` actually load and trigger under Codex** with only packaging and path changes, or does the body need edits? Resolve by installing one core skill into Codex and invoking it.
-- **Intent-level instructions or an explicit tool map?** Two ways to keep vendor tools out of the core, and it is genuinely undecided which is better. *Intent-level*: the core says "read the file" or "delegate a critique to a fresh context" and each harness maps intent to its own tool — vendor-neutral by construction and near-zero binding, but weaker where intent underspecifies (structured spawn, parallel workflow), where the harness may act unreliably. *Tool map*: the core names capabilities that a per-harness binding resolves to concrete mechanisms — deterministic and explicit, at the cost of a map covering every capability and maintained per harness. A hybrid is plausible (intent for commodity actions, a mapped mechanism for the distinctive ones). The same choice governs the user-facing commands speccy issues (Claude Code's `/clear`, `shift+tab`, `/effort`): intent-level ("clear the context and re-invoke to resume") or mapped per harness. Resolve in planning, ideally by trying both on one representative capability.
 - **Does Claude Code read `AGENTS.md`** in the installed version, and with what precedence against `CLAUDE.md`? Confirm before the shared instruction file is relied on.
 - **What is the binding record and where is it kept?** A standalone manifest the first-run precondition reads, kept out of `state.json` so run state stays harness-neutral. Decide in planning against the no-runtime-branching constraint.
 - **How is each target's install produced?** The preference is to ship the shared tree so every harness reads the same files in place (the bundle-everything decision makes this plausible), avoiding any transform that splits the installed artifact from its source. A build step that generates per-target trees is allowed but a last resort. Decide in planning per target's discovery rules.
