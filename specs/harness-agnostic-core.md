@@ -1,6 +1,6 @@
 # Specification: Harness-agnostic speccy core
 
-**Status**: Draft
+**Status**: Accepted
 
 ## Goal
 
@@ -21,7 +21,7 @@ Two decisions shape everything below:
 
 - **The Claude Code binding**: a native adapter that maps each contract capability to the tool speccy uses today, plus the plugin packaging (`plugin.json`, `marketplace.json`, `.claude/skills` discovery).
 
-- **The Codex binding**: an adapter that packages the core as Codex skills (`agentskills.io` `SKILL.md` under `.agents/skills`), maps the S/M/L/XL ladder to Codex models, generates permission/sandbox configuration, and provides two polyfills where Codex has no native equivalent: the workflow runtime module over `codex exec` (see the workflow runtime contract), and a monitor/watchdog that polls that module's liveness signal — each `codex exec` subprocess's state and its output files' mtimes — since Codex writes no `agent-*.jsonl` transcripts to tail.
+- **The Codex binding**: an adapter that packages the core as Codex skills (`agentskills.io` `SKILL.md` under `.agents/skills`), maps the S/M/L/XL ladder to Codex models, generates permission/sandbox configuration, and provides two polyfills where Codex has no native equivalent: the workflow runtime module over `codex exec`, and a monitor/watchdog polling that module's liveness signal (see the workflow runtime contract for both).
 
 - **Compatibility with the `AGENTS.md` convention** for the project instructions speccy relies on: the binding points each harness at whichever instruction file that harness actually loads — `AGENTS.md` where the harness supports it and no `CLAUDE.md` shadows it, `CLAUDE.md` on Claude Code where one exists.
 
@@ -57,6 +57,7 @@ Two decisions shape everything below:
 - [ ] On Codex, the first-run binding resolves.
 - [ ] On Codex, a spawned subagent writes a file that speccy reads.
 - [ ] On Codex, a minimal `workflow.js` fans out parallel tool-using tasks (each task reads or writes a file and runs a shell command) through the Codex workflow runtime module; the test asserts the result the module returns and that worktree isolation held.
+- [ ] On Codex, a smoke-workflow task that carries gitignored state runs in a worktree with that state recreated from the resolved instruction file's `## Worktree init` section, exercising both the worktree-init apply step and the selection of the correct instruction file (`AGENTS.md` or `CLAUDE.md`).
 - [ ] On Codex, the monitor is armed and polling its liveness signal.
 - [ ] On Codex, the model ladder resolves to concrete models.
 - [ ] A thin orchestrator thread runs on Codex: skill load → one delegated subagent round-tripped through its file → `state.mjs` advances a phase, without the full critique/build/review loops.
@@ -135,7 +136,7 @@ Two decisions shape everything below:
 
 ## Assumptions
 
-- speccy ships no post-install step of its own, so the harness identity is declared at a first-run precondition rather than configured ahead of time. Because every target ships every binding, this does not depend on per-harness distribution: the precondition selects the right binding once and records it.
+- speccy ships no post-install step of its own, so the harness identity is declared at a first-run precondition rather than configured ahead of time.
 
 ## Open questions
 

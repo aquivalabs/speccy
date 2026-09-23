@@ -64,3 +64,15 @@ An opus adversary read the rewritten spec cold, with the reader lens, and was no
 - **spawn-subagent is split into two bindings.** Orchestrator-native (prose, no schema, read-the-file; also covers orchestrator fan-out) and workflow-module (file/git-derived result, optional schema and worktree), with the injected `agent` identified as the workflow-module binding.
 
 The rest were de-duplication and reader fixes: the workflow mechanism collapsed to one home, `CLAUDE.md` removed from the harness-agnostic layer in favour of "the instruction file's `## Worktree init` section", the seven-probe smoke criterion split into one line each, and three redundant Assumptions bullets cut. Nothing was skipped.
+
+## Spec critique round 3 (2026-09-23)
+
+The final round read the round-2 spec cold and returned "ready to plan against": four modest findings, none blocking, no decision reversed. Full findings in `.speccy/harness-agnostic-core-20260923-0904/spec-critique-round-3.md`. Applied autonomously under the user's overnight delegation:
+
+- Added a completion criterion covering the Codex worktree-init path: a smoke-workflow task carrying gitignored state, which exercises both the `## Worktree init` apply step and the resolution of the correct instruction file. This is the strongest cross-check that the worktree-init polyfill and the instruction-file-pointing deliverable work on Codex, and it was previously untested.
+- De-duplicated the Codex monitor liveness mechanism; it stays in the workflow runtime contract, and the Codex binding now cross-references it.
+- Cut the Assumptions bullet's second sentence, which re-argued the ship-everything decision.
+
+Carried forward, not a spec change: Codex issue #15451 (the `--output-schema`-with-tools defeater cited in the workflow-runtime decision) is now closed with no readable resolution. The decision stands on its independent reason — the module controls and validates the guarantee — so the planner's workflow-module spike must re-verify #15451's current state; if it was fixed, the decision's "Why" should lead with the control/validation reason and demote the bug to history.
+
+Nothing was skipped across the three rounds.
