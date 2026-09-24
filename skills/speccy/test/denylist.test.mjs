@@ -22,12 +22,9 @@ const REPO = path.resolve(import.meta.dirname, '..', '..', '..')
 const SPECCY = path.join(REPO, 'skills', 'speccy')
 const PLAN_EXEC = path.join(REPO, 'skills', 'plan-execution')
 
-// prompts/*.md except the two files that quote a vendor term as an example.
-const PROMPT_EXAMPLES = new Set(['writing-style.md', 'tool-use.md'])
-
-function mdFiles(dir, skip = new Set()) {
+function mdFiles(dir) {
   return readdirSync(dir)
-    .filter((name) => name.endsWith('.md') && !skip.has(name))
+    .filter((name) => name.endsWith('.md'))
     .map((name) => path.join(dir, name))
 }
 
@@ -38,7 +35,7 @@ function coveredFiles() {
     path.join(SPECCY, 'SKILL.md'),
     path.join(PLAN_EXEC, 'SKILL.md'),
     ...mdFiles(path.join(SPECCY, 'phases')),
-    ...mdFiles(path.join(SPECCY, 'prompts'), PROMPT_EXAMPLES),
+    ...mdFiles(path.join(SPECCY, 'prompts')),
     path.join(PLAN_EXEC, 'prompts.md'), // not under the prompts/*.md glob
     path.join(SPECCY, 'state.mjs'),
     path.join(PLAN_EXEC, 'workflow.js'),
