@@ -23,6 +23,8 @@
 // here; its Tier-2 confirm-before-stop path need not fire in the smoke test.
 
 import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 
 // Read and shape-check the heartbeat. Returns { mtime, alive } or null when the
 // file is absent or unreadable — the same "no signal" the bash loop treats as 0.
@@ -95,9 +97,6 @@ export function main(argv = process.argv.slice(2)) {
   process.stderr.write(`monitor: unknown field "${field}" (mtime|alive|json)\n`)
   return 2
 }
-
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
 
 const thisFile = fileURLToPath(import.meta.url)
 if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
