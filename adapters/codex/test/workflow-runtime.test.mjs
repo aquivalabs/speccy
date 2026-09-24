@@ -64,6 +64,17 @@ const STEP_SCHEMA = {
   required: ["steps"]
 };
 
+// A minimal schema shaped like the exec/confirm result crossCheckCommit reads:
+// only `success` and `commit` matter to its guard.
+const COMMIT_SCHEMA = {
+  type: "object",
+  properties: {
+    success: { type: "boolean" },
+    commit: { type: "string" }
+  },
+  required: ["success", "commit"]
+};
+
 // ── harness ──────────────────────────────────────────────────────────
 
 function repo() {
@@ -318,6 +329,63 @@ test("the cross-check discards a commit whose subject does not start with the id
   execFileSync("git", ["-C", wt, "commit", "-m", "chore: mention task-2: in the body"], { stdio: "ignore" });
   assert.deepEqual(confirmCommitLanded("task-2", { repoRoot: root, baseBranch: "main" }), []);
   g("worktree", "remove", "--force", wt);
+  cleanup();
+});
+
+// The two tests above drive confirmCommitLanded standalone. These drive it
+// through agent()'s crossCheckCommit guard (only fires when the schema result
+// carries success:true and a string commit), so a renamed guard field would
+// fail a test here even though it is defense-in-depth with no functional effect.
+
+function captureStderr(fn) {
+  const original = process.stderr.write.bind(process.stderr);
+  const lines = [];
+  process.stderr.write = (chunk) => {
+    lines.push(String(chunk));
+    return true;
+  };
+  return Promise.resolve()
+    .then(fn)
+    .finally(() => {
+      process.stderr.write = original;
+    })
+    .then(() => lines);
+}
+
+test("agent()'s cross-check logs a discrepancy when the reported commit did not land", async () => {
+  const { root, cleanup } = repo();
+  const rt = runtimeOn(root);
+  const fakeCommit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+  const lines = await captureStderr(() =>
+    rt.agent(`do it [[FAKE:commit:${fakeCommit}]]`, { label: "exec:task-1", schema: COMMIT_SCHEMA })
+  );
+  assert.ok(
+    lines.some((l) => l.includes(fakeCommit) && l.includes("not found")),
+    `expected a cross-check discrepancy log, got:\n${lines.join("")}`
+  );
+  await rt.dispose();
+  cleanup();
+});
+
+test("agent()'s cross-check logs nothing when the reported commit did land", async () => {
+  const { root, g, cleanup } = repo();
+  const wt = path.join(root, "wt-3");
+  g("worktree", "add", "-b", "run-20260101-0900/task-1", wt, "main");
+  fs.writeFileSync(path.join(wt, "f.txt"), "x");
+  execFileSync("git", ["-C", wt, "add", "."], { stdio: "ignore" });
+  execFileSync("git", ["-C", wt, "commit", "-m", "task-1: did the work"], { stdio: "ignore" });
+  const landedCommit = execFileSync("git", ["-C", wt, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  g("worktree", "remove", "--force", wt);
+
+  const rt = runtimeOn(root);
+  const lines = await captureStderr(() =>
+    rt.agent(`do it [[FAKE:commit:${landedCommit}]]`, { label: "exec:task-1", schema: COMMIT_SCHEMA })
+  );
+  assert.ok(
+    !lines.some((l) => l.includes("not found")),
+    `expected no discrepancy log, got:\n${lines.join("")}`
+  );
+  await rt.dispose();
   cleanup();
 });
 

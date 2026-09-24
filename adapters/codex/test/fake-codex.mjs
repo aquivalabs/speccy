@@ -11,6 +11,8 @@
 //   [[FAKE:fail]]      write the -o last-message file, then exit 1 (simulates
 //                      a crashed/denied `codex exec` that still left stale
 //                      output behind)
+//   [[FAKE:commit:<hash>]] write { success: true, commit: <hash> } — for
+//                      driving the crossCheckCommit wiring inside agent()
 
 import fs from "node:fs";
 
@@ -22,7 +24,10 @@ const prompt = argv[argv.length - 1] || "";
 if (lastMsgPath) fs.writeFileSync(lastMsgPath, "fake codex done\n");
 
 const resultMatch = /(\/\S+\.result\.json)/.exec(prompt);
-if (resultMatch) {
+const commitMatch = /\[\[FAKE:commit:([0-9a-fA-F]+)\]\]/.exec(prompt);
+if (resultMatch && commitMatch) {
+  fs.writeFileSync(resultMatch[1], JSON.stringify({ success: true, commit: commitMatch[1] }));
+} else if (resultMatch) {
   const resultPath = resultMatch[1];
   const mode = (/\[\[FAKE:(\w+)\]\]/.exec(prompt) || [, "ok"])[1];
   if (mode === "malformed") {
