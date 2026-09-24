@@ -41,7 +41,7 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 
 Each phase has its own model default:
 
-- **Spec and plan critique**: the adversary runs on the **L rung** (Opus on Claude) every round, up to 3 rounds. These short, high-leverage artifacts reward strong judgment: a rung below L costs more in false-positive triage than it saves, and the top **XL rung** (Fable on Claude) buys raw capability without sharper critique judgment on an artifact this size, so L is the tier that pays here rather than XL. The revise agent and readability pass inside each loop run on the **M rung** (Sonnet on Claude): each executes a written instruction.
+- **Spec and plan critique**: the adversary runs on the **L rung** every round, up to 3 rounds. These short, high-leverage artifacts reward strong judgment: a rung below L costs more in false-positive triage than it saves, and the top **XL rung** buys raw capability without sharper critique judgment on an artifact this size, so L is the tier that pays here rather than XL. The revise agent and readability pass inside each loop run on the **M rung**: each executes a written instruction.
 - **Implementation review**: parallel review lenses, up to 3 rounds (see Phase 4). The four judgment lenses (spec fidelity, tests, codebase fit, local-doc adherence) run on the **L rung**, and the suppressions and comments lenses on the **M rung**; the built-in `code-review` skill runs alongside them at `high` effort and manages its own models.
 - **Builder** (execute/integrate/verify inside plan-execution): the **M rung**; plan-execution's breakdown agent always runs on the **L rung**.
 

@@ -51,10 +51,10 @@ const BANNED = [
   { name: 'tool name (Workflow/Agent tool)', re: /\b(?:Workflow|Agent)`?\s+tool\b/g },
   { name: 'Monitor tool', re: /\bMonitor\b/g },
   { name: 'orchestration tool token', re: /\b(?:TaskStop|SendMessage|PushNotification)\b/g },
-  // Model aliases, either case, EXCEPT the sanctioned courtesy form that names
-  // the concrete model to the user beside its harness ("the L rung (Opus on
-  // Claude)"). Everywhere else — a literal, a comment, bare prose — it is a leak.
-  { name: 'model alias', re: /\b(?:opus|sonnet|haiku|fable)\b(?!\s+on\s+claude\b)/gi },
+  // Model aliases, either case, anywhere — a literal, a comment, bare prose.
+  // Concrete model names live only in the adapters and the binding; the core
+  // names rungs, and resolves a rung to a model through the binding at runtime.
+  { name: 'model alias', re: /\b(?:opus|sonnet|haiku|fable)\b/gi },
   { name: 'codex exec invocation', re: /\bcodex\s+exec\b/gi },
 ]
 
@@ -90,6 +90,7 @@ test('the patterns catch real tokens and spare the legitimate forms', () => {
     'a PushNotification fires',
     'model: "opus"',
     'always use Opus regardless of the execution model',
+    'the **L rung** (Opus on Claude) every round',
     'run one codex exec per agent() call',
   ]) assert.ok(caught(leak), `should flag: ${leak}`)
 
@@ -97,9 +98,7 @@ test('the patterns catch real tokens and spare the legitimate forms', () => {
     'the Plan Execution Workflow',
     'run the workflow',
     'spawn a subagent',
-    'the **L rung** (Opus on Claude) every round',
-    'the **M rung** (Sonnet on Claude)',
-    'the top **XL rung** (Fable on Claude)',
+    'the adversary runs on the L rung, the builder on the M rung, the top rung is XL',
     'arm the monitor and poll',
     'the instruction file (CLAUDE.md / AGENTS.md)',
   ]) assert.ok(!caught(ok), `should spare: ${ok}`)
