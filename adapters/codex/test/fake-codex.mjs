@@ -8,6 +8,9 @@
 //   [[FAKE:malformed]] write non-JSON to the result path
 //   [[FAKE:wrongschema]] write valid JSON that violates STEP_SCHEMA
 //   [[FAKE:absent]]    write no result file at all
+//   [[FAKE:fail]]      write the -o last-message file, then exit 1 (simulates
+//                      a crashed/denied `codex exec` that still left stale
+//                      output behind)
 
 import fs from "node:fs";
 
@@ -51,4 +54,5 @@ if (resultMatch) {
   }
 }
 
-process.exit(0);
+const mode = (/\[\[FAKE:(\w+)\]\]/.exec(prompt) || [, "ok"])[1];
+process.exit(mode === "fail" ? 1 : 0);

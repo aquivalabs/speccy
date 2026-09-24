@@ -252,6 +252,17 @@ test("a non-schema agent() returns the agent's prose from the -o file", async ()
   cleanup();
 });
 
+test("a non-schema agent() rejects on a non-zero exit, even with stale -o output", async () => {
+  const { root, cleanup } = repo();
+  const rt = runtimeOn(root);
+  await assert.rejects(
+    () => rt.agent("just do it [[FAKE:fail]]", { label: "exec:task-1" }),
+    /exec:task-1: codex exec exited with code 1/
+  );
+  await rt.dispose();
+  cleanup();
+});
+
 // ── commit cross-check ─────────────────────────────────────────────────
 
 test("confirmCommitLanded finds an unmerged worktree commit by its id prefix", () => {

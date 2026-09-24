@@ -265,21 +265,26 @@ export function createCodexRuntime(config = {}) {
     execArgs.push(finalPrompt);
 
     // Non-schema call: run once, return the agent's prose (its -o last message).
+    // A non-zero exit is a failed call, not a good result with stale/partial
+    // prose — throw so withRetry (or the direct caller) sees the failure.
     if (!schema) {
-      await runCodex(execArgs, cwd);
+      const { code } = await runCodex(execArgs, cwd);
+      if (code !== 0) throw new Error(`${label}: codex exec exited with code ${code}`);
       return readIfPresent(lastMsgPath);
     }
 
     // Schema call: run, read the result file, validate. Retry the whole exec on
-    // a missing/malformed/invalid file; throw after `retries` so withRetry (or
-    // the direct caller) sees the failure the same way it does today.
+    // a non-zero exit or a missing/malformed/invalid file; throw after `retries`
+    // so withRetry (or the direct caller) sees the failure the same way it does
+    // today.
     let lastErr;
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         fs.rmSync(resultPath, { force: true });
       } catch {}
-      await runCodex(execArgs, cwd);
       try {
+        const { code } = await runCodex(execArgs, cwd);
+        if (code !== 0) throw new Error(`codex exec exited with code ${code}`);
         const raw = fs.readFileSync(resultPath, "utf8");
         const parsed = JSON.parse(raw);
         validateAgainstSchema(parsed, schema);
