@@ -62,7 +62,7 @@ function commitFile(root, g, rel, body) {
 // under test (e.g. replan). Mirrors init's defaults.
 function putState(root, partial) {
   const state = {
-    runId: RUN, slug: SLUG, baseBranch: 'main', adversaryModel: 'opus', builderModel: 'sonnet',
+    runId: RUN, slug: SLUG, baseBranch: 'main', adversaryModel: 'L', builderModel: 'M',
     phase: 'spec-draft', specPath: SPEC, planPath: null, decisionLogPath: LOG,
     specCritiqueRounds: 0, planCritiqueRounds: 0, reviewRounds: 0,
     readabilityPasses: [], engagementQuestions: [], ...partial,
@@ -330,11 +330,21 @@ test('engagement-add reads the question text from a file, never a flag', () => {
   cleanup()
 })
 
-test('set-model updates the recorded models', () => {
+test('set-model updates the recorded rung', () => {
   const { root, cleanup } = repo()
   init(root)
-  cli(root, ['set-model', '--run', RUN, '--builder', 'opus'])
-  assert.equal(readState(root, RUN).builderModel, 'opus')
+  cli(root, ['set-model', '--run', RUN, '--builder', 'L'])
+  assert.equal(readState(root, RUN).builderModel, 'L')
+  cleanup()
+})
+
+test('set-model rejects a model name in place of a rung', () => {
+  const { root, cleanup } = repo()
+  init(root)
+  const r = cli(root, ['set-model', '--run', RUN, '--builder', 'opus'])
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /--builder must be one of S\/M\/L\/XL/)
+  assert.equal(readState(root, RUN).builderModel, 'M', 'state is left untouched')
   cleanup()
 })
 

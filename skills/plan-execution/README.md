@@ -6,7 +6,7 @@ Decomposes an approved plan into right-sized tasks and executes each in a fresh 
 
 - **SKILL.md**: instructions Claude reads when the skill is invoked. Covers input expectations, workflow selection, how to assemble args, and how to resume after failure.
 - **prompts.md**: prompt templates for each subagent role (breakdown, execute, integrate, verify, retrospective). The invoking Claude parses these by `## heading` and passes them as `args.prompts`. The workflow scripts append task-specific data at runtime.
-- **workflow.js**: multi-task orchestration. Breakdown always runs on Opus (it's the hardest-thinking phase); execution and later phases use whatever model the caller specifies.
+- **workflow.js**: multi-task orchestration. Breakdown is fixed to the L rung (Opus on Claude) as the hardest-thinking phase; execution and later phases use whatever model the caller specifies.
 - **workflow-simple.js**: single-task variant. No worktrees, no breakdown, no integration. Its verify agent fixes gaps directly in the working tree rather than defining corrective tasks for other agents; the multi-task verify instead emits corrective task definitions that get executed and integrated through the normal pipeline.
 
 ## Why this exists (relative to Claude Code's built-ins)

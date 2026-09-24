@@ -41,6 +41,7 @@ const {
   baseBranch,
   runId,
   model,
+  models,
   prompts,
   retrospective: runRetrospective = true,
   worktreeInit = []
@@ -396,11 +397,13 @@ ${model ? `\n## Task sizing\n\nSubagents will use the model "${model}". Size tas
 
 ${planRef}`;
 
-// Breakdown is the hardest-thinking phase — always use Opus regardless of the execution model
+// Breakdown is the hardest-thinking phase, so it is fixed to the L rung regardless
+// of the execution rung. L rather than the top raw-capability rung XL: the L-rung
+// model leads on coding and decomposition, which is exactly what breakdown demands.
 const breakdown = await withRetry("breakdown", () =>
   agent(breakdownPrompt, {
     label: "decompose",
-    model: "opus",
+    model: models.L,
     schema: STEP_SCHEMA
   })
 );

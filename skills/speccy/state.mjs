@@ -60,6 +60,12 @@ const NEXT = {
 
 const withNext = (message, phase) => (NEXT[phase] ? `${message}\n  next: ${NEXT[phase]}` : message)
 
+// The model choice is persisted as a neutral rung, never a concrete model name;
+// a conversation's binding resolves the rung to a model. Anything outside the
+// closed set is rejected loudly at entry, so an old-habit model name fails here
+// rather than later at binding resolution.
+const RUNGS = ['S', 'M', 'L', 'XL']
+
 const RUN_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*-\d{8}-\d{4}$/
 const READABILITY_COUNTER = { spec: 'specCritiqueRounds', plan: 'planCritiqueRounds' }
 const ROUND_COUNTER = {
@@ -76,6 +82,11 @@ class StateError extends Error {}
 
 function fail(message) {
   throw new StateError(message)
+}
+
+function validateRung(rung, label) {
+  if (!RUNGS.includes(rung)) fail(`${label} must be one of ${RUNGS.join('/')}, got "${rung}"`)
+  return rung
 }
 
 // ---------------------------------------------------------------- io
@@ -274,8 +285,8 @@ function verbInit(cwd, runId, flags) {
     runId,
     slug: flags.slug,
     baseBranch: flags['base-branch'],
-    adversaryModel: flags['adversary-model'] ?? 'opus',
-    builderModel: flags['builder-model'] ?? 'sonnet',
+    adversaryModel: flags['adversary-model'] ? validateRung(flags['adversary-model'], '--adversary-model') : 'L',
+    builderModel: flags['builder-model'] ? validateRung(flags['builder-model'], '--builder-model') : 'M',
     phase: 'spec-draft',
     specPath: flags['spec-path'],
     planPath: null,
@@ -305,7 +316,7 @@ function verbAdvance(cwd, runId, positionals, flags) {
   // sees the would-be state (e.g. the planPath given as it enters plan-critique).
   // Nothing persists unless the guards pass.
   if (flags['plan-path']) state.planPath = flags['plan-path']
-  if (flags['builder-model']) state.builderModel = flags['builder-model']
+  if (flags['builder-model']) state.builderModel = validateRung(flags['builder-model'], '--builder-model')
   const reasons = transitionGuards(from, to, state, cwd)
   if (reasons.length) {
     fail(`cannot advance ${from} -> ${to}:\n` + reasons.map((r) => `  - ${r}`).join('\n'))
@@ -352,8 +363,8 @@ function verbEngagementAdd(cwd, runId, flags) {
 function verbSetModel(cwd, runId, flags) {
   if (!flags.builder && !flags.adversary) fail('set-model needs --builder and/or --adversary')
   const state = loadOrFail(cwd, runId)
-  if (flags.builder) state.builderModel = flags.builder
-  if (flags.adversary) state.adversaryModel = flags.adversary
+  if (flags.builder) state.builderModel = validateRung(flags.builder, '--builder')
+  if (flags.adversary) state.adversaryModel = validateRung(flags.adversary, '--adversary')
   writeState(cwd, runId, state)
   return `models: builder=${state.builderModel} adversary=${state.adversaryModel}`
 }
