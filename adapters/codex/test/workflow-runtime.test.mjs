@@ -177,6 +177,28 @@ test("parallel never runs more than the cap at once", async () => {
   cleanup();
 });
 
+test("parallel stops starting new work once a thunk rejects, and rethrows", async () => {
+  const { root, cleanup } = repo();
+  const rt = runtimeOn(root, { cpus: 4 }); // cap 2
+  let started = 0;
+  const failing = () => {
+    started++;
+    throw new Error("boom");
+  };
+  const slowOk = () => async () => {
+    started++;
+    await new Promise((r) => setTimeout(r, 20));
+    return "ok";
+  };
+  const fns = [async () => failing(), ...Array.from({ length: 7 }, slowOk)];
+  await assert.rejects(() => rt.parallel(fns), /boom/);
+  // cap is 2: the failing thunk rejects fast, the other worker's first task
+  // is still mid-flight when the stop flag is set, so at most 2 tasks start.
+  assert.ok(started <= 2, `expected at most 2 tasks to start before the stop, started=${started}`);
+  await rt.dispose();
+  cleanup();
+});
+
 // ── schema validator ───────────────────────────────────────────────────
 
 test("validateAgainstSchema accepts a conforming STEP_SCHEMA value and rejects gaps", () => {

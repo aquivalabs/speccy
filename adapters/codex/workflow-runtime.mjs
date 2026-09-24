@@ -316,16 +316,28 @@ export function createCodexRuntime(config = {}) {
     const cap = concurrencyCap(cpus);
     const results = new Array(fns.length);
     let next = 0;
+    let stopped = false;
+    let firstError = null;
     async function worker() {
-      while (true) {
+      while (!stopped) {
         const i = next++;
         if (i >= fns.length) return;
-        results[i] = await fns[i]();
+        try {
+          results[i] = await fns[i]();
+        } catch (e) {
+          // Stop every worker from picking up new work; let whatever is
+          // already in flight on the other workers finish (Promise.all below
+          // still waits for them) rather than leaving them running unawaited.
+          stopped = true;
+          if (!firstError) firstError = e;
+          return;
+        }
       }
     }
     await Promise.all(
       Array.from({ length: Math.min(cap, fns.length) }, () => worker())
     );
+    if (firstError) throw firstError;
     return results;
   }
 
