@@ -43,7 +43,9 @@ function matchBrace(src, open) {
       continue;
     }
     if (c === "/" && next === "*") {
-      i = src.indexOf("*/", i + 2) + 1;
+      const close = src.indexOf("*/", i + 2);
+      if (close === -1) throw new Error("workflow source: unterminated block comment in meta literal");
+      i = close + 1;
       continue;
     }
     if (c === '"' || c === "'" || c === "`") {

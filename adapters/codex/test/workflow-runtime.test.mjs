@@ -141,6 +141,11 @@ return { phase: parsed.n, first: r[0] };`;
   assert.equal(seen.agents[0].opts.label, "a");
 });
 
+test("an unterminated block comment in the meta literal throws instead of livelocking", () => {
+  const src = "export const meta = { /* oops\n};\nreturn 1;\n";
+  assert.throws(() => extractMeta(src), /unterminated block comment/);
+});
+
 test("run rejects a missing ambient", () => {
   const { run } = loadWorkflow("export const meta = {};\nreturn 1;");
   assert.throws(() => run({ agent: 1, parallel: 1, phase: 1, log: 1 }), /missing ambient "args"/);
