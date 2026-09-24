@@ -15,7 +15,7 @@ export default {
     'spawn-subagent.orchestrator-native': 'Codex native subagents',
     'spawn-subagent.workflow-module': 'the Codex workflow runtime module (one codex exec per agent() call)',
     'run-parallel': 'the Codex workflow module parallel() (concurrency-capped codex exec subprocesses)',
-    'monitor': 'the heartbeat-file poll loop (monitor polyfill over the module\'s liveness signal)',
+    'monitor': 'adapters/codex/monitor.mjs polling the workflow module\'s heartbeat file (its heartbeatPath; two fields {mtime, alive}) — the liveness/in-flight glue for the poll loop',
   },
 
   // rung -> concrete model, as `codex exec -m <model>` slugs.
@@ -44,5 +44,5 @@ export default {
 
   // Resolution-time settlements (see CONTRACT.md).
   invocation: 'codex exec, from a normal process context (a child of the Codex session)',
-  permissions: 'the codex exec sandbox and approval flags (e.g. --approve-for-me, sandbox config)',
+  permissions: 'adapters/codex/permissions.mjs — the codex exec 0.154.0 sandbox/approval postures (bypass, workspace-write, read-only)',
 }
