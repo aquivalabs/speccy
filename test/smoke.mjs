@@ -301,8 +301,7 @@ await probe('worktree-init recreates gitignored state from the resolved instruct
     // Ground truth, independent of what this probe writes: `root` starts with no
     // CLAUDE.md, so both harnesses must resolve AGENTS.md. Dropping a CLAUDE.md
     // into `root` then must flip Claude's pick (its shadowing rule) while
-    // leaving Codex's alone (it has no such rule) — the fork the review found
-    // missing.
+    // leaving Codex's alone (it has no such rule).
     assert.equal(resolveBinding(harness, undefined, root).instructionFile, 'AGENTS.md',
       'no CLAUDE.md in this cwd: both harnesses resolve AGENTS.md')
     fs.writeFileSync(path.join(root, 'CLAUDE.md'), '# probe placeholder\n')
