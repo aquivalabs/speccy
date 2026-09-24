@@ -39,8 +39,9 @@ export default {
     XL: 'gpt-6-astra',
   },
 
-  // The project instruction file Codex loads.
-  instructionFile: 'AGENTS.md',
+  // The project instruction file Codex loads: always AGENTS.md. Codex has no
+  // CLAUDE.md-shadowing rule; it must not inherit Claude's.
+  resolveInstructionFile: () => 'AGENTS.md',
 
   // Resolution-time settlements (see CONTRACT.md).
   invocation: 'codex exec, from a normal process context (a child of the Codex session)',

@@ -292,11 +292,28 @@ await probe('workflow.js fans out parallel tasks through the module (isolation h
 // P5 — a worktree task carrying gitignored state runs in a worktree with that
 // state recreated from the resolved instruction file's `## Worktree init`
 // section, via workflow.js's args.worktreeInit. Exercises the apply step AND the
-// selection of the correct instruction file (CLAUDE.md / AGENTS.md) by binding.
+// selection of the correct instruction file (CLAUDE.md / AGENTS.md) by binding,
+// checked against ground truth for THIS probe's own cwd (`root`), not read back
+// from the same path the probe itself wrote.
 await probe('worktree-init recreates gitignored state from the resolved instruction file', async () => {
   const { root, cleanup } = makeRepo()
   try {
-    const binding = resolveBinding(harness)
+    // Ground truth, independent of what this probe writes: `root` starts with no
+    // CLAUDE.md, so both harnesses must resolve AGENTS.md. Dropping a CLAUDE.md
+    // into `root` then must flip Claude's pick (its shadowing rule) while
+    // leaving Codex's alone (it has no such rule) — the fork the review found
+    // missing.
+    assert.equal(resolveBinding(harness, undefined, root).instructionFile, 'AGENTS.md',
+      'no CLAUDE.md in this cwd: both harnesses resolve AGENTS.md')
+    fs.writeFileSync(path.join(root, 'CLAUDE.md'), '# probe placeholder\n')
+    const withClaudeMd = resolveBinding(harness, undefined, root).instructionFile
+    fs.rmSync(path.join(root, 'CLAUDE.md'))
+    assert.equal(withClaudeMd, harness === 'claude' ? 'CLAUDE.md' : 'AGENTS.md',
+      harness === 'claude'
+        ? 'a CLAUDE.md in this cwd: Claude resolves CLAUDE.md (shadowing)'
+        : 'a CLAUDE.md in this cwd: Codex still resolves AGENTS.md (no shadowing rule)')
+
+    const binding = resolveBinding(harness, undefined, root)
     const instructionPath = path.join(root, binding.instructionFile)
     fs.writeFileSync(instructionPath, [
       '# Project', '', '## Worktree init', '',
@@ -401,7 +418,7 @@ await probe('contract admits a third adapter (by inspection)', () => {
     harness: 'thirdharness',
     mechanisms: Object.fromEntries(REQUIRED_MECHANISMS.map((k) => [k, `thirdharness: ${k}`])),
     models: { S: 't-s', M: 't-m', L: 't-l', XL: 't-xl' },
-    instructionFile: 'AGENTS.md',
+    resolveInstructionFile: () => 'AGENTS.md',
   }
   const b = resolveBinding('thirdharness', third)
   assert.equal(b.harness, 'thirdharness')

@@ -6,9 +6,15 @@
 // harness never carries a stale binding.
 //
 // It fails LOUD, like state.mjs: an unknown harness, a missing capability
-// mechanism, an unresolved rung, or a missing instruction-file name throws, and
-// on the CLI path prints `speccy binding: ...` and exits non-zero. A
+// mechanism, an unresolved rung, or a missing/unusable instruction-file resolver
+// throws, and on the CLI path prints `speccy binding: ...` and exits non-zero. A
 // half-resolved binding never reaches a phase.
+//
+// Instruction-file resolution is per-harness: each adapter owns its harness's
+// real file-loading rule (Claude's CLAUDE.md-shadows-AGENTS.md precedence,
+// Codex's unconditional AGENTS.md) via a `resolveInstructionFile(cwd)` function.
+// This module holds no filesystem probe of its own — it only invokes the
+// resolved harness's resolver, so one harness's rule never leaks onto another's.
 
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -47,8 +53,10 @@ function fail(message) {
  * @param harness   the harness identity, e.g. "claude" or "codex".
  * @param defaults  the adapter defaults; defaults to the registered adapter for
  *                  `harness`. Pass one to resolve an adapter not in the registry.
+ * @param cwd       the working directory to resolve the instruction file
+ *                  against; defaults to the process's own cwd.
  */
-export function resolveBinding(harness, defaults = ADAPTERS[harness]) {
+export function resolveBinding(harness, defaults = ADAPTERS[harness], cwd = process.cwd()) {
   if (typeof harness !== 'string' || harness === '') {
     fail('resolve needs a harness identity (e.g. "claude" or "codex")')
   }
@@ -68,8 +76,12 @@ export function resolveBinding(harness, defaults = ADAPTERS[harness]) {
     fail(`harness "${harness}" leaves rung(s) unresolved: ${unresolved.join(', ')}`)
   }
 
-  if (!defaults.instructionFile) {
-    fail(`harness "${harness}" names no instruction file`)
+  if (typeof defaults.resolveInstructionFile !== 'function') {
+    fail(`harness "${harness}" names no instruction-file resolver`)
+  }
+  const instructionFile = defaults.resolveInstructionFile(cwd)
+  if (!instructionFile) {
+    fail(`harness "${harness}" resolved no instruction file for cwd "${cwd}"`)
   }
 
   return Object.freeze({
@@ -77,7 +89,7 @@ export function resolveBinding(harness, defaults = ADAPTERS[harness]) {
     version: defaults.version,
     mechanisms: Object.freeze({ ...mechanisms }),
     models: Object.freeze({ ...models }),
-    instructionFile: defaults.instructionFile,
+    instructionFile,
     invocation: defaults.invocation ?? null,
     permissions: defaults.permissions ?? null,
   })

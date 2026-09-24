@@ -1,11 +1,15 @@
 // Tests for binding.mjs. Run with: node --test skills/speccy/test/
 //
-// The resolver touches no disk, so these are plain in-memory assertions plus a
-// CLI path driven through execFileSync (as state.test.mjs does) so exit codes
-// are part of the assertion: a bad resolve exits non-zero.
+// Most of the resolver touches no disk; Claude's instruction-file resolution
+// does (it probes the given cwd for CLAUDE.md), so those tests use a throwaway
+// tmpdir the way state.test.mjs does. A CLI path driven through execFileSync (as
+// state.test.mjs does) makes exit codes part of the assertion: a bad resolve
+// exits non-zero.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 
@@ -26,9 +30,16 @@ function goodDefaults(overrides = {}) {
       'monitor': 'the heartbeat poll loop',
     },
     models: { S: 's-model', M: 'm-model', L: 'l-model', XL: 'xl-model' },
-    instructionFile: 'AGENTS.md',
+    resolveInstructionFile: () => 'AGENTS.md',
     ...overrides,
   }
+}
+
+// A throwaway directory to resolve an instruction file against, the
+// state.test.mjs pattern.
+function tmpDir() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'speccy-binding-'))
+  return { dir, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) }
 }
 
 function cli(args) {
@@ -43,11 +54,16 @@ function cli(args) {
 // ------------------------------------------------------------ registered adapters
 
 test('claude resolves to a complete binding', () => {
-  const b = resolveBinding('claude')
-  assert.equal(b.harness, 'claude')
-  assert.deepEqual(b.models, { S: 'haiku', M: 'sonnet', L: 'opus', XL: 'fable' })
-  assert.equal(b.instructionFile, 'CLAUDE.md')
-  for (const key of REQUIRED_MECHANISMS) assert.ok(b.mechanisms[key], `${key} is bound`)
+  const { dir, cleanup } = tmpDir()
+  try {
+    const b = resolveBinding('claude', undefined, dir)
+    assert.equal(b.harness, 'claude')
+    assert.deepEqual(b.models, { S: 'haiku', M: 'sonnet', L: 'opus', XL: 'fable' })
+    assert.equal(b.instructionFile, 'AGENTS.md') // no CLAUDE.md in this throwaway dir
+    for (const key of REQUIRED_MECHANISMS) assert.ok(b.mechanisms[key], `${key} is bound`)
+  } finally {
+    cleanup()
+  }
 })
 
 test('codex resolves to a complete binding with web-verified models', () => {
@@ -56,6 +72,40 @@ test('codex resolves to a complete binding with web-verified models', () => {
   assert.equal(b.instructionFile, 'AGENTS.md')
   for (const rung of RUNGS) assert.match(b.models[rung], /^gpt-/, `${rung} maps to a Codex model`)
   for (const key of REQUIRED_MECHANISMS) assert.ok(b.mechanisms[key], `${key} is bound`)
+})
+
+// ------------------------------------------------------------ instruction-file resolution
+
+test('claude resolves to CLAUDE.md when one exists at or above cwd', () => {
+  const { dir, cleanup } = tmpDir()
+  try {
+    fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '# project memory\n')
+    const b = resolveBinding('claude', undefined, dir)
+    assert.equal(b.instructionFile, 'CLAUDE.md')
+  } finally {
+    cleanup()
+  }
+})
+
+test('claude resolves to AGENTS.md when no CLAUDE.md exists', () => {
+  const { dir, cleanup } = tmpDir()
+  try {
+    const b = resolveBinding('claude', undefined, dir)
+    assert.equal(b.instructionFile, 'AGENTS.md')
+  } finally {
+    cleanup()
+  }
+})
+
+test('codex always resolves to AGENTS.md, even with a CLAUDE.md present', () => {
+  const { dir, cleanup } = tmpDir()
+  try {
+    fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '# project memory\n')
+    const b = resolveBinding('codex', undefined, dir)
+    assert.equal(b.instructionFile, 'AGENTS.md')
+  } finally {
+    cleanup()
+  }
 })
 
 // ------------------------------------------------------------ validation, loud
@@ -80,9 +130,14 @@ test('an unresolved rung fails loud, naming the rung', () => {
   assert.throws(() => resolveBinding('fake', defaults), /leaves rung\(s\) unresolved: L/)
 })
 
-test('a missing instruction file fails loud', () => {
-  const defaults = goodDefaults({ instructionFile: undefined })
-  assert.throws(() => resolveBinding('fake', defaults), /names no instruction file/)
+test('a missing instruction-file resolver fails loud', () => {
+  const defaults = goodDefaults({ resolveInstructionFile: undefined })
+  assert.throws(() => resolveBinding('fake', defaults), /names no instruction-file resolver/)
+})
+
+test('a resolver returning nothing usable fails loud', () => {
+  const defaults = goodDefaults({ resolveInstructionFile: () => '' })
+  assert.throws(() => resolveBinding('fake', defaults), /resolved no instruction file/)
 })
 
 // ------------------------------------------------------------ purity
