@@ -26,13 +26,13 @@
 // invocation and result-channel levers the workflow runtime owns; they are not
 // permission concerns and are set there, not here.
 //
-// HARD CONSTRAINT — normal process context (spike-workflow-module.md). None of
-// these flags help unless `codex exec` runs in a NORMAL process context: a child
-// of the Codex session that runs the orchestrator, spawned with a plain
-// child_process, never nested under a foreign agent's sandbox. Nested, the
-// code-mode host cannot negotiate its session and every tool call fails while
-// the process still exits 0. No permission flag relaxes this; it is a property
-// of the process tree, so the runtime adds no outer sandbox wrapper of its own.
+// HARD CONSTRAINT — normal process context. None of these flags help unless
+// `codex exec` runs in a NORMAL process context: a child of the Codex session
+// that runs the orchestrator, spawned with a plain child_process, never nested
+// under a foreign agent's sandbox. Nested, the code-mode host cannot negotiate
+// its session and every tool call fails while the process still exits 0. No
+// permission flag relaxes this; it is a property of the process tree, so the
+// runtime adds no outer sandbox wrapper of its own.
 
 // The postures the adapter offers, each a fixed set of the verified flags above.
 //
