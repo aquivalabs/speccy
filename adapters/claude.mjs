@@ -21,8 +21,7 @@ export default {
 
   // rung -> concrete model. Fixed by the spec's Decisions & rationale. These are
   // the lowercase aliases the Agent and Workflow tools accept as their `model`
-  // option (what workflow.js passes as args.models.L, and state.mjs stored
-  // before rungs). S climbs to XL.
+  // option (what workflow.js passes as args.models.L). S climbs to XL.
   models: {
     S: 'haiku',
     M: 'sonnet',
