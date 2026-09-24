@@ -107,10 +107,9 @@ try {
   log('state.mjs phase advance', `${before} → ${after}`)
 
   process.stdout.write('\nthin thread: 3/3 joints held.\n')
-  process.exit(0)
 } catch (err) {
   process.stdout.write(`\nthin thread FAILED: ${err.message}\n`)
-  process.exit(1)
+  process.exitCode = 1
 } finally {
   fs.rmSync(root, { recursive: true, force: true })
 }
