@@ -315,14 +315,26 @@ export function createCodexRuntime(config = {}) {
   }
 
   // Defense-in-depth only: log a discrepancy, never override the file result.
+  //
+  // Verify by commit identity, not branch topology. A worktree task commits on its
+  // own branch and a sequential task commits straight onto baseBranch, so a
+  // branch-scoped query (`--branches --not <base>`) would exclude every sequential
+  // commit and log a spurious "not found" for each. Instead confirm the reported
+  // hash resolves to a real commit whose subject starts with `<id>: `.
   function crossCheckCommit(label, result) {
     const id = idFromLabel(label);
     if (!id || !result || result.success !== true || typeof result.commit !== "string")
       return;
     try {
-      const landed = confirmCommitLanded(id, { repoRoot, baseBranch });
-      if (!landed.includes(result.commit))
-        log(`${label}: reported commit ${result.commit} not found by git cross-check (branches: ${landed.join(", ") || "none"})`);
+      let subject = null;
+      try {
+        git(["rev-parse", "--verify", "--quiet", `${result.commit}^{commit}`]);
+        subject = git(["log", "-1", "--format=%s", result.commit]).trim();
+      } catch {
+        // Not a resolvable commit — subject stays null, reported below.
+      }
+      if (subject === null || !subject.startsWith(`${id}: `))
+        log(`${label}: reported commit ${result.commit} not found by git cross-check (subject: ${subject ?? "no such commit"})`);
     } catch (e) {
       log(`${label}: commit cross-check errored (${String(e).slice(0, 80)})`);
     }

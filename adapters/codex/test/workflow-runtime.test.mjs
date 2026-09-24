@@ -441,6 +441,28 @@ test("agent()'s cross-check logs nothing when the reported commit did land", asy
   cleanup();
 });
 
+test("agent()'s cross-check logs nothing for a sequential-style commit on the base branch", async () => {
+  // A sequential task commits straight onto baseBranch (main). A branch-exclusion
+  // query would exclude it and log a spurious discrepancy; identity verification
+  // must accept it.
+  const { root, g, cleanup } = repo();
+  fs.writeFileSync(path.join(root, "seq.txt"), "x");
+  g("add", ".");
+  g("commit", "-m", "task-1: sequential work on base");
+  const landedCommit = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+
+  const rt = runtimeOn(root);
+  const lines = await captureStderr(() =>
+    rt.agent(`do it [[FAKE:commit:${landedCommit}]]`, { label: "exec:task-1", schema: COMMIT_SCHEMA })
+  );
+  assert.ok(
+    !lines.some((l) => l.includes("not found")),
+    `expected no discrepancy log for a base-branch commit, got:\n${lines.join("")}`
+  );
+  await rt.dispose();
+  cleanup();
+});
+
 // ── worktree lifecycle ─────────────────────────────────────────────────
 
 test("agent(isolation:worktree) provisions an empty worktree; dispose removes it", async () => {
