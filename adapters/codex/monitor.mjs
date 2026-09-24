@@ -22,21 +22,17 @@
 // This PR ships the mtime (liveness) path. The `alive` field is defined and read
 // here; its Tier-2 confirm-before-stop path need not fire in the smoke test.
 
-import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { readIfPresent } from './read-if-present.mjs'
 
 // Read and shape-check the heartbeat. Returns { mtime, alive } or null when the
 // file is absent or unreadable — the same "no signal" the bash loop treats as 0.
 // A malformed or wrong-shaped file is null too: a monitor must never crash the
 // run it is watching.
 export function readHeartbeat(heartbeatPath) {
-  let raw
-  try {
-    raw = fs.readFileSync(heartbeatPath, 'utf8')
-  } catch {
-    return null
-  }
+  const raw = readIfPresent(heartbeatPath)
+  if (raw === null) return null
   try {
     const parsed = JSON.parse(raw)
     if (

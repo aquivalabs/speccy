@@ -26,6 +26,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
+import { readIfPresent } from "./read-if-present.mjs";
 
 // ── Concurrency cap ──────────────────────────────────────────────────
 //
@@ -392,12 +393,4 @@ export function createCodexRuntime(config = {}) {
       return currentPhase;
     }
   };
-}
-
-function readIfPresent(p) {
-  try {
-    return fs.readFileSync(p, "utf8");
-  } catch {
-    return null;
-  }
 }
