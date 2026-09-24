@@ -4,7 +4,7 @@ Find: missing deliverables, ambiguous scope, unstated constraints, contradiction
 
 Scrutinise the **Decisions & rationale** section, and hunt for decisions that should be there but aren't. Every load-bearing choice the spec makes (a scope call, an approach, a contract or deliverable shape) must state why it beat the alternative. Flag any decision that (a) is recorded without a reason, (b) names no viable alternative when one plainly exists, (c) gives a rationale that doesn't actually defeat the rejected alternative, or (d) is presented as inevitable when it was really a choice. A choice whose reasoning is missing or weak is where a spec silently commits to the wrong path, so go beyond checking the entry exists: challenge the reasoning itself.
 
-Also flag content that restates `CLAUDE.md` (root or nested) or the docs it links. Read those first so you can recognise the duplication.
+Also flag content that restates the instruction file (root or nested) or the docs it links. Read those first so you can recognise the duplication.
 
 **Flag where the spec duplicates itself.** A completion criterion subsumed by another, a deliverable bullet restating one above it, a constraint that argues a decision the decision section already argues. Each addition was legitimate when a round added it, and several rounds of them leave a spec that says the same thing three ways and buries the criterion that matters among its near-copies. Name both passages and say which survives. Keep both lines where each checks something the other doesn't, since a merge that drops a condition is worse than the repetition. The two decisions in the Goal repeat in full in **Decisions & rationale** by design, so never flag that pair.
 

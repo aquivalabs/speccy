@@ -13,7 +13,7 @@ Constraints:
 - **Make the minimum change that addresses each finding.** Don't restructure sections that didn't need changing.
 - **Preserve the artifact's structure and voice.** Section headings, ordering, and existing wording should stay unless a finding requires otherwise.
 - **Don't introduce new assumptions or scope.** If a finding is unclear, note it in the artifact's Assumptions/Open Questions section rather than guessing.
-- **Do not restate `CLAUDE.md`** or the docs it links.
+- **Do not restate the instruction file** or the docs it links.
 
 Three rules override minimum-change, because the cheap way to satisfy a critic is to append, and an artifact that has been through three rounds of that is unreadable:
 

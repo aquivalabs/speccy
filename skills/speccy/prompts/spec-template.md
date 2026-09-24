@@ -6,7 +6,7 @@
 
 <!-- Follow `writing-style.md`. The sections run description first, argument second, caveats last;
      keep them that way. Rationale belongs in Decisions & rationale rather than spread through the
-     rest. Don't restate `CLAUDE.md` anywhere in this file. Reference it by file/section where a
+     rest. Don't restate the instruction file anywhere in this file. Reference it by file/section where a
      constraint turns on it, and spell a rule out only where this feature diverges from it. -->
 
 ## Goal
@@ -33,10 +33,11 @@
 
 <!-- Technical, organisational, or business constraints specific to THIS feature: performance budgets,
      security considerations, platform-specific rules, compatibility requirements. Do NOT restate
-     project-wide standards already in CLAUDE.md (logging, comments, naming conventions, testing
-     policy, code style); the builder reads CLAUDE.md anyway. Reference a rule by file/section only
-     when this feature's constraints turn on it, and spell one out only where this feature
-     deliberately diverges from it. -->
+     project-wide standards already in the instruction file (logging, comments, naming conventions,
+     testing policy, code style); the harness loads the instruction file for the builder anyway
+     (whether it auto-loads into a subagent is harness-dependent; where it doesn't, the orchestrator
+     passes it). Reference a rule by file/section only when this feature's constraints turn on it,
+     and spell one out only where this feature deliberately diverges from it. -->
 
 ## Completion criteria
 
