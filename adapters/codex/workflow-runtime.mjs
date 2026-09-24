@@ -143,6 +143,9 @@ function slug(s) {
 //   retries       — codex-exec attempts per schema-bearing agent() (default 2)
 //   modelFlag     — the codex flag that selects a model (default "--model";
 //                   verify against current codex docs at integration time)
+//   heartbeatThrottleMs — minimum gap between heartbeat writes triggered by
+//                   subprocess stdout/stderr data (default 200); spawn and
+//                   close always write regardless of this gap.
 //
 // Returns the five ambients plus a dispose() teardown and inspectable state.
 export function createCodexRuntime(config = {}) {
@@ -156,7 +159,8 @@ export function createCodexRuntime(config = {}) {
     spawn = nodeSpawn,
     cpus = os.cpus().length,
     retries = 2,
-    modelFlag = "--model"
+    modelFlag = "--model",
+    heartbeatThrottleMs = 200
   } = config;
   if (!repoRoot) throw new Error("createCodexRuntime: repoRoot is required");
 
@@ -178,16 +182,24 @@ export function createCodexRuntime(config = {}) {
   //   alive — true while ≥1 `codex exec` subprocess is running. A weaker
   //           stand-in for Claude's in-flight (tool_use-without-tool_result)
   //           check: it cannot tell a working subprocess from a hung one.
+  //
+  // Data events fire once per stdout/stderr chunk, which under a chatty
+  // subprocess can mean a synchronous fs.writeFileSync per event loop tick.
+  // Those writes are throttled to heartbeatThrottleMs; the spawn and close
+  // edges (force=true) always write, so liveness transitions are never late.
   let liveCount = 0;
   let lastActivity = Date.now();
-  function heartbeat() {
+  let lastWrite = 0;
+  function heartbeat(force = false) {
     lastActivity = Date.now();
+    if (!force && lastActivity - lastWrite < heartbeatThrottleMs) return;
+    lastWrite = lastActivity;
     fs.writeFileSync(
       heartbeatPath,
       JSON.stringify({ mtime: lastActivity, alive: liveCount > 0 })
     );
   }
-  heartbeat(); // an initial beat so the monitor has a file to poll immediately
+  heartbeat(true); // an initial beat so the monitor has a file to poll immediately
 
   function git(gitArgs, cwd = repoRoot) {
     return execFileSync("git", ["-C", cwd, ...gitArgs], { encoding: "utf8" });
@@ -196,21 +208,21 @@ export function createCodexRuntime(config = {}) {
   function runCodex(execArgs, cwd) {
     return new Promise((resolve, reject) => {
       liveCount++;
-      heartbeat();
+      heartbeat(true);
       let settled = false;
       const done = (fn, arg) => {
         if (settled) return;
         settled = true;
         liveCount--;
-        heartbeat();
+        heartbeat(true);
         fn(arg);
       };
       const child = spawn(codexBin, [...codexArgsPrefix, ...execArgs], {
         cwd,
         stdio: ["ignore", "pipe", "pipe"]
       });
-      child.stdout && child.stdout.on("data", heartbeat);
-      child.stderr && child.stderr.on("data", heartbeat);
+      child.stdout && child.stdout.on("data", () => heartbeat());
+      child.stderr && child.stderr.on("data", () => heartbeat());
       child.on("error", (e) => done(reject, e));
       child.on("close", (code) => done(resolve, { code }));
     });
