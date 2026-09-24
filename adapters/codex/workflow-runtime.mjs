@@ -5,11 +5,11 @@
 // reimplements the Workflow engine; it reproduces the runtime surface those two
 // scripts exercise, and the unit tests pin that surface.
 //
-// HARD CONSTRAINT (spike-workflow-module.md): `codex exec` must be spawned in a
-// normal process context — a child of the Codex session running the orchestrator
-// — never nested under a foreign agent's sandbox, or the code-mode host cannot
-// negotiate and every tool call fails while the process still exits 0. This
-// module spawns with plain child_process.spawn and adds no sandbox wrapper.
+// HARD CONSTRAINT: `codex exec` must be spawned in a normal process context —
+// a child of the Codex session running the orchestrator — never nested under
+// a foreign agent's sandbox, or the code-mode host cannot negotiate and every
+// tool call fails while the process still exits 0. This module spawns with
+// plain child_process.spawn and adds no sandbox wrapper.
 //
 // RESULT CHANNEL. Never trust `codex exec --output-schema` stdout: under tools
 // it silently degrades the structured output to YAML/plain text while exiting 0
