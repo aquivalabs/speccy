@@ -8,12 +8,12 @@ speccy is welded to Claude Code. Its two skills (`speccy`, `plan-execution`) cal
 
 Two decisions shape everything below:
 
-- **The core binds each capability once, at first run, and never branches on its harness at runtime**, keeping harness knowledge confined to one adapter instead of scattered through every instruction.
+- **The core resolves its harness once, at the start of each orchestrator conversation, and its phases never branch on the host**, keeping harness knowledge at one bounded seam instead of scattered through every instruction.
 - **The whole semantic core is shared across harnesses rather than forked per harness**, so a change to speccy's behaviour is made in one place, without the copies drifting apart.
 
 ## Deliverables
 
-- **A harness capability contract, covering only what exceeds the baseline** (see Scope boundaries for the baseline tool set). The contract names the capabilities beyond it: spawn-subagent, run-parallel, monitor/watchdog, and model-ladder resolution (S/M/L/XL → a concrete model). Spawn-subagent has two bindings. The orchestrator-native binding backs Claude's `Agent` tool and Codex's native subagents; it takes a prompt and a model-ladder rung and returns prose, with no result schema, since speccy reads the file the spawned agent writes rather than its returned summary. Orchestrator-level fan-out (several critics or review lenses spawned at once) is just multiple calls to this binding, not a separate capability. The workflow-module binding backs the injected `agent` in the workflow runtime (see the workflow runtime contract); it takes a prompt and a model-ladder rung and returns a result derived from files and git, with an optional schema and optional worktree isolation. Run-parallel names the workflow module's `parallel()`, which fans out parallel build tasks; it has no orchestrator-level counterpart. The binding also settles packaging concerns once, at first run, rather than through runtime tool calls: invocation entrypoint, permission/approval configuration, and instruction-file (`AGENTS.md` or `CLAUDE.md`) location.
+- **A harness capability contract, covering only what exceeds the baseline** (see Scope boundaries for the baseline tool set). The contract names the capabilities beyond it: spawn-subagent, run-parallel, monitor/watchdog, and model-ladder resolution (S/M/L/XL → a concrete model). Spawn-subagent has two bindings. The orchestrator-native binding backs Claude's `Agent` tool and Codex's native subagents; it takes a prompt and a model-ladder rung and returns prose, with no result schema, since speccy reads the file the spawned agent writes rather than its returned summary. Orchestrator-level fan-out (several critics or review lenses spawned at once) is just multiple calls to this binding, not a separate capability. The workflow-module binding backs the injected `agent` in the workflow runtime (see the workflow runtime contract); it takes a prompt and a model-ladder rung and returns a result derived from files and git, with an optional schema and optional worktree isolation. Run-parallel names the workflow module's `parallel()`, which fans out parallel build tasks; it has no orchestrator-level counterpart. The binding also settles packaging concerns when it resolves, rather than through runtime tool calls: invocation entrypoint, permission/approval configuration, and instruction-file (`AGENTS.md` or `CLAUDE.md`) location.
 
 - **The shared semantic core**, carrying no harness-specific tool names, user-facing commands (e.g. `/clear`, `shift+tab`), invocation syntax, or model aliases: `SKILL.md` and `phases/*.md` for both skills, `prompts/*.md`, the spec and plan templates, `state.mjs`, and `plan-execution`'s orchestration script (`workflow.js`, `workflow-simple.js`).
 
@@ -27,7 +27,7 @@ Two decisions shape everything below:
 
 - **Working installs for each target** (Claude Code and Codex) from the shared core and its adapter. How an install is produced is left to planning (see Open questions); the preference is to ship the shared tree so each harness reads it in place, with a build step a last resort.
 
-- **A first-run identity-and-binding precondition.** It establishes the harness identity once from a declared source, resolves the binding record (target, capability→mechanism map, model-rung→model map), records it, and validates it. Every phase then reads the binding rather than re-deriving it. The declared source is a per-harness detail (a package that carries it, a one-time user declaration, or a reliable harness-provided signal) decided in planning; the precondition never probes to guess the harness.
+- **A conversation-start identity-and-binding step.** At the start of each orchestrator conversation it resolves the harness identity, loads that harness's adapter defaults (capability→mechanism map, model-rung→model map, instruction-file name) into the resolved binding, and validates it. Every phase in that conversation reads the binding rather than re-deriving it; a fresh conversation (after a context clear, or on a different harness) re-resolves it. Identity comes from the agent's own knowledge of its host where the harness makes that known, with a one-time user declaration as the universal fallback. The resolved binding lives for the conversation and is not written to a file; only the per-harness adapter defaults are versioned files in the tree.
 
 ## Scope boundaries
 
@@ -45,7 +45,7 @@ Two decisions shape everything below:
 ## Constraints
 
 - **One source of truth for semantics.** A semantic change is authored once in the core; duplication is confined to the binding layer and minimised there.
-- **No runtime harness branching.** The core never inspects or names its host; every harness difference is declared once at first run and recorded.
+- **No per-phase harness branching.** The core's phases never inspect or name the host; they read a resolution they do not re-derive. The host is named once, at a single conversation-start step, and nowhere else; that one bounded resolution is not the scattered per-phase branching this rules out.
 - **No vendor leakage in the core.** Adding a harness needs a new adapter and its binding; it may adjust the thin seam the core calls the abstraction through, but never the pipeline's semantics, and never with per-harness branching. The contract's shape enforces this structurally, independent of coding style.
 - **Harness facts are verified against current documentation, never memory.** Both harnesses move; Codex's subagent, model, and skill surfaces changed in 2026 and its docs warn of more. The contract must not hard-code a volatile specific where a role or capability name will do.
 - **Disk footprint is free; agent context is scarce.** Every target may ship every adapter and polyfill, used or not; the agent loads only the resolved binding and is never presented a tool-choice.
@@ -54,7 +54,7 @@ Two decisions shape everything below:
 ## Completion criteria
 
 - [ ] On Codex, the skill loads and triggers.
-- [ ] On Codex, the first-run binding resolves.
+- [ ] On Codex, the binding resolves at conversation start.
 - [ ] On Codex, a spawned subagent writes a file that speccy reads.
 - [ ] On Codex, a minimal `workflow.js` fans out parallel tool-using tasks (each task reads or writes a file and runs a shell command) through the Codex workflow runtime module; the test asserts the result the module returns and that worktree isolation held.
 - [ ] On Codex, a smoke-workflow task that carries gitignored state runs in a worktree with that state recreated from the resolved instruction file's `## Worktree init` section, exercising both the worktree-init apply step and the selection of the correct instruction file (`AGENTS.md` or `CLAUDE.md`).
@@ -69,9 +69,9 @@ Two decisions shape everything below:
 
 ## Decisions & rationale
 
-- **Decision**: Bind capabilities from a binding established once at first run; the core never branches on its harness.
-  **Alternatives**: A runtime shim the core queries for "which harness am I in?" and switches on.
-  **Why**: Runtime branching scatters harness knowledge through every instruction and grows with each new target; loading a resolved binding keeps the core ignorant of its host and confines harness knowledge to one adapter.
+- **Decision**: Resolve the harness once at the start of each orchestrator conversation and read that resolution in every phase; the phases never branch on the host.
+  **Alternatives**: A runtime shim the phases query for "which harness am I in?" and switch on, per phase.
+  **Why**: Per-phase branching scatters harness knowledge through every instruction and grows with each new target; resolving once at the conversation boundary and reading the resolution keeps the phases host-blind and confines harness knowledge to one bounded seam.
   **Origin**: User.
 
 - **Decision**: Share the whole semantic core; isolate only harness connections, tolerating duplication solely in the execution layer.
@@ -94,14 +94,14 @@ Two decisions shape everything below:
   **Why**: Harnesses that support `AGENTS.md` read it, but Claude Code reads it only as a fallback: any `CLAUDE.md` at or above the working directory suppresses it (Claude Code memory docs, https://code.claude.com/docs/en/memory; support added v2.1.277). A speccy user whose project already has a `CLAUDE.md` would have `AGENTS.md` silently ignored on Claude Code, so the single-file win holds only where no `CLAUDE.md` shadows `AGENTS.md`; where one does, `CLAUDE.md` is the file that reaches the agent. Claude Code can also be configured to load both files together, which would dissolve the shadowing; this decision assumes Claude Code's default configuration, where the file choice is binary.
   **Origin**: User.
 
-- **Decision**: Ship every adapter and polyfill to every target; the first-run precondition selects which binding the agent loads.
+- **Decision**: Ship every adapter and polyfill to every target; the conversation-start step selects which binding the agent loads.
   **Alternatives**: Ship only the target's adapter, via per-harness packaging.
   **Why**: Disk footprint is free; the scarce resource is the agent's context and attention. Bundling everything removes the need for per-harness packaging to carry the binding, so the design no longer rests on a distribution model unverified beyond Claude Code and Codex. Only the resolved binding enters context.
   **Origin**: User.
 
-- **Decision**: Resolve the harness identity once, at a first-run precondition, from a declared source, and record it; no phase re-derives or detects it. A one-time user answer is the floor that works on every target; a harness-provided signal is used only where one exists (spike: Pi exposes one, OpenCode ships none).
-  **Alternatives**: Detect the harness at runtime by probing the environment; or re-resolve the binding wherever the pipeline needs it.
-  **Why**: A declared identity is a known fact where runtime probing would guess, and harnesses are converging (Codex reads `CLAUDE_PLUGIN_ROOT`; both speak `agentskills.io`), which makes probing ambiguous. Resolving once removes per-phase deliberation, the cost this avoids. Leaving the *source* per-harness avoids assuming a distribution model that holds for Claude Code and Codex but is unverified elsewhere.
+- **Decision**: Resolve the harness identity once per orchestrator conversation, at its start, and hold it for that conversation; no phase re-derives it, and it is not written to a file. The primary source is the agent's own knowledge of its host, which Claude Code and Codex both make known to the running agent; a one-time user declaration is the universal fallback. This single bounded step is the one place the running agent names its host.
+  **Alternatives**: A shell script probing the environment to detect the harness (unreliable: the signals are ambiguous and OpenCode ships none); or a resolved-binding file persisted per checkout and read on every run.
+  **Why**: The harness is a property of the running conversation, not the checkout, so its natural lifetime is the conversation; resolving per conversation always matches the actual host and removes the stale-file hazard of a checkout driven from a second harness. The agent's self-knowledge is reliable where a shell script's env-probe is not. Naming the host at one bounded step, and reading the result everywhere else, keeps every phase host-blind.
   **Origin**: User.
 
 - **Decision**: Assume a baseline tool set on every harness — read, write, and edit files; run shell; the agent's own inference — and exclude it from the contract and the port. Only capabilities beyond the baseline get a binding.
@@ -136,12 +136,11 @@ Two decisions shape everything below:
 
 ## Assumptions
 
-- speccy ships no post-install step of its own, so the harness identity is declared at a first-run precondition rather than configured ahead of time.
+- speccy ships no post-install step of its own, so the harness is resolved at the start of each orchestrator conversation rather than configured ahead of time.
 
 ## Open questions
 
 - **The workflow-runtime module is a feasibility assumption; spike it before planning commits.** Prove a minimal `workflow.js` runs green on Codex through the workflow runtime module (see the workflow runtime contract deliverable), using **tool-using** agents, since every schema-bearing agent in the real pipeline uses tools. The residual risk is the module's fidelity: worktree isolation under concurrent subprocesses, and a tool-using agent reliably producing a result the module can validate. Stdout schema availability is not at issue; that failure mode is already established (see Decisions & rationale). This spike is the heart of the Codex smoke test (see Completion criteria).
 - **Does the shared `SKILL.md` actually load and trigger under Codex** with only packaging and path changes, or does the body need edits? Resolve by installing one core skill into Codex and invoking it.
-- **What is the binding record and where is it kept?** A standalone manifest the first-run precondition reads, kept out of `state.json` so run state stays harness-neutral. Decide in planning against the no-runtime-branching constraint.
 - **How is each target's install produced?** The preference is to ship the shared tree so every harness reads the same files in place (the bundle-everything decision makes this plausible), avoiding any transform that splits the installed artifact from its source. A build step that generates per-target trees is allowed but a last resort. Decide in planning per target's discovery rules.
 - **The smoke test's exact steps.** Which capabilities to exercise, the minimal `workflow.js` to run, and how to assert each probe and the thin thread. Pin down in planning.
