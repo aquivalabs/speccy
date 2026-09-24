@@ -50,6 +50,8 @@ if (!plan && !planPath)
   throw new Error(
     "plan-execution requires either `planPath` or `plan` in args"
   );
+if (!models || !models.L)
+  throw new Error("plan-execution requires `args.models.L` to be set");
 const planRef = planPath
   ? `Read the plan from this file: \`${planPath}\``
   : plan;
