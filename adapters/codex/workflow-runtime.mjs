@@ -27,6 +27,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { readIfPresent } from "./read-if-present.mjs";
+import { codexPermissionArgs, DEFAULT_POSTURE } from "./permissions.mjs";
 
 // ── Concurrency cap ──────────────────────────────────────────────────
 //
@@ -147,6 +148,8 @@ function slug(s) {
 //   heartbeatThrottleMs — minimum gap between heartbeat writes triggered by
 //                   subprocess stdout/stderr data (default 200); spawn and
 //                   close always write regardless of this gap.
+//   posture       — codex sandbox/approval posture, resolved to flags by
+//                   permissions.mjs (default DEFAULT_POSTURE, "bypass").
 //
 // Returns the five ambients plus a dispose() teardown and inspectable state.
 export function createCodexRuntime(config = {}) {
@@ -161,7 +164,8 @@ export function createCodexRuntime(config = {}) {
     cpus = os.cpus().length,
     retries = 2,
     modelFlag = "--model",
-    heartbeatThrottleMs = 200
+    heartbeatThrottleMs = 200,
+    posture = DEFAULT_POSTURE
   } = config;
   if (!repoRoot) throw new Error("createCodexRuntime: repoRoot is required");
   // Resolve to absolute: workDir, worktree paths, and the schema result path are
@@ -267,7 +271,7 @@ export function createCodexRuntime(config = {}) {
 
     const lastMsgPath = path.join(workDir, `${id}.last.txt`);
     const buildExecArgs = (finalPrompt) => {
-      const execArgs = ["exec", "-C", cwd, "-o", lastMsgPath, "--dangerously-bypass-approvals-and-sandbox"];
+      const execArgs = ["exec", "-C", cwd, "-o", lastMsgPath, ...codexPermissionArgs({ posture })];
       if (model) execArgs.push(modelFlag, model);
       execArgs.push(finalPrompt);
       return execArgs;

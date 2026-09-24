@@ -26,6 +26,7 @@ import {
   augmentResultPrompt,
   confirmCommitLanded
 } from "../workflow-runtime.mjs";
+import { codexPermissionArgs } from "../permissions.mjs";
 
 const HERE = import.meta.dirname;
 const FAKE = path.join(HERE, "fake-codex.mjs");
@@ -460,6 +461,38 @@ test("agent()'s cross-check logs nothing for a sequential-style commit on the ba
     `expected no discrepancy log for a base-branch commit, got:\n${lines.join("")}`
   );
   await rt.dispose();
+  cleanup();
+});
+
+// ── permissions wiring ──────────────────────────────────────────────────
+
+test("agent() spawns with the flags permissions.mjs builds for the posture", async () => {
+  const { root, cleanup } = repo();
+  const seen = [];
+  const capturingSpawn = (cmd, a, o) => {
+    seen.push(a);
+    return nodeSpawn(cmd, a, o);
+  };
+  // Default posture: the flags must be exactly what codexPermissionArgs returns,
+  // proving the runtime reads permissions.mjs rather than a hardcoded literal.
+  const rtDefault = runtimeOn(root, { spawn: capturingSpawn });
+  await rtDefault.agent("do it", { label: "exec:task-1" });
+  const defaultArgs = codexPermissionArgs({ posture: "bypass" });
+  assert.ok(
+    defaultArgs.every((f) => seen[0].includes(f)),
+    `expected default spawn to carry ${defaultArgs.join(" ")}, got ${seen[0].join(" ")}`
+  );
+  await rtDefault.dispose();
+
+  // A non-default posture flows through the same seam.
+  seen.length = 0;
+  const rtReadOnly = runtimeOn(root, { spawn: capturingSpawn, posture: "read-only" });
+  await rtReadOnly.agent("do it", { label: "exec:task-2" });
+  assert.ok(
+    seen[0].includes("read-only") && !seen[0].includes("--dangerously-bypass-approvals-and-sandbox"),
+    `expected read-only posture flags, got ${seen[0].join(" ")}`
+  );
+  await rtReadOnly.dispose();
   cleanup();
 });
 
