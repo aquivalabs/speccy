@@ -150,8 +150,8 @@ function slug(s) {
 //
 // Returns the five ambients plus a dispose() teardown and inspectable state.
 export function createCodexRuntime(config = {}) {
+  let { repoRoot } = config;
   const {
-    repoRoot,
     baseBranch = "main",
     runId = "run",
     args = {},
@@ -164,6 +164,11 @@ export function createCodexRuntime(config = {}) {
     heartbeatThrottleMs = 200
   } = config;
   if (!repoRoot) throw new Error("createCodexRuntime: repoRoot is required");
+  // Resolve to absolute: workDir, worktree paths, and the schema result path are
+  // all derived from repoRoot, and the agent is told the result path is absolute
+  // and runs under `-C <worktree>`. A relative repoRoot would resolve the result
+  // channel and worktree paths against the wrong cwd.
+  repoRoot = path.resolve(repoRoot);
 
   const workDir = config.workDir || path.join(repoRoot, ".speccy", runId, "codex");
   const worktreeRoot =

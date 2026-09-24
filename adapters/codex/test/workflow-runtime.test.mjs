@@ -253,6 +253,25 @@ test("a schema agent() result comes from the file the agent wrote, validated", a
   cleanup();
 });
 
+test("createCodexRuntime resolves a relative repoRoot so the result channel works", async () => {
+  const { root, cleanup } = repo();
+  const rel = path.relative(process.cwd(), root);
+  assert.ok(!path.isAbsolute(rel), "test drives the relative-root path");
+  const rt = createCodexRuntime({
+    repoRoot: rel,
+    baseBranch: "main",
+    runId: "run-20260101-0900",
+    codexBin: process.execPath,
+    codexArgsPrefix: [FAKE]
+  });
+  // With an unresolved relative root the agent-written result path and the path
+  // the runtime reads back resolve against different cwds, so this would fail.
+  const result = await rt.agent("decompose [[FAKE:ok]]", { label: "decompose", schema: STEP_SCHEMA });
+  assert.equal(result.steps[0].tasks[0].id, "task-1");
+  await rt.dispose();
+  cleanup();
+});
+
 test("a malformed result file is retried, then throws for withRetry to catch", async () => {
   const { root, cleanup } = repo();
   let spawns = 0;
