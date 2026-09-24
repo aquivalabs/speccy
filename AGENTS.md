@@ -18,7 +18,7 @@ The plugin version is pre-1.0, so a "minor" release bumps the third digit (0.10.
 
 ## Tests
 
-Run `node --test "skills/speccy/test/*.test.mjs"`, and keep it green; the `status-check` job runs it.
+Run `node --test "skills/speccy/test/*.test.mjs" "adapters/codex/test/*.test.mjs"`, `node test/smoke.mjs --harness claude`, and `node test/thin-thread.mjs --harness claude`, and keep them green; the `status-check` job runs all three.
 
 ## Verify harness facts against current docs, never memory
 
