@@ -116,3 +116,7 @@ The build ran the plan on Opus: seven tasks, all integrated, no corrective tasks
 - **Builder on Opus** for the model-neutralisation prose and the novel Codex loader. Origin: User (carried from plan review).
 
 The load-bearing architecture decisions (rungs in `state.json`, the conversation-scoped binding, the file-write result channel) are recorded above and unchanged by the build.
+
+## Post-review: concrete model names leave the core (2026-09-24)
+
+An earlier decision had speccy name the concrete model beside the rung ("the L rung (Opus on Claude)") so a user unfamiliar with vendor names is not lost, with the denylist carving out that one form. In review the user reconsidered: the rung→model mapping belongs in the adapter, not the skill. The core now names rungs only; where speccy tells the user a concrete model (the recommend-a-builder step) it resolves the rung through the binding, whose map lives in the per-harness adapter. The denylist carve-out is removed, so the core carries zero model names and the check is stricter. The user's original intent (name the model so a user is not lost) is preserved, sourced from the adapter at runtime rather than hard-coded in the core. Origin: User.
