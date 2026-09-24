@@ -20,6 +20,10 @@ The plugin version is pre-1.0, so a "minor" release bumps the third digit (0.10.
 
 Run `node --test "skills/speccy/test/*.test.mjs" "adapters/codex/test/*.test.mjs"`, `node test/smoke.mjs --harness claude`, and `node test/thin-thread.mjs --harness claude`, and keep them green; the `status-check` job runs all three.
 
+## The workflow scripts don't parse standalone
+
+`skills/plan-execution/workflow.js` and `workflow-simple.js` combine `export const meta` (module-level) with a top-level `return` (function-body-only), so no JS mode parses them and `node --check` always fails, on `main` too. They run only through the loader transform; the real syntax gate is `loadWorkflow()` / `buildFactory()` in `adapters/codex/loader.mjs`. Don't add a `node --check` step for them.
+
 ## Verify harness facts against current docs, never memory
 
 speccy is being made to run on more than one agent harness, and harness surfaces move. Confirm any harness fact — a flag, a tool, a model, an instruction-file behaviour — against the current official docs before you rely on it. Do not trust training data or memory for it.
