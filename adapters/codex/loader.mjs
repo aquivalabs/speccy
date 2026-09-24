@@ -23,7 +23,7 @@
 // placement, and the top-level `return`s at lines 410/694 pin function-body
 // placement. The shape is forced, but it is unconfirmed against the real
 // Workflow tool. Validate it empirically against that tool before relying on it
-// in production (plan Order-of-operations step 4). Residual risk: the tool could
+// in production. Residual risk: the tool could
 // perform an additional normalisation this loader omits (e.g. a different `meta`
 // evaluation sandbox). The known ambient surface is pinned by the unit tests.
 
