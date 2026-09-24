@@ -19,8 +19,8 @@
 // two fields" through the binding; the binding points its monitor mechanism at
 // this glue and at the heartbeat path the runtime reports (its `heartbeatPath`).
 //
-// This PR ships the mtime (liveness) path. The `alive` field is defined and read
-// here; its Tier-2 confirm-before-stop path need not fire in the smoke test.
+// The `alive` field is defined and read here; its Tier-2 confirm-before-stop
+// path need not fire in the smoke test.
 
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
