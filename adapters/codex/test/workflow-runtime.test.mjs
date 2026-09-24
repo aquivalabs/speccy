@@ -289,6 +289,26 @@ test("a malformed result file is retried, then throws for withRetry to catch", a
   cleanup();
 });
 
+test("a schema agent() that writes no result file rejects after retries; never returns a stale result", async () => {
+  // [[FAKE:absent]] writes nothing. Each attempt reads its own per-attempt path,
+  // so a retry cannot pick up a prior attempt's file; the missing file drives the
+  // retry-then-throw rather than a stale/previous result masquerading as success.
+  const { root, cleanup } = repo();
+  let spawns = 0;
+  const countingSpawn = (cmd, a, o) => {
+    spawns++;
+    return nodeSpawn(cmd, a, o);
+  };
+  const rt = runtimeOn(root, { retries: 2, spawn: countingSpawn });
+  await assert.rejects(
+    () => rt.agent("decompose [[FAKE:absent]]", { label: "decompose", schema: STEP_SCHEMA }),
+    /no schema-valid result file after 2 attempts/
+  );
+  assert.equal(spawns, 2, "the exec was retried before failing");
+  await rt.dispose();
+  cleanup();
+});
+
 test("a schema-violating result file is rejected", async () => {
   const { root, cleanup } = repo();
   const rt = runtimeOn(root, { retries: 1 });

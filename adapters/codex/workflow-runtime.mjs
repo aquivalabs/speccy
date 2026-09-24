@@ -266,21 +266,12 @@ export function createCodexRuntime(config = {}) {
     }
 
     const lastMsgPath = path.join(workDir, `${id}.last.txt`);
-    const resultPath = schema ? path.join(workDir, `${id}.result.json`) : null;
-    const finalPrompt = schema
-      ? augmentResultPrompt(prompt, schema, resultPath)
-      : prompt;
-
-    const execArgs = [
-      "exec",
-      "-C",
-      cwd,
-      "-o",
-      lastMsgPath,
-      "--dangerously-bypass-approvals-and-sandbox"
-    ];
-    if (model) execArgs.push(modelFlag, model);
-    execArgs.push(finalPrompt);
+    const buildExecArgs = (finalPrompt) => {
+      const execArgs = ["exec", "-C", cwd, "-o", lastMsgPath, "--dangerously-bypass-approvals-and-sandbox"];
+      if (model) execArgs.push(modelFlag, model);
+      execArgs.push(finalPrompt);
+      return execArgs;
+    };
 
     // Non-schema call: run once, return the agent's prose (its -o last message).
     // The oracle is git state (runExecute's confirmFromGit), NOT the exit code:
@@ -289,7 +280,7 @@ export function createCodexRuntime(config = {}) {
     // and worktree cleanup, stranding siblings' committed work. Log the exit as a
     // diagnostic and hand back the report for the git oracle to judge.
     if (!schema) {
-      const { code } = await runCodex(execArgs, cwd);
+      const { code } = await runCodex(buildExecArgs(prompt), cwd);
       if (code !== 0)
         log(`${label}: codex exec exited with code ${code} (returning report; git state is the oracle)`);
       return readIfPresent(lastMsgPath);
@@ -299,13 +290,15 @@ export function createCodexRuntime(config = {}) {
     // schema-valid result file, not the exit code: a non-zero exit that still
     // wrote a valid file is accepted, and a missing/malformed/invalid file drives
     // the retry then throw so withRetry (or the direct caller) sees the failure.
+    //
+    // Each attempt writes to its OWN result path (the attempt index is in the
+    // filename), so a retry can never read a prior attempt's leftover file as its
+    // own result — no wipe, and no stale-read hazard if a wipe had failed.
     let lastErr;
     for (let attempt = 0; attempt < retries; attempt++) {
+      const resultPath = path.join(workDir, `${id}.attempt-${attempt + 1}.result.json`);
       try {
-        fs.rmSync(resultPath, { force: true });
-      } catch {}
-      try {
-        const { code } = await runCodex(execArgs, cwd);
+        const { code } = await runCodex(buildExecArgs(augmentResultPrompt(prompt, schema, resultPath)), cwd);
         if (code !== 0)
           log(`${label}: codex exec exited with code ${code} on attempt ${attempt + 1} (result file is the oracle)`);
         const raw = fs.readFileSync(resultPath, "utf8");
