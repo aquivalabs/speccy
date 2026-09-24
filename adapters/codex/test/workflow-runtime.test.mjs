@@ -309,13 +309,26 @@ test("a non-schema agent() returns the agent's prose from the -o file", async ()
   cleanup();
 });
 
-test("a non-schema agent() rejects on a non-zero exit, even with stale -o output", async () => {
+test("a non-schema agent() returns its report even on a non-zero exit (git state is the oracle)", async () => {
+  // runExecute has no try/catch and judges success from git via confirmFromGit; a
+  // non-zero exit can accompany a landed commit, so agent() must return the report
+  // rather than throw (throwing would skip the integrate-succeeded loop and cleanup).
   const { root, cleanup } = repo();
   const rt = runtimeOn(root);
-  await assert.rejects(
-    () => rt.agent("just do it [[FAKE:fail]]", { label: "exec:task-1" }),
-    /exec:task-1: codex exec exited with code 1/
-  );
+  const prose = await rt.agent("just do it [[FAKE:fail]]", { label: "exec:task-1" });
+  assert.match(prose, /fake codex done/);
+  await rt.dispose();
+  cleanup();
+});
+
+test("a schema agent() accepts a valid result file even when codex exec exits non-zero", async () => {
+  // [[FAKE:fail]] writes a schema-valid result file and then exits 1. The file is
+  // the oracle, so the valid result is accepted despite the non-zero exit.
+  const { root, cleanup } = repo();
+  const rt = runtimeOn(root);
+  const result = await rt.agent("decompose [[FAKE:fail]]", { label: "decompose", schema: STEP_SCHEMA });
+  assert.equal(result.steps[0].tasks[0].id, "task-1");
+  validateAgainstSchema(result, STEP_SCHEMA);
   await rt.dispose();
   cleanup();
 });

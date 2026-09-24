@@ -283,18 +283,22 @@ export function createCodexRuntime(config = {}) {
     execArgs.push(finalPrompt);
 
     // Non-schema call: run once, return the agent's prose (its -o last message).
-    // A non-zero exit is a failed call, not a good result with stale/partial
-    // prose — throw so withRetry (or the direct caller) sees the failure.
+    // The oracle is git state (runExecute's confirmFromGit), NOT the exit code:
+    // a non-zero exit can accompany a commit that landed, and throwing here would
+    // propagate through parallel() and skip workflow.js's integrate-succeeded loop
+    // and worktree cleanup, stranding siblings' committed work. Log the exit as a
+    // diagnostic and hand back the report for the git oracle to judge.
     if (!schema) {
       const { code } = await runCodex(execArgs, cwd);
-      if (code !== 0) throw new Error(`${label}: codex exec exited with code ${code}`);
+      if (code !== 0)
+        log(`${label}: codex exec exited with code ${code} (returning report; git state is the oracle)`);
       return readIfPresent(lastMsgPath);
     }
 
-    // Schema call: run, read the result file, validate. Retry the whole exec on
-    // a non-zero exit or a missing/malformed/invalid file; throw after `retries`
-    // so withRetry (or the direct caller) sees the failure the same way it does
-    // today.
+    // Schema call: run, read the result file, validate. The oracle is a
+    // schema-valid result file, not the exit code: a non-zero exit that still
+    // wrote a valid file is accepted, and a missing/malformed/invalid file drives
+    // the retry then throw so withRetry (or the direct caller) sees the failure.
     let lastErr;
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
@@ -302,7 +306,8 @@ export function createCodexRuntime(config = {}) {
       } catch {}
       try {
         const { code } = await runCodex(execArgs, cwd);
-        if (code !== 0) throw new Error(`codex exec exited with code ${code}`);
+        if (code !== 0)
+          log(`${label}: codex exec exited with code ${code} on attempt ${attempt + 1} (result file is the oracle)`);
         const raw = fs.readFileSync(resultPath, "utf8");
         const parsed = JSON.parse(raw);
         validateAgainstSchema(parsed, schema);
