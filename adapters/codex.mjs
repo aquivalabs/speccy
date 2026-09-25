@@ -64,6 +64,13 @@ export default {
   // CLAUDE.md-shadowing rule; it must not inherit Claude's.
   resolveInstructionFile: () => 'AGENTS.md',
 
+  // Reads the configured effort for the preconditions' effort check. The levels
+  // are those `codex debug models` listed on 2026-09-25.
+  effortCheck:
+    'run `grep -E \'^model_reasoning_effort\' "${CODEX_HOME:-$HOME/.codex}/config.toml" 2>/dev/null | cut -d\'"\' -f2`; ' +
+    'it prints the configured reasoning effort, or nothing (an unreported effort is not a low one). xhigh, max, and ultra are above high; ' +
+    'the user lowers it in the model picker or model_reasoning_effort.',
+
   // Resolution-time settlements (see CONTRACT.md).
   // Unverified: the codex exec children need network access, which Codex's
   // workspace-write sandbox denies by default, so starting the run may need

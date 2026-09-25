@@ -6,7 +6,7 @@ Before diving in, briefly orient the user on why planning is a separate step: th
 
 Planning research happens in a subagent to keep the codebase-reading noise out of the main context. Read `prompts/plan-research.md`.
 
-**Dispatch the project's own research agents from here rather than from the planner.** A spawned subagent is shown no agent types at all, so the planner cannot name a repo's own research agent, and a subagent that spawns children and waits on them has stalled twice. So if `.claude/agents/` holds read-only research agents, dispatch the relevant ones yourself before spawning the planner and pass their findings into its prompt. Cite them in the plan as research: unlike a house skill's rule, a research agent's answer is one agent's output, and the critique loop weighs it like any other evidence.
+**Dispatch the project's own research agents from here rather than from the planner.** A spawned subagent may not see the project's own agent definitions, so the planner cannot count on naming a repo's research agent, and a subagent that spawns children and waits on them has stalled twice. So if the project defines read-only research agents, dispatch the relevant ones yourself before spawning the planner and pass their findings into its prompt. Cite them in the plan as research: unlike a house skill's rule, a research agent's answer is one agent's output, and the critique loop weighs it like any other evidence.
 
 **Set the spec's Status to `Accepted`** and commit that line before spawning the planner: entering planning is the user accepting the spec.
 

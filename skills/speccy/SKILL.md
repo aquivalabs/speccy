@@ -52,7 +52,7 @@ If the user's trigger message already includes a description of what to build, s
 
 ## Resuming a run
 
-Run state lives at `.speccy/<run-id>/state.json`, written after every phase boundary by `state.mjs`, its **only** writer. You read it directly with the Read tool (resume, the round number N, prior engagement questions, the models, whether a readability pass has run) and never hand-write it. Its fields: runId, slug, baseBranch, adversaryModel, builderModel, phase, specPath, planPath, decisionLogPath, the three round counters, readabilityPasses, engagementQuestions. The schema is closed; the CLI rejects anything else.
+Run state lives at `.speccy/<run-id>/state.json`, written after every phase boundary by `state.mjs`, its **only** writer. You read it directly as a file (resume, the round number N, prior engagement questions, the models, whether a readability pass has run) and never hand-write it. Its fields: runId, slug, baseBranch, adversaryModel, builderModel, phase, specPath, planPath, decisionLogPath, the three round counters, readabilityPasses, engagementQuestions. The schema is closed; the CLI rejects anything else.
 
 Run the CLI by its **absolute path**, `node <skill-dir>/state.mjs <verb> --run <runId> …` (the same literal-path, no-`cd`, no-substitution rule as the banner; `--run` is required on every verb). It writes loudly: a bad transition or an unmet guard prints the reasons and exits non-zero, leaving state untouched, and every call prints the phase you land in and a one-line hint at what comes next. Each phase below gives the exact call to make; you never need `--help`.
 
@@ -79,7 +79,7 @@ A resumed run skips the precondition checks (but not the harness binding; see **
 
 After completing each phase, `state.mjs advance` to the next and continue. The user can clear the context and re-invoke the skill at any point to resume from the recorded phase; no need to ask permission at phase boundaries.
 
-Read `.speccy/` artifacts with the Read tool and write run artifacts (spec, engagement-question files, review notes) with the Write tool; both are pre-approved in `allowed-tools`, as is `state.mjs`, so none prompt. `state.json` itself is written only through `state.mjs`, never by hand. Do **not** rely on the Glob tool: it isn't available in every session, which is why run discovery uses the `.current-runid` pointer. The pointer tracks the latest run; earlier runs remain in `.speccy/` if the user wants to revisit one.
+Read `.speccy/` artifacts and write run artifacts (spec, engagement-question files, review notes) as plain file reads and writes; where the harness honours the skill's pre-approved tools, these and `state.mjs` never prompt. `state.json` itself is written only through `state.mjs`, never by hand. Do **not** rely on a file-globbing tool: it isn't available in every session, which is why run discovery uses the `.current-runid` pointer. The pointer tracks the latest run; earlier runs remain in `.speccy/` if the user wants to revisit one.
 
 ## Resolve the harness binding
 
@@ -104,11 +104,9 @@ Before running any of the checks below, suggest the user enable auto-accept. Fro
 
 Every subagent inherits the session's effort, and speccy spawns dozens of them: critics, revise agents, a planner, the review lenses, the fixers, and the whole build. At `xhigh` or `max` that multiplies across the pipeline and the run takes far longer.
 
-```bash
-echo "${CLAUDE_EFFORT:-$(grep -o '"effortLevel"[^,]*' ~/.claude/settings.json 2>/dev/null | cut -d'"' -f4)}"
-```
+Run the binding's effort check (its `effortCheck`); it names the command that reads the session's effort and the levels that count as above `high`.
 
-If that prints `xhigh` or `max`, say so and suggest lowering the reasoning effort to `high` before starting. It is the user's call, since this costs time rather than correctness. If it prints nothing, say nothing: an unreported effort is not a low one.
+If the effort is above `high`, say so and suggest lowering it to `high` before starting. It is the user's call, since this costs time rather than correctness. If it prints nothing, say nothing: an unreported effort is not a low one.
 
 ### Verification tools
 

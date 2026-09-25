@@ -43,6 +43,7 @@ These are fixed when the binding resolves, not through runtime tool calls. Each 
 
 - **invocation entrypoint** — how the harness starts a run of speccy's core.
 - **permission / approval configuration** — the sandbox and approval posture a spawned agent runs under.
+- **effort check** (optional) — how to read the session's reasoning effort and which levels count as above `high`, for speccy's precondition that warns against a run at an expensive effort.
 - **instruction-file name** — the project instruction file this harness loads (`CLAUDE.md`, `AGENTS.md`, or another), which speccy points subagents and worktree-init at.
 
 ## What the resolver guarantees

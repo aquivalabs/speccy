@@ -92,6 +92,7 @@ export function resolveBinding(harness, defaults = ADAPTERS[harness], cwd = proc
     models: Object.freeze({ ...models }),
     instructionFile,
     invocation: defaults.invocation ?? null,
+    effortCheck: defaults.effortCheck ?? null,
     permissions: defaults.permissions ?? null,
   })
 }

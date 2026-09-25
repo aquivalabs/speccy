@@ -62,7 +62,10 @@ export default {
     'spawn-subagent.orchestrator-native': 'the Agent tool',
     'spawn-subagent.workflow-module': "the Workflow tool's injected agent()",
     'run-parallel': "the Workflow tool's injected parallel()",
-    'run-workflow': 'the Workflow tool, given the scriptPath and args; it runs in the background and notifies on completion',
+    'run-workflow':
+      'the Workflow tool, given the scriptPath and args; it runs in the background and notifies on completion. ' +
+      'Its worktrees branch from HEAD only when .claude/settings.json has "worktree": { "baseRef": "head" }; if missing, add it ' +
+      '(via Bash/python, since direct Edit on that file is blocked). The default (fresh) branches from origin/<default-branch>, which misses every feature-branch commit.',
     'monitor': 'the Monitor tool, with TaskStop, SendMessage and PushNotification for the watchdog',
   },
 
@@ -79,6 +82,11 @@ export default {
   // Resolves the project instruction file Claude Code actually loads for a given
   // working directory: CLAUDE.md where one shadows AGENTS.md, else AGENTS.md.
   resolveInstructionFile,
+
+  // Reads the session's effort for the preconditions' effort check.
+  effortCheck:
+    'run `echo "${CLAUDE_EFFORT:-$(grep -o \'"effortLevel"[^,]*\' ~/.claude/settings.json 2>/dev/null | cut -d\'"\' -f4)}"`; ' +
+    'it prints the effort level, or nothing (an unreported effort is not a low one). xhigh and max are above high; the user lowers it with /effort.',
 
   // Resolution-time settlements (see CONTRACT.md).
   invocation: 'the speccy skill, triggered in the Claude Code conversation',

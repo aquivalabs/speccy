@@ -9,9 +9,12 @@
 // It matches PRECISE tokens, never bare capitalised nouns: `Workflow tool` and
 // `Agent tool` (never the bare word `workflow`/`agent`, nor a "Plan Execution
 // Workflow" header), `Monitor`, `TaskStop`, `SendMessage`, `PushNotification`,
-// the model aliases opus/sonnet/haiku/fable, and the `codex exec` invocation. It
-// does not ban CLAUDE.md/AGENTS.md: one legitimate use names both (doc discovery
-// in review-local-docs.md).
+// the model aliases opus/sonnet/haiku/fable, the `codex exec` invocation, user
+// commands (`/clear`, `/effort`, shift+tab), baseline tool names (`Read tool`),
+// vendor environment variables, and the capitalised vendor names. It does not
+// ban CLAUDE.md/AGENTS.md: one legitimate use names both (doc discovery in
+// review-local-docs.md). Nor does it ban the lowercase `claude`/`codex`
+// identifiers, which the binding step names once as example harness ids.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -56,6 +59,12 @@ const BANNED = [
   // names rungs, and resolves a rung to a model through the binding at runtime.
   { name: 'model alias', re: /\b(?:opus|sonnet|haiku|fable)\b/gi },
   { name: 'codex exec invocation', re: /\bcodex\s+exec\b/gi },
+  // A slash command, but not a path segment like prompts/review-tests.md.
+  { name: 'user command', re: /(?<=^|[\s`(])\/(?:clear|effort|compact|model|review)\b/g },
+  { name: 'user command (shift+tab)', re: /\bshift\s*\+\s*tab\b/gi },
+  { name: 'baseline tool name', re: /\b(?:Read|Write|Edit|Glob|Grep|Bash)\s+tool\b/g },
+  { name: 'vendor environment variable', re: /\b(?:CLAUDE|CODEX)_[A-Z_]+\b/g },
+  { name: 'vendor name', re: /\b(?:Claude|Codex|Anthropic|OpenAI)\b/g },
 ]
 
 function scan(file) {
@@ -92,6 +101,14 @@ test('the patterns catch real tokens and spare the legitimate forms', () => {
     'always use Opus regardless of the execution model',
     'the **L rung** (Opus on Claude) every round',
     'run one codex exec per agent() call',
+    'the user can `/clear` and re-invoke',
+    'drop to high in /effort',
+    'enable auto-accept mode (shift+tab)',
+    'read it with the Read tool',
+    'do not rely on the Glob tool',
+    'echo "${CLAUDE_EFFORT}"',
+    'the SKILL.md instructs Claude to read this file',
+    'on Codex the monitor polls',
   ]) assert.ok(caught(leak), `should flag: ${leak}`)
 
   for (const ok of [
@@ -101,5 +118,9 @@ test('the patterns catch real tokens and spare the legitimate forms', () => {
     'the adversary runs on the L rung, the builder on the M rung, the top rung is XL',
     'arm the monitor and poll',
     'the instruction file (CLAUDE.md / AGENTS.md)',
+    'pass `prompts/review-tests.md` with the spec path',
+    'writes `.speccy/<run-id>/review-round-N-<lens>.md`',
+    'clear the context and re-invoke',
+    'a short identifier such as `claude` or `codex`',
   ]) assert.ok(!caught(ok), `should spare: ${ok}`)
 })

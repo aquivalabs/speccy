@@ -19,7 +19,7 @@ Check that the instruction file documents the project's verification tools (buil
 
 Worktree init is only needed when the plan has parallel tasks (which use git worktrees). If the plan is purely sequential, skip this section.
 
-Worktrees must branch from the current HEAD so that parallel tasks see work committed by prior sequential tasks. Check `.claude/settings.json` for `"worktree": { "baseRef": "head" }`. If missing, add it (via Bash/python, since direct Edit on that file is blocked). The default (`fresh`) branches from `origin/<default-branch>`, which misses all feature-branch commits.
+Worktrees must branch from the current HEAD so that parallel tasks see work committed by prior sequential tasks. If the binding's run-workflow mechanism names a setting that controls this, check it and set it where missing.
 
 Check whether the instruction file has a `## Worktree init` section. If it does, resolve the gather/apply variables before running the workflow:
 

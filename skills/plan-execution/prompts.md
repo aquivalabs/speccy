@@ -1,6 +1,6 @@
 # Subagent Prompts
 
-Prompt templates for each subagent role. The SKILL.md instructs Claude to read this file and pass the prompts via `args.prompts`. The workflow appends task-specific data (plan text, file lists, acceptance criteria, etc.) to each prompt at runtime.
+Prompt templates for each subagent role. The SKILL.md instructs the orchestrator to read this file and pass the prompts via `args.prompts`. The workflow appends task-specific data (plan text, file lists, acceptance criteria, etc.) to each prompt at runtime.
 
 ---
 
