@@ -69,5 +69,5 @@ export default {
   // workspace-write sandbox denies by default, so starting the run may need
   // escalated permissions.
   invocation: `plan-execution's workflow runs through \`node ${RUN_WORKFLOW} start\` (see run-workflow), spawning codex exec children from a normal process context; if they fail on network access, re-run the start command outside the sandbox`,
-  permissions: 'adapters/codex/permissions.mjs — the codex exec 0.154.0 sandbox/approval postures (bypass, workspace-write, read-only)',
+  permissions: 'adapters/codex/permissions.mjs — codex exec runs in the workspace-write sandbox with approvals routed to automatic review; the sandbox is never bypassed',
 }

@@ -477,12 +477,23 @@ test("agent() spawns with the flags permissions.mjs builds for the posture", asy
   // proving the runtime reads permissions.mjs rather than a hardcoded literal.
   const rtDefault = runtimeOn(root, { spawn: capturingSpawn });
   await rtDefault.agent("do it", { label: "exec:task-1" });
-  const defaultArgs = codexPermissionArgs({ posture: "bypass" });
+  const defaultArgs = codexPermissionArgs({ posture: "workspace-write" });
   assert.ok(
     defaultArgs.every((f) => seen[0].includes(f)),
     `expected default spawn to carry ${defaultArgs.join(" ")}, got ${seen[0].join(" ")}`
   );
+  assert.ok(!seen[0].includes("--dangerously-bypass-approvals-and-sandbox"), "the sandbox is never bypassed");
+  assert.ok(!seen[0].includes("--add-dir"), "an agent on the main checkout needs no extra writable dir");
   await rtDefault.dispose();
+
+  // A worktree agent also gets the repo's git dir writable, so its commits land.
+  seen.length = 0;
+  const rtWorktree = runtimeOn(root, { spawn: capturingSpawn });
+  await rtWorktree.agent("do it", { label: "exec:task-3", isolation: "worktree" });
+  const addDir = seen[0].indexOf("--add-dir");
+  assert.ok(addDir >= 0, `expected --add-dir for a worktree agent, got ${seen[0].join(" ")}`);
+  assert.equal(fs.realpathSync(seen[0][addDir + 1]), fs.realpathSync(path.join(root, ".git")));
+  await rtWorktree.dispose();
 
   // A non-default posture flows through the same seam.
   seen.length = 0;

@@ -51,7 +51,7 @@ When done, commit all changes. Then end your report with these two lines, exactl
 
 You do not need to return a structured result; a concise prose report is enough. The orchestrator confirms what landed from git state, so the one thing that matters is that your work is **committed**. Include a friction log in your report with three fields:
 
-- **harder_than_expected**: anything that took more effort or was more complex than the task description suggested
+- **harder_than_expected**: anything that took more effort or was more complex than the task description suggested, including every tool call the harness blocked or held for approval (what you ran, and what happened)
 - **wrong_turns**: approaches you tried that didn't work, and why
 - **suggestions**: what would have made this task easier (better instructions, missing context, tooling gaps)
 

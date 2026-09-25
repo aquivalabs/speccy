@@ -149,7 +149,7 @@ function slug(s) {
 //                   subprocess stdout/stderr data (default 200); spawn and
 //                   close always write regardless of this gap.
 //   posture       — codex sandbox/approval posture, resolved to flags by
-//                   permissions.mjs (default DEFAULT_POSTURE, "bypass").
+//                   permissions.mjs (default DEFAULT_POSTURE, "workspace-write").
 //
 // Returns the five ambients plus a dispose() teardown and inspectable state.
 export function createCodexRuntime(config = {}) {
@@ -215,6 +215,11 @@ export function createCodexRuntime(config = {}) {
     return execFileSync("git", ["-C", cwd, ...gitArgs], { encoding: "utf8" });
   }
 
+  // A worktree agent's workspace is its worktree, but its commits write into the
+  // main repo's git directory. Without this extra writable dir, the sandbox
+  // would send every commit to approval.
+  const gitCommonDir = path.resolve(repoRoot, git(["rev-parse", "--git-common-dir"]).trim());
+
   function runCodex(execArgs, cwd) {
     return new Promise((resolve, reject) => {
       liveCount++;
@@ -271,7 +276,8 @@ export function createCodexRuntime(config = {}) {
 
     const lastMsgPath = path.join(workDir, `${id}.last.txt`);
     const buildExecArgs = (finalPrompt) => {
-      const execArgs = ["exec", "-C", cwd, "-o", lastMsgPath, ...codexPermissionArgs({ posture })];
+      const addDirs = isolation === "worktree" ? [gitCommonDir] : [];
+      const execArgs = ["exec", "-C", cwd, "-o", lastMsgPath, ...codexPermissionArgs({ posture, addDirs })];
       if (model) execArgs.push(modelFlag, model);
       execArgs.push(finalPrompt);
       return execArgs;

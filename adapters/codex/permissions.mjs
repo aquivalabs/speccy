@@ -11,9 +11,6 @@
 //   --approve-for-me
 //         Route approval requests through automatic review using the
 //         workspace-write sandbox (no per-call human prompt).
-//   --dangerously-bypass-approvals-and-sandbox
-//         Skip all approvals and run without sandboxing. Intended solely for a
-//         context that is already externally sandboxed.
 //   --add-dir <DIR>
 //         An extra directory writable alongside the primary workspace
 //         (repeatable). The runtime uses it when a worktree lives outside CWD.
@@ -36,22 +33,22 @@
 
 // The postures the adapter offers, each a fixed set of the verified flags above.
 //
-//   bypass         — the spike-proven unattended posture: no approvals, no
-//                    sandbox. Correct only because the Codex session that
-//                    spawns `codex exec` is itself the sandbox boundary. This is
-//                    what the workflow runtime spawns with today.
 //   workspace-write — sandboxed writes confined to the workspace (plus any
-//                    --add-dir), approvals auto-reviewed rather than prompted.
-//                    The posture to prefer where the host is not already an
-//                    external sandbox.
+//                    --add-dir), with approval requests routed to Codex's
+//                    automatic review rather than a human. The default: an
+//                    agent that keeps getting blocked shows up in the build's
+//                    friction logs and retrospective.
 //   read-only      — no writes; for inspection or a discovery probe.
+//
+// There is deliberately no posture for --dangerously-bypass-approvals-and-sandbox.
+// Build agents run unattended and in parallel, so nothing may switch their
+// sandbox off.
 export const POSTURES = {
-  bypass: ['--dangerously-bypass-approvals-and-sandbox'],
   'workspace-write': ['--sandbox', 'workspace-write', '--approve-for-me'],
   'read-only': ['--sandbox', 'read-only'],
 }
 
-export const DEFAULT_POSTURE = 'bypass'
+export const DEFAULT_POSTURE = 'workspace-write'
 
 /**
  * Build the permission/sandbox flags for one `codex exec` spawn.
