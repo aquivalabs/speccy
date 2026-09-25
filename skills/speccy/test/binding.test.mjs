@@ -27,6 +27,7 @@ function goodDefaults(overrides = {}) {
       'spawn-subagent.orchestrator-native': 'native subagents',
       'spawn-subagent.workflow-module': 'the workflow module agent()',
       'run-parallel': 'the workflow module parallel()',
+      'run-workflow': 'a runner command',
       'monitor': 'the heartbeat poll loop',
     },
     models: { S: 's-model', M: 'm-model', L: 'l-model', XL: 'xl-model' },

@@ -40,6 +40,7 @@ import {
   readHeartbeat,
   livenessSeconds,
   isWorkInFlight,
+  readStatus,
 } from '../adapters/codex/monitor.mjs'
 
 const REPO = path.resolve(fileURLToPath(import.meta.url), '..', '..')
@@ -407,6 +408,51 @@ await probe('one workflow.js, loadable through the runtime (no fork)', () => {
     assert.ok(meta && meta.name, `${rel} transforms and exposes meta`)
   }
   return 'single workflow.js; both scripts transform cleanly through the loader'
+})
+
+// ════════════════════════════════════════════════════════════════════
+// P10 — a Codex orchestrator can reach the build: it launches a workflow
+// through the command the Codex binding's run-workflow mechanism names, and
+// follows it to completion through the status file alone, as it must with no
+// completion notification. Runs on either --harness, since it exercises the
+// Codex adapter's entrypoint rather than the host.
+await probe('Codex run-workflow entrypoint launches workflow.js; status file reports completion', async () => {
+  const mechanism = resolveBinding('codex').mechanisms['run-workflow']
+  const runner = /node (\S+run-workflow\.mjs) start/.exec(mechanism)?.[1]
+  assert.ok(runner && fs.existsSync(runner), `the binding names a runnable entrypoint: ${mechanism}`)
+  const { root, cleanup } = makeRepo()
+  try {
+    const agentPath = writeAgentInto(root)
+    const script = path.join(root, 'wf.js')
+    fs.writeFileSync(script, MINIMAL_WORKFLOW)
+    const argsFile = path.join(root, 'args.json')
+    fs.writeFileSync(argsFile, JSON.stringify({
+      runId: 'smoke-20260925-0010',
+      baseBranch: 'main',
+      tasks: [{ id: 'p10a', prompt: 'do task a' }, { id: 'p10b', prompt: 'do task b' }],
+      schema: SMOKE_SCHEMA,
+    }))
+    const env = realCodex
+      ? process.env
+      : { ...process.env, SPECCY_CODEX_BIN: process.execPath, SPECCY_CODEX_ARGS_PREFIX: JSON.stringify([agentPath]) }
+    const run = JSON.parse(execFileSync(process.execPath,
+      [runner, 'start', '--script', script, '--args-file', argsFile, '--repo', root], { encoding: 'utf8', env }))
+
+    const deadline = Date.now() + (realCodex ? 600_000 : 20_000)
+    let status = readStatus(run.statusPath)
+    while (['starting', 'running'].includes(status.state)) {
+      assert.ok(Date.now() < deadline, `run still ${status.state} at the deadline`)
+      await new Promise((r) => setTimeout(r, 200))
+      status = readStatus(run.statusPath)
+    }
+    assert.equal(status.state, 'complete', `run ended ${status.state}: ${status.error ?? ''}`)
+    const out = JSON.parse(fs.readFileSync(run.resultPath, 'utf8'))
+    assert.equal(out.results.length, 2, 'the workflow return value landed in resultPath')
+    for (const r of out.results) validateAgainstSchema(r, SMOKE_SCHEMA)
+    return 'binding-named start command ran the workflow detached; status → complete, result read from file'
+  } finally {
+    cleanup()
+  }
 })
 
 // ════════════════════════════════════════════════════════════════════

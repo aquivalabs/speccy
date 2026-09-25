@@ -126,3 +126,9 @@ An earlier decision had speccy name the concrete model beside the rung ("the L r
 The build shipped Codex discovery as `.agents/skills` symlinks into `skills/`. Those are found only when Codex runs inside the speccy repo, so they gave other projects no install, and alongside an installed plugin they list each skill twice (Codex lists duplicate skill names rather than overriding). A probe showed Codex 0.154.0 installs the existing Claude Code plugin unchanged from `.claude-plugin/marketplace.json`, with both skills loading and `binding.mjs` resolving from the installed copy. The symlinks are removed and the one plugin serves both harnesses.
 
 The same probe showed Codex drops `when_to_use` from the prompt, so the trigger phrases moved into `description`. `allowed-tools` stays: Codex ignores it without error, and on Claude Code it pre-approves the state, binding, and banner calls. Origin: User.
+
+## Post-review: a Codex entrypoint for the workflow (2026-09-25)
+
+Review found that nothing let a Codex orchestrator run `workflow.js`. The runtime module existed and every completion criterion passed, but each criterion drove the module from test code, and the one criterion that would have followed the user's path (a full Codex run) was scoped out. No critique round or review lens caught the gap, because the spec-fidelity lens judges against those same criteria.
+
+The fix adds run-workflow to the contract and a criterion for it. On Codex, `adapters/codex/run-workflow.mjs` starts the workflow detached and returns at once; the run reports through a status file in a temp directory (state, phase, recent log lines), and `monitor.mjs status` reads it, reporting a run whose process vanished as `died`. Polling a file replaces the completion notification Claude Code's `Workflow` tool sends, which Codex lacks, and suits Codex's roughly five-minute cap on a shell call. Origin: User.

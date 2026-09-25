@@ -10,6 +10,15 @@
 // polyfills this port adds: the workflow module over `codex exec`, and a monitor
 // that polls the heartbeat file that module writes.
 
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// Absolute, so the orchestrator can run the commands below from any cwd and
+// from the installed plugin's cache directory.
+const CODEX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'codex')
+const RUN_WORKFLOW = path.join(CODEX, 'run-workflow.mjs')
+const MONITOR = path.join(CODEX, 'monitor.mjs')
+
 export default {
   version: 1,
   harness: 'codex',
@@ -19,7 +28,15 @@ export default {
     'spawn-subagent.orchestrator-native': 'Codex native subagents',
     'spawn-subagent.workflow-module': 'the Codex workflow runtime module (one codex exec per agent() call)',
     'run-parallel': 'the Codex workflow module parallel() (concurrency-capped codex exec subprocesses)',
-    'monitor': 'adapters/codex/monitor.mjs polling the workflow module\'s heartbeat file (its heartbeatPath; two fields {mtime, alive}) — the liveness/in-flight glue for the poll loop',
+    'run-workflow':
+      `write the workflow args as JSON to a file, then run \`node ${RUN_WORKFLOW} start --script <scriptPath> --args-file <file> --repo <repo root>\`. ` +
+      'It returns at once, printing the run\'s statusPath, heartbeatPath, resultPath and logPath. ' +
+      'No completion notification follows: the monitor\'s status poll is how you learn the run finished, and resultPath then holds what the workflow returned. ' +
+      `To stop the run, \`node ${RUN_WORKFLOW} stop --status <statusPath>\`.`,
+    'monitor':
+      `poll \`node ${MONITOR} status <statusPath>\` (state starting|running|complete|failed|died, the current phase, the last few log lines), ` +
+      `with \`node ${MONITOR} mtime <heartbeatPath>\` and \`node ${MONITOR} alive <heartbeatPath>\` as the heartbeat's two fields. ` +
+      'A shell call times out after about 5 minutes, so run the poll loop in bounded chunks and re-run it until the state is no longer starting or running.',
   },
 
   // rung -> concrete model, as `codex exec -m <model>` slugs.
@@ -48,6 +65,9 @@ export default {
   resolveInstructionFile: () => 'AGENTS.md',
 
   // Resolution-time settlements (see CONTRACT.md).
-  invocation: 'codex exec, from a normal process context (a child of the Codex session)',
+  // Unverified: the codex exec children need network access, which Codex's
+  // workspace-write sandbox denies by default, so starting the run may need
+  // escalated permissions.
+  invocation: `plan-execution's workflow runs through \`node ${RUN_WORKFLOW} start\` (see run-workflow), spawning codex exec children from a normal process context; if they fail on network access, re-run the start command outside the sandbox`,
   permissions: 'adapters/codex/permissions.mjs — the codex exec 0.154.0 sandbox/approval postures (bypass, workspace-write, read-only)',
 }

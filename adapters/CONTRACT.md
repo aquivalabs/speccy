@@ -25,6 +25,10 @@ A harness with no native subagent may later satisfy spawn-subagent with a headle
 
 The workflow module's `parallel()`, which fans out parallel build tasks under a concurrency cap. It has no orchestrator-level counterpart; orchestrator fan-out is repeated spawn-subagent calls.
 
+### run-workflow
+
+How the orchestrator launches a workflow script (`workflow.js`, `workflow-simple.js`) with its args, and how it learns the run finished and reads what it returned. A harness with a native workflow tool names that tool. A harness without one names a command that runs the script through its workflow module, and says where the result lands if no completion notification follows.
+
 ### monitor
 
 The watchdog that polls a liveness signal to tell a working run from a stalled one. Its signal is harness-specific: a transcript's mtime, or a heartbeat file the workflow module writes.

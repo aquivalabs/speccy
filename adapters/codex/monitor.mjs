@@ -65,6 +65,34 @@ export function isWorkInFlight(heartbeatPath) {
   return hb ? hb.alive : false
 }
 
+// The run's status file, written by run-workflow.mjs. This is how a Codex
+// orchestrator learns what the run is doing and that it finished, since Codex
+// sends no completion notification. Returns the file's object, with state
+// "starting" before the runner's first write and "died" when the file still
+// says running but the runner's process is gone (killed, or crashed before it
+// could record a failure).
+export function readStatus(statusPath, isAlive = pidAlive) {
+  const raw = readIfPresent(statusPath)
+  if (raw === null) return { state: 'starting' }
+  let status
+  try {
+    status = JSON.parse(raw)
+  } catch {
+    return { state: 'starting' }
+  }
+  if (status.state === 'running' && !isAlive(status.pid)) return { ...status, state: 'died' }
+  return status
+}
+
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (e) {
+    return e.code === 'EPERM'
+  }
+}
+
 // ---------------------------------------------------------------- entry point
 //
 // CLI for the bash poll loop, so it reads the heartbeat exactly where the Claude
@@ -72,11 +100,16 @@ export function isWorkInFlight(heartbeatPath) {
 //   node monitor.mjs mtime <heartbeatPath>   → liveness in epoch seconds (or 0)
 //   node monitor.mjs alive <heartbeatPath>   → "1" if a subprocess is live, else "0"
 //   node monitor.mjs json  <heartbeatPath>   → the two-field object, or "null"
+//   node monitor.mjs status <statusPath>     → the run's status (see readStatus)
 export function main(argv = process.argv.slice(2)) {
   const [field, heartbeatPath] = argv
   if (!field || !heartbeatPath) {
-    process.stderr.write('usage: monitor.mjs <mtime|alive|json> <heartbeatPath>\n')
+    process.stderr.write('usage: monitor.mjs <mtime|alive|json|status> <path>\n')
     return 2
+  }
+  if (field === 'status') {
+    process.stdout.write(`${JSON.stringify(readStatus(heartbeatPath))}\n`)
+    return 0
   }
   if (field === 'mtime') {
     process.stdout.write(`${livenessSeconds(heartbeatPath)}\n`)
@@ -90,7 +123,7 @@ export function main(argv = process.argv.slice(2)) {
     process.stdout.write(`${JSON.stringify(readHeartbeat(heartbeatPath))}\n`)
     return 0
   }
-  process.stderr.write(`monitor: unknown field "${field}" (mtime|alive|json)\n`)
+  process.stderr.write(`monitor: unknown field "${field}" (mtime|alive|json|status)\n`)
   return 2
 }
 

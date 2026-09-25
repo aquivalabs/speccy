@@ -62,6 +62,7 @@ export default {
     'spawn-subagent.orchestrator-native': 'the Agent tool',
     'spawn-subagent.workflow-module': "the Workflow tool's injected agent()",
     'run-parallel': "the Workflow tool's injected parallel()",
+    'run-workflow': 'the Workflow tool, given the scriptPath and args; it runs in the background and notifies on completion',
     'monitor': 'the Monitor tool, with TaskStop, SendMessage and PushNotification for the watchdog',
   },
 

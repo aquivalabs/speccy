@@ -33,6 +33,7 @@ export const REQUIRED_MECHANISMS = [
   'spawn-subagent.orchestrator-native',
   'spawn-subagent.workflow-module',
   'run-parallel',
+  'run-workflow',
   'monitor',
 ]
 
