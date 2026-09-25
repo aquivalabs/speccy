@@ -2,6 +2,10 @@
 // CONTRACT.md. Concrete Codex mechanism and model names belong here — this is an
 // adapter, not the core.
 //
+// Packaging is the Claude Code plugin, unchanged: Codex installs it from
+// .claude-plugin/marketplace.json (`codex plugin marketplace add`, then
+// `codex plugin add speccy@speccy`) and namespaces its skills `speccy:<skill>`.
+//
 // Codex has no native workflow runtime or watchdog, so those mechanisms are the
 // polyfills this port adds: the workflow module over `codex exec`, and a monitor
 // that polls the heartbeat file that module writes.

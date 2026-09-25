@@ -21,6 +21,13 @@ This repo is its own plugin marketplace. Add it, then install the plugin:
 /plugin install speccy@speccy
 ```
 
+On Codex, the same plugin installs as-is:
+
+```
+codex plugin marketplace add aquivalabs/speccy
+codex plugin add speccy@speccy
+```
+
 Both skills (`speccy` and `plan-execution`) install together. Start a run by describing what you want to build and saying "speccy".
 
 ## The six phases

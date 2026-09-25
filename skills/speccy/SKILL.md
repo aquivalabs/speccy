@@ -1,7 +1,6 @@
 ---
 name: speccy
-description: Guided specification writing, adversarial spec critique, and post-build review. Full pipeline from rough idea to reviewed implementation.
-when_to_use: When the user says "speccy", "spec mode", "adversarial mode", or similar. Also when about to execute a complex multi-step plan and adversarial critique would help.
+description: Guided specification writing, adversarial spec critique, and post-build review; the full pipeline from rough idea to reviewed implementation. Use when the user says "speccy", "spec mode", "adversarial mode", or similar, or when about to execute a complex multi-step plan that adversarial critique would help.
 allowed-tools: Bash(bash *skills/speccy/banner.sh), Bash(bash *skills/speccy/metrics.sh), Bash(bash *skills/speccy/metrics.sh *), Bash(node *skills/speccy/state.mjs *), Bash(node *skills/speccy/binding.mjs *), Read(.speccy/**), Write(.speccy/**), Edit(.speccy/**)
 ---
 

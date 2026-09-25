@@ -120,3 +120,9 @@ The load-bearing architecture decisions (rungs in `state.json`, the conversation
 ## Post-review: concrete model names leave the core (2026-09-24)
 
 An earlier decision had speccy name the concrete model beside the rung ("the L rung (Opus on Claude)") so a user unfamiliar with vendor names is not lost, with the denylist carving out that one form. In review the user reconsidered: the rung→model mapping belongs in the adapter, not the skill. The core now names rungs only; where speccy tells the user a concrete model (the recommend-a-builder step) it resolves the rung through the binding, whose map lives in the per-harness adapter. The denylist carve-out is removed, so the core carries zero model names and the check is stricter. The user's original intent (name the model so a user is not lost) is preserved, sourced from the adapter at runtime rather than hard-coded in the core. Origin: User.
+
+## Post-review: one plugin for both harnesses (2026-09-25)
+
+The build shipped Codex discovery as `.agents/skills` symlinks into `skills/`. Those are found only when Codex runs inside the speccy repo, so they gave other projects no install, and alongside an installed plugin they list each skill twice (Codex lists duplicate skill names rather than overriding). A probe showed Codex 0.154.0 installs the existing Claude Code plugin unchanged from `.claude-plugin/marketplace.json`, with both skills loading and `binding.mjs` resolving from the installed copy. The symlinks are removed and the one plugin serves both harnesses.
+
+The same probe showed Codex drops `when_to_use` from the prompt, so the trigger phrases moved into `description`. `allowed-tools` stays: Codex ignores it without error, and on Claude Code it pre-approves the state, binding, and banner calls. Origin: User.

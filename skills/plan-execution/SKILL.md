@@ -1,7 +1,6 @@
 ---
 name: plan-execution
-description: Decompose an implementation plan into right-sized tasks and execute them. Each task gets a fresh context window. Handles breakdown, execution, integration, and completeness verification.
-when_to_use: When another skill invokes it, or user has an approved plan and asks to "break this down", "execute this plan", "run this in parallel", or similar. NOT for unplanned work; point the user to planning mode first.
+description: Decompose an implementation plan into right-sized tasks and execute them, each in a fresh context window, covering breakdown, execution, integration, and completeness verification. Use when another skill invokes it, or when the user has an approved plan and asks to "break this down", "execute this plan", "run this in parallel", or similar. Not for unplanned work; point the user to planning first.
 ---
 
 # Plan Execution

@@ -195,21 +195,22 @@ async function probe(name, fn) {
 
 // ════════════════════════════════════════════════════════════════════
 // P1 — the skill loads and triggers.
-// Scripted proxy: both SKILL.md files carry a name + a trigger description and
-// are discoverable by each harness (Claude via .claude-plugin/, Codex via the
-// .agents/skills symlinks). Real triggering is confirmed live by the orchestrator.
+// Scripted proxy: both harnesses install the one plugin (Codex reads the
+// .claude-plugin/ manifests as-is) and decide on use from `description` alone,
+// since Codex drops `when_to_use`. So each SKILL.md must carry its triggers in
+// `description` and no `when_to_use`. Live triggering is a manual check.
 await probe('skill loads and triggers', () => {
   for (const skill of ['speccy', 'plan-execution']) {
     const md = fs.readFileSync(path.join(REPO, 'skills', skill, 'SKILL.md'), 'utf8')
     const fm = /^---\n([\s\S]*?)\n---/.exec(md)
     assert.ok(fm, `${skill}/SKILL.md has YAML frontmatter`)
     assert.match(fm[1], /^name:\s*\S/m, `${skill} names itself`)
-    assert.match(fm[1], /^(?:description|when_to_use):\s*\S/m, `${skill} has a trigger description`)
-    assert.ok(fs.existsSync(path.join(REPO, '.agents', 'skills', skill)),
-      `${skill} discoverable under .agents/skills`)
+    assert.match(fm[1], /^description:.*\bUse when\b/m, `${skill} description carries its triggers`)
+    assert.doesNotMatch(fm[1], /^when_to_use:/m, `${skill} has no when_to_use (Codex ignores it)`)
   }
   assert.ok(fs.existsSync(path.join(REPO, '.claude-plugin', 'plugin.json')), 'plugin manifest present')
-  return 'both SKILL.md discoverable + triggerable; live trigger confirmed by orchestrator'
+  assert.ok(fs.existsSync(path.join(REPO, '.claude-plugin', 'marketplace.json')), 'marketplace manifest present')
+  return 'both SKILL.md carry name + triggers in description; plugin manifests present'
 })
 
 // ════════════════════════════════════════════════════════════════════
