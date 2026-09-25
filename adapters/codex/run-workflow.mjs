@@ -92,6 +92,7 @@ async function run(argv) {
     args,
     workDir: files.workDir,
     heartbeatPath: files.heartbeatPath,
+    ...(args.worktreeRoot ? { worktreeRoot: path.resolve(flag(argv, "--repo"), args.worktreeRoot) } : {}),
     codexBin: process.env.SPECCY_CODEX_BIN || "codex",
     codexArgsPrefix: JSON.parse(process.env.SPECCY_CODEX_ARGS_PREFIX || "[]"),
   });

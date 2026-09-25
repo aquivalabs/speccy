@@ -59,6 +59,7 @@ Run the chosen workflow through the binding's run-workflow mechanism, with its `
 - `models`: the resolved rung→model map from the binding, keyed by rung (`{ S, M, L, XL }`); the active harness's adapter defines the concrete model each rung maps to. Required: breakdown reads `models.L`, so an absent `models` throws at the breakdown phase.
 - `model` (optional): when set, execution/integration/verify agents use that model and breakdown sizes tasks accordingly. Breakdown itself is fixed to the L rung (`models.L`). When omitted, non-breakdown agents inherit the session model.
 - `retrospective` (optional, default true): when false, skips friction log synthesis
+- `worktreeRoot` (optional): the binding's `worktreeRoot`, where worktrees are created; the cleanup step removes it once empty.
 - `worktreeInit` (optional): array of resolved shell commands to run at the start of every worktree agent (parallel tasks and corrective tasks only). Assembled from the gather/apply blocks in the instruction file's `## Worktree init` section (see Prerequisites above). Pass the fully-substituted commands, with no unresolved `${VAR}` references. Sequential tasks run on the main checkout and don't need this.
 
 ## While the workflow runs: watchdog

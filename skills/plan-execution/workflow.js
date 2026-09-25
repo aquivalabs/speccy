@@ -44,7 +44,8 @@ const {
   models,
   prompts,
   retrospective: runRetrospective = true,
-  worktreeInit = []
+  worktreeInit = [],
+  worktreeRoot
 } = parsedArgs;
 if (!plan && !planPath)
   throw new Error(
@@ -461,8 +462,9 @@ Steps:
 4. Delete ONLY these already-integrated branches, and only after their worktree is gone. Use \`git branch -D <branch>\` (a squash merge leaves no ancestry, so \`-d\` would wrongly refuse):
 ${deleteList}
    If \`git branch -D\` reports a branch is still checked out in a worktree, the removal in step 2 did not take effect — record it under \`errors\` and move on; do not retry blindly.
-5. Leave every branch NOT in the delete list intact — it may hold unmerged work needed for recovery. Record those under \`skipped_branches\`.
-6. If \`.claude/worktrees/\` is now empty, remove it.`,
+5. Leave every branch NOT in the delete list intact — it may hold unmerged work needed for recovery. Record those under \`skipped_branches\`.${
+      worktreeRoot ? `\n6. If \`${worktreeRoot}/\` is now empty, remove it.` : ""
+    }`,
     { label: "cleanup-worktrees", schema: CLEANUP_RESULT_SCHEMA }
   );
   for (const e of result?.errors || []) log(`cleanup-worktrees: ${e}`);

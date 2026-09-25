@@ -64,6 +64,11 @@ export default {
   // CLAUDE.md-shadowing rule; it must not inherit Claude's.
   resolveInstructionFile: () => 'AGENTS.md',
 
+  // Where the Codex workflow runtime creates worktrees, relative to the repo
+  // root. Inside .speccy/, which speccy already gitignores; the runtime also
+  // adds it to .git/info/exclude for a plan-execution run outside speccy.
+  worktreeRoot: '.speccy/worktrees',
+
   // Reads the configured effort for the preconditions' effort check. The levels
   // are those `codex debug models` listed on 2026-09-25.
   effortCheck:

@@ -28,6 +28,7 @@ import path from "node:path";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { readIfPresent } from "./read-if-present.mjs";
 import { codexPermissionArgs, DEFAULT_POSTURE } from "./permissions.mjs";
+import codexAdapter from "../codex.mjs";
 
 // ── Concurrency cap ──────────────────────────────────────────────────
 //
@@ -135,7 +136,8 @@ function slug(s) {
 //   args          — opaque, passed straight through as the `args` ambient
 //   workDir       — where result files, last-message files, and the heartbeat
 //                   live (default <repoRoot>/.speccy/<runId>/codex)
-//   worktreeRoot  — where worktrees are created (default <repoRoot>/.claude/worktrees)
+//   worktreeRoot  — where worktrees are created (default the Codex adapter's
+//                   worktreeRoot under repoRoot)
 //   heartbeatPath — default <workDir>/heartbeat.json
 //   codexBin      — the codex executable (default "codex")
 //   codexArgsPrefix — args before "exec" (tests point codexBin at node and pass
@@ -175,8 +177,7 @@ export function createCodexRuntime(config = {}) {
   repoRoot = path.resolve(repoRoot);
 
   const workDir = config.workDir || path.join(repoRoot, ".speccy", runId, "codex");
-  const worktreeRoot =
-    config.worktreeRoot || path.join(repoRoot, ".claude", "worktrees");
+  const worktreeRoot = config.worktreeRoot || path.join(repoRoot, codexAdapter.worktreeRoot);
   const heartbeatPath = config.heartbeatPath || path.join(workDir, "heartbeat.json");
   fs.mkdirSync(workDir, { recursive: true });
 
@@ -251,10 +252,24 @@ export function createCodexRuntime(config = {}) {
     currentPhase = name;
   }
 
+  // A worktree root git does not ignore would show up as untracked in the main
+  // checkout. .git/info/exclude is local-only, so this changes no tracked file.
+  function ensureIgnored(dir) {
+    try {
+      git(["check-ignore", "--quiet", dir]);
+      return;
+    } catch {}
+    const rel = path.relative(repoRoot, dir).split(path.sep).join("/");
+    const exclude = path.join(gitCommonDir, "info", "exclude");
+    fs.mkdirSync(path.dirname(exclude), { recursive: true });
+    fs.appendFileSync(exclude, `/${rel}/\n`);
+  }
+
   function provisionWorktree(label) {
     const branch = `${runId}/${slug(label)}-${++callSeq}`;
     const wtPath = path.join(worktreeRoot, slug(branch));
     fs.mkdirSync(worktreeRoot, { recursive: true });
+    ensureIgnored(worktreeRoot);
     // Empty worktree only. gitignored-state recreation stays with workflow.js's
     // args.worktreeInit prompt injection, which runs inside the spawned agent.
     git(["worktree", "add", "-b", branch, wtPath, baseBranch]);

@@ -526,6 +526,34 @@ test("agent(isolation:worktree) provisions an empty worktree; dispose removes it
   cleanup();
 });
 
+test("worktrees land under the adapter's worktree root, which git ignores without a tracked change", async () => {
+  const { root, cleanup } = repo();
+  const rt = runtimeOn(root);
+  await rt.agent("a", { label: "exec:task-1", isolation: "worktree" });
+  await rt.agent("b", { label: "exec:task-2", isolation: "worktree" });
+  for (const wt of rt.worktrees) assert.ok(wt.path.startsWith(path.join(root, ".speccy", "worktrees")), wt.path);
+
+  const exclude = fs.readFileSync(path.join(root, ".git", "info", "exclude"), "utf8");
+  assert.equal(exclude.split("\n").filter((l) => l === "/.speccy/worktrees/").length, 1, "excluded once");
+  const status = execFileSync("git", ["-C", root, "status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" });
+  assert.doesNotMatch(status, /\.speccy\/worktrees/);
+  await rt.dispose();
+  cleanup();
+});
+
+test("a worktree root the project already ignores adds no exclude entry", async () => {
+  const { root, g, cleanup } = repo();
+  fs.writeFileSync(path.join(root, ".gitignore"), ".speccy/\n");
+  g("add", ".gitignore");
+  g("commit", "-m", "ignore .speccy");
+  const rt = runtimeOn(root);
+  await rt.agent("a", { label: "exec:task-1", isolation: "worktree" });
+  const exclude = fs.readFileSync(path.join(root, ".git", "info", "exclude"), "utf8");
+  assert.doesNotMatch(exclude, /\.speccy\/worktrees/);
+  await rt.dispose();
+  cleanup();
+});
+
 test("dispose leaves a dirty worktree in place (never --force)", async () => {
   const { root, cleanup } = repo();
   const rt = runtimeOn(root);

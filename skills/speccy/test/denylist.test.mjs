@@ -64,6 +64,7 @@ const BANNED = [
   { name: 'user command (shift+tab)', re: /\bshift\s*\+\s*tab\b/gi },
   { name: 'baseline tool name', re: /\b(?:Read|Write|Edit|Glob|Grep|Bash)\s+tool\b/g },
   { name: 'vendor environment variable', re: /\b(?:CLAUDE|CODEX)_[A-Z_]+\b/g },
+  { name: 'vendor config path', re: /(?<![\w-])\.(?:claude|codex)\//g },
   { name: 'vendor name', re: /\b(?:Claude|Codex|Anthropic|OpenAI)\b/g },
 ]
 
@@ -109,6 +110,8 @@ test('the patterns catch real tokens and spare the legitimate forms', () => {
     'echo "${CLAUDE_EFFORT}"',
     'the SKILL.md instructs Claude to read this file',
     'on Codex the monitor polls',
+    'If `.claude/worktrees/` is now empty, remove it.',
+    'check ~/.codex/config.toml',
   ]) assert.ok(caught(leak), `should flag: ${leak}`)
 
   for (const ok of [
@@ -122,5 +125,6 @@ test('the patterns catch real tokens and spare the legitimate forms', () => {
     'writes `.speccy/<run-id>/review-round-N-<lens>.md`',
     'clear the context and re-invoke',
     'a short identifier such as `claude` or `codex`',
+    'the plugin manifest in .claude-plugin/',
   ]) assert.ok(!caught(ok), `should spare: ${ok}`)
 })

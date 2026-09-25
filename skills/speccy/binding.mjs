@@ -93,6 +93,7 @@ export function resolveBinding(harness, defaults = ADAPTERS[harness], cwd = proc
     instructionFile,
     invocation: defaults.invocation ?? null,
     effortCheck: defaults.effortCheck ?? null,
+    worktreeRoot: defaults.worktreeRoot ?? null,
     permissions: defaults.permissions ?? null,
   })
 }

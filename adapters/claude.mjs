@@ -83,6 +83,9 @@ export default {
   // working directory: CLAUDE.md where one shadows AGENTS.md, else AGENTS.md.
   resolveInstructionFile,
 
+  // Where the Workflow tool creates its worktrees, relative to the repo root.
+  worktreeRoot: '.claude/worktrees',
+
   // Reads the session's effort for the preconditions' effort check.
   effortCheck:
     'run `echo "${CLAUDE_EFFORT:-$(grep -o \'"effortLevel"[^,]*\' ~/.claude/settings.json 2>/dev/null | cut -d\'"\' -f4)}"`; ' +
