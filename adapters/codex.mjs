@@ -39,26 +39,27 @@ export default {
       'A shell call times out after about 5 minutes, so run the poll loop in bounded chunks and re-run it until the state is no longer starting or running.',
   },
 
-  // rung -> concrete model, as `codex exec -m <model>` slugs.
-  //
-  // WEB-VERIFIED against https://developers.openai.com/codex/models on
-  // 2026-09-24. THIS MAP IS THE MOST LIKELY THING IN THIS FILE TO ROT: Codex's
-  // model line moves often, so re-verify against that page before relying on it.
-  //
-  // Codex exposes three CLI models today, so the four rungs collapse to three:
-  //   gpt-6-luna  — most efficient, focused/high-volume tasks (the S rung).
-  //   gpt-6-sol   — complex coding and agentic workflows (the M builder rung).
-  //   gpt-6-astra — most capable, advanced reasoning (the L and XL rungs).
-  // L and XL share gpt-6-astra because it is Codex's top model; reasoning effort
-  // (`-c model_reasoning_effort=...`) is the finer lever if the rungs ever need
-  // separating. The map values stay plain model slugs to match the Claude
-  // adapter's shape.
+  // rung -> Codex model family, ranked from the families the Codex models page
+  // (https://developers.openai.com/codex/models) describes:
+  //   luna  — most efficient, focused/high-volume tasks (the S rung).
+  //   sol   — complex coding and agentic workflows (the M builder rung).
+  //   astra — most capable, advanced reasoning (the L and XL rungs).
+  // L and XL share astra because it is Codex's top family. The families carry
+  // no version, so a new release needs no edit here; modelResolution below
+  // turns each into the newest slug the harness offers.
   models: {
-    S: 'gpt-6-luna',
-    M: 'gpt-6-sol',
-    L: 'gpt-6-astra',
-    XL: 'gpt-6-astra',
+    S: 'luna',
+    M: 'sol',
+    L: 'astra',
+    XL: 'astra',
   },
+
+  // The models above are families, not slugs. Codex's spawn_agent tool lists
+  // the models available right now; `codex debug models` can lag it.
+  modelResolution:
+    'each rung names a model family, not a model. At conversation start, resolve each family to the highest-versioned model of that family ' +
+    'in the list of available models your spawn tool shows you (for family luna, the newest gpt-*-luna), never from memory, and hold that ' +
+    'rung→model map: spawn with those names, and pass that map as the workflow args.models. If a family has no match in the list, ask the user which model to use for that rung.',
 
   // The project instruction file Codex loads: always AGENTS.md. Codex has no
   // CLAUDE.md-shadowing rule; it must not inherit Claude's.

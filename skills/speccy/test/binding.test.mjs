@@ -67,12 +67,23 @@ test('claude resolves to a complete binding', () => {
   }
 })
 
-test('codex resolves to a complete binding with web-verified models', () => {
+test('codex resolves to a complete binding, its rungs naming model families to resolve', () => {
   const b = resolveBinding('codex')
   assert.equal(b.harness, 'codex')
   assert.equal(b.instructionFile, 'AGENTS.md')
-  for (const rung of RUNGS) assert.match(b.models[rung], /^gpt-/, `${rung} maps to a Codex model`)
+  assert.deepEqual(b.models, { S: 'luna', M: 'sol', L: 'astra', XL: 'astra' })
+  assert.match(b.modelResolution, /highest-versioned/)
   for (const key of REQUIRED_MECHANISMS) assert.ok(b.mechanisms[key], `${key} is bound`)
+})
+
+// A stored version rots with every release; adapters name version-free aliases
+// or families and resolve the newest model at runtime.
+test('no adapter stores a model version', () => {
+  for (const harness of ['claude', 'codex']) {
+    for (const [rung, model] of Object.entries(resolveBinding(harness).models)) {
+      assert.doesNotMatch(model, /\d/, `${harness} rung ${rung} stores a version: ${model}`)
+    }
+  }
 })
 
 // ------------------------------------------------------------ instruction-file resolution

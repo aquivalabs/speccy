@@ -35,7 +35,7 @@ The watchdog that polls a liveness signal to tell a working run from a stalled o
 
 ### model-ladder resolution
 
-The fixed rungs S, M, L, XL, each resolved to a concrete model the harness's runtime accepts. The core names rungs; the resolved rung→model map reaches `workflow.js` through its `args` and the orchestrator through the binding. This is the only capability whose mechanism is data (the map) rather than a named tool, so an adapter carries it as its own field rather than in the mechanism map.
+The fixed rungs S, M, L, XL, each resolved to a concrete model the harness's runtime accepts. An adapter stores no model version: a rung names either a version-free alias the harness resolves itself (Claude Code's `opus`), or a version-free model family plus a `modelResolution` rule that turns the family into the newest available model when the conversation starts. The core names rungs; the resolved rung→model map reaches `workflow.js` through its `args` and the orchestrator through the binding. This is the only capability whose mechanism is data (the map) rather than a named tool, so an adapter carries it as its own field rather than in the mechanism map.
 
 ## Resolution-time settlements
 

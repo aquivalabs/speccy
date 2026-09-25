@@ -380,13 +380,16 @@ await probe('monitor armed and polling its liveness signal', async () => {
 })
 
 // ════════════════════════════════════════════════════════════════════
-// P7 — the model ladder resolves to concrete models.
-await probe('model ladder resolves to concrete models', () => {
+// P7 — the model ladder resolves every rung, to a version-free alias (Claude)
+// or a model family the orchestrator turns into the newest model at
+// conversation start (Codex, via the binding's modelResolution rule).
+await probe('model ladder resolves every rung to an alias or family', () => {
   const b = resolveBinding(harness)
   const resolved = {}
   for (const rung of RUNGS) {
     const model = resolveModel(b, rung)
-    assert.ok(typeof model === 'string' && model.length > 0, `${rung} → a concrete model`)
+    assert.ok(typeof model === 'string' && model.length > 0, `${rung} → an alias or family`)
+    assert.doesNotMatch(model, /\d/, `${rung} stores no version`)
     resolved[rung] = model
   }
   return RUNGS.map((r) => `${r}=${resolved[r]}`).join(' ')
