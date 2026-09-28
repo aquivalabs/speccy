@@ -148,3 +148,7 @@ The Codex runtime created worktrees under `.claude/worktrees`, borrowing the `Wo
 ## Post-review: adapters store model families, never versions (2026-09-25)
 
 The Codex adapter mapped rungs to versioned slugs (`gpt-6-luna` and so on), and the local catalog already disagreed with the docs a day later. The user ruled that no adapter stores a version, because every release would otherwise need an edit. The Codex rungs now name families (S `luna`, M `sol`, L and XL `astra`, ranked as the Codex models page describes them), and a `modelResolution` rule has the orchestrator turn each family into the newest model of that family in the list its spawn tool shows at conversation start, never from memory. Claude Code's aliases (`haiku`, `sonnet`, `opus`, `fable`) already carry no version. A test rejects any stored model name containing a digit. Origin: User.
+
+## Post-review: the code-review lens runs through the binding (2026-09-28)
+
+The implementation review's code-review lens named Claude Code's built-in `code-review` skill, so on Codex it silently dropped out of the panel. The user weighed general instructions ("use the harness's reviewer") against a binding key, and chose the key as the clearer signal. `code-review` is now an optional mechanism: Claude Code maps it to the built-in skill, Codex to `codex review --base <branch>` at high reasoning effort, and a harness with no standard reviewer omits the key, which drops the lens and tells the user once. Origin: User.

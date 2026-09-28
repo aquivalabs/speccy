@@ -37,6 +37,10 @@ export const REQUIRED_MECHANISMS = [
   'monitor',
 ]
 
+// Capabilities an adapter may omit when its harness has no such mechanism; the
+// phase that uses one skips it when the binding names none.
+export const OPTIONAL_MECHANISMS = ['code-review']
+
 // The fixed model ladder. Every adapter resolves all four rungs.
 export const RUNGS = ['S', 'M', 'L', 'XL']
 

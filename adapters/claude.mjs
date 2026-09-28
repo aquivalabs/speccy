@@ -66,6 +66,9 @@ export default {
       'the Workflow tool, given the scriptPath and args; it runs in the background and notifies on completion. ' +
       'Its worktrees branch from HEAD only when .claude/settings.json has "worktree": { "baseRef": "head" }; if missing, add it ' +
       '(via Bash/python, since direct Edit on that file is blocked). The default (fresh) branches from origin/<default-branch>, which misses every feature-branch commit.',
+    'code-review':
+      'the built-in code-review skill, targeting <base-branch>...HEAD at high effort, with no --fix and no --comment. ' +
+      'Invoke it in the main conversation, never in a spawned subagent: it spawns its own subagents.',
     'monitor': 'the Monitor tool, with TaskStop, SendMessage and PushNotification for the watchdog',
   },
 

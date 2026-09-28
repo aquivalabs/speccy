@@ -13,7 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 
-import { resolveBinding, resolveModel, REQUIRED_MECHANISMS, RUNGS } from '../binding.mjs'
+import { resolveBinding, resolveModel, REQUIRED_MECHANISMS, OPTIONAL_MECHANISMS, RUNGS } from '../binding.mjs'
 
 const BINDING = path.resolve(import.meta.dirname, '..', 'binding.mjs')
 
@@ -74,6 +74,14 @@ test('codex resolves to a complete binding, its rungs naming model families to r
   assert.deepEqual(b.models, { S: 'luna', M: 'sol', L: 'astra', XL: 'astra' })
   assert.match(b.modelResolution, /highest-versioned/)
   for (const key of REQUIRED_MECHANISMS) assert.ok(b.mechanisms[key], `${key} is bound`)
+})
+
+test('both built adapters name a code reviewer; an adapter without one still resolves', () => {
+  for (const harness of ['claude', 'codex']) {
+    for (const key of OPTIONAL_MECHANISMS) assert.ok(resolveBinding(harness).mechanisms[key], `${harness} names ${key}`)
+  }
+  const b = resolveBinding('fake', goodDefaults())
+  assert.equal(b.mechanisms['code-review'], undefined)
 })
 
 // A stored version rots with every release; adapters name version-free aliases

@@ -33,6 +33,9 @@ export default {
       'It returns at once, printing the run\'s statusPath, heartbeatPath, resultPath and logPath. ' +
       'No completion notification follows: the monitor\'s status poll is how you learn the run finished, and resultPath then holds what the workflow returned. ' +
       `To stop the run, \`node ${RUN_WORKFLOW} stop --status <statusPath>\`.`,
+    'code-review':
+      'run `codex review --base <base-branch> -c model_reasoning_effort="high"` in the shell and capture its output; it reports and changes nothing. ' +
+      'If the shell call returns before the review finishes, keep polling that session until it exits.',
     'monitor':
       `poll \`node ${MONITOR} status <statusPath>\` (state starting|running|complete|failed|died, the current phase, the last few log lines), ` +
       `with \`node ${MONITOR} mtime <heartbeatPath>\` and \`node ${MONITOR} alive <heartbeatPath>\` as the heartbeat's two fields. ` +

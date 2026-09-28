@@ -29,6 +29,10 @@ The workflow module's `parallel()`, which fans out parallel build tasks under a 
 
 How the orchestrator launches a workflow script (`workflow.js`, `workflow-simple.js`) with its args, and how it learns the run finished and reads what it returned. A harness with a native workflow tool names that tool. A harness without one names a command that runs the script through its workflow module, and says where the result lands if no completion notification follows.
 
+### code-review (optional)
+
+The harness's own general code reviewer, run against the branch diff, reporting only. speccy runs it as one lens of the implementation review. A harness with no standard reviewer omits the key, and the review phase drops that lens.
+
 ### monitor
 
 The watchdog that polls a liveness signal to tell a working run from a stalled one. Its signal is harness-specific: a transcript's mtime, or a heartbeat file the workflow module writes.
