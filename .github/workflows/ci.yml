@@ -20,8 +20,6 @@ jobs:
         run: node --test "skills/speccy/test/*.test.mjs" "adapters/codex/test/*.test.mjs"
       - name: Run the Claude-side smoke test (PR gate)
         run: node test/smoke.mjs --harness claude
-      - name: Run the Claude-side thin-thread test (PR gate)
-        run: node test/thin-thread.mjs --harness claude
 
   plugin-version-bump:
     runs-on: ubuntu-latest

@@ -156,3 +156,7 @@ The implementation review's code-review lens named Claude Code's built-in `code-
 ## Post-review: the binding carries only what a phase reads (2026-09-28)
 
 The resolver required mechanisms for spawn-subagent (both forms) and run-parallel, and every adapter carried `invocation` and `permissions` text. No phase read any of them: the phases spawn at intent level, `workflow.js` calls `agent()` and `parallel()` inside the runtime module, and the Codex sandbox flags live in `permissions.mjs`. They cost context in every conversation, which the spec treats as the scarce resource. The binding now requires only `run-workflow` and `monitor`, keeps `code-review` optional, and `CONTRACT.md` still names spawn and parallel as capabilities a harness must have. The one actionable line in the Codex `invocation` text (re-run the start command outside the sandbox on a network failure) moved into its run-workflow mechanism. Origin: User.
+
+## Post-review: the thin thread is a manual check (2026-09-28)
+
+The scripted thin thread drove its delegate through the Codex runtime on either harness, so `--harness claude` exercised no Claude mechanism. Each of its three joints already had coverage: the smoke test's spawn probe round-trips a file, `binding.test.mjs` resolves both bindings, and `state.test.mjs` advances phases. A script cannot drive a harness's native subagent, which is the joint that matters, so the thin thread becomes part of the hand-run UAT on each harness and the script is removed. Origin: User.

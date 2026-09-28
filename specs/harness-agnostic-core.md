@@ -61,8 +61,8 @@ Two decisions shape everything below:
 - [ ] On Codex, the orchestrator launches `workflow.js` through the command the binding's run-workflow mechanism names, and learns from the polled status file that it finished and where its result is.
 - [ ] On Codex, the monitor is armed and polling its liveness signal.
 - [ ] On Codex, the model ladder resolves to concrete models.
-- [ ] A thin orchestrator thread runs on Codex: skill load → one delegated subagent round-tripped through its file → `state.mjs` advances a phase, without the full critique/build/review loops.
-- [ ] The same smoke test and thin thread pass on Claude Code, and its behaviour is unchanged from today.
+- [ ] A thin orchestrator thread runs on Codex, checked by hand: skill load → one delegated subagent round-tripped through its file → `state.mjs` advances a phase, without the full critique/build/review loops.
+- [ ] The same smoke test passes on Claude Code, and its behaviour is unchanged from today.
 - [ ] The same single `workflow.js` runs on both harnesses through their runtime implementations, not a per-harness fork.
 - [ ] The shared core contains no Claude- or Codex-specific tool name, user-facing command (e.g. `/clear`, `shift+tab`), invocation syntax, or model alias, checked by grep against a denylist; the denylist excludes `metrics.mjs` and `metrics.sh` (out of scope, ships in the tree, and carries Claude-specific tokens by design). Concrete names live only in the adapters and the binding.
 - [ ] Under the build-step install, if one is used, the semantic files (both skills' `SKILL.md` and `phases/`, `prompts/`, the templates, and `workflow.js`) are identical between the Claude Code and Codex installs; any difference is an adapter or the binding. Under the preferred ship-the-tree install the two installs share the same files by construction, so this criterion is moot there and the grep-denylist criterion is what checks neutrality.
@@ -143,4 +143,4 @@ Two decisions shape everything below:
 
 - **The workflow-runtime module is a feasibility assumption; spike it before planning commits.** Prove a minimal `workflow.js` runs green on Codex through the workflow runtime module (see the workflow runtime contract deliverable), using **tool-using** agents, since every schema-bearing agent in the real pipeline uses tools. The residual risk is the module's fidelity: worktree isolation under concurrent subprocesses, and a tool-using agent reliably producing a result the module can validate. Stdout schema availability is not at issue; that failure mode is already established (see Decisions & rationale). This spike is the heart of the Codex smoke test (see Completion criteria).
 - **Does the shared `SKILL.md` actually load and trigger under Codex** with only packaging and path changes, or does the body need edits? Resolve by installing one core skill into Codex and invoking it.
-- **The smoke test's exact steps.** Which capabilities to exercise, the minimal `workflow.js` to run, and how to assert each probe and the thin thread. Pin down in planning.
+- **The smoke test's exact steps.** Which capabilities to exercise, the minimal `workflow.js` to run, and how to assert each probe. Pin down in planning.
