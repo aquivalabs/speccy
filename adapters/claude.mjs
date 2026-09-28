@@ -69,7 +69,12 @@ export default {
     'code-review':
       'the built-in code-review skill, targeting <base-branch>...HEAD at high effort, with no --fix and no --comment. ' +
       'Invoke it in the main conversation, never in a spawned subagent: it spawns its own subagents.',
-    'monitor': 'the Monitor tool, with TaskStop, SendMessage and PushNotification for the watchdog',
+    'monitor':
+      'the Monitor tool, with TaskStop, SendMessage and PushNotification for the watchdog. ' +
+      'The Workflow launch result gives the runId and the transcript dir. The heartbeat mtime is the newest agent-*.jsonl mtime there ' +
+      '(`stat -f %m "$TDIR"/agent-*.jsonl 2>/dev/null | sort -rn | head -1 || echo 0`; `stat -c %Y` on Linux). ' +
+      'Never use journal.jsonl: it records only phase boundaries, so a single long agent such as breakdown reads as a stall. ' +
+      'The heartbeat is alive when the newest agent-*.jsonl ends in a tool_use with no matching tool_result: a tool is still running.',
   },
 
   // rung -> concrete model. Fixed by the spec's Decisions & rationale. These are
