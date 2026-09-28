@@ -32,7 +32,7 @@ import codexAdapter from "../codex.mjs";
 // ── Concurrency cap ──────────────────────────────────────────────────
 //
 // Matches the Claude Workflow runtime: min(16, CPUs − 2), never below 1.
-// workflow.js hands every sibling task to parallel() at once (line 475),
+// workflow.js hands every sibling task to parallel() at once,
 // trusting this cap to exist; without it each sibling would launch a bare
 // `codex exec` subprocess and its own worktree, all contending on the object
 // store at once.

@@ -25,7 +25,7 @@ const HERE = import.meta.dirname;
 const FAKE = path.join(HERE, "fake-codex.mjs");
 const WORKFLOW_JS = path.resolve(HERE, "..", "..", "..", "skills", "plan-execution", "workflow.js");
 
-// A minimal replica of workflow.js's STEP_SCHEMA (workflow.js:78-140). It cannot
+// A minimal replica of workflow.js's STEP_SCHEMA. It cannot
 // be imported — workflow.js has top-level `return`, so it is not a valid module.
 const STEP_SCHEMA = {
   type: "object",
