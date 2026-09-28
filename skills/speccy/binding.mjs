@@ -1,9 +1,6 @@
-// The conversation-start binding resolver. At the start of each orchestrator
-// conversation speccy resolves its harness once, reads that harness's versioned
-// adapter defaults, and holds the result in memory for the conversation. No
-// binding file is written or read; only the adapter defaults (adapters/*.mjs)
-// are files. A fresh conversation re-resolves, so a checkout driven from a second
-// harness never carries a stale binding.
+// The conversation-start binding resolver: reads one harness's adapter defaults
+// (adapters/*.mjs) and prints the binding the orchestrator holds for the
+// conversation (see adapters/CONTRACT.md).
 //
 // It fails LOUD, like state.mjs: an unknown harness, a missing capability
 // mechanism, an unresolved rung, or a missing/unusable instruction-file resolver

@@ -40,9 +40,11 @@ For a new run, give a one-sentence introduction: this skill walks through writin
 
 Each phase has its own model default:
 
-- **Spec and plan critique**: the adversary runs on the **L rung** every round, up to 3 rounds. These short, high-leverage artifacts reward strong judgment: a rung below L costs more in false-positive triage than it saves, and the top **XL rung** buys raw capability without sharper critique judgment on an artifact this size, so L is the tier that pays here rather than XL. The revise agent and readability pass inside each loop run on the **M rung**: each executes a written instruction.
+- **Spec and plan critique**: the adversary runs on the **L rung** every round, up to 3 rounds. These are short, high-leverage artifacts where a lower rung costs more in false-positive triage than it saves. The revise agent and readability pass inside each loop run on the **M rung**: each executes a written instruction.
 - **Implementation review**: parallel review lenses, up to 3 rounds (see Phase 4). The four judgment lenses (spec fidelity, tests, codebase fit, local-doc adherence) run on the **L rung**, and the suppressions and comments lenses on the **M rung**; the harness's own code reviewer runs alongside them at `high` effort and manages its own models.
 - **Builder** (execute/integrate/verify inside plan-execution): the **M rung**; plan-execution's breakdown agent always runs on the **L rung**.
+
+No default uses the **XL rung**. It buys raw capability, where these roles need judgment and coding strength, which L already leads on.
 
 Two overrides: pin a single adversary rung (`adversaryModel`), then used for every critique round and review lens; and raise the builder (`builderModel`), commonly to the L rung for high-stakes work.
 
@@ -94,8 +96,8 @@ At the start of every orchestrator conversation, before any phase work, resolve 
 
    It reads that harness's adapter defaults (`adapters/<harness>.mjs`) and prints the resolved binding as JSON: the capability→mechanism map, the rung→model map (S/M/L/XL), and the instruction-file name. It fails loud like `state.mjs`: an unknown harness, a missing capability mechanism, an unresolved rung, or an absent instruction-file name prints a `speccy binding:` line and exits non-zero, so a half-resolved binding never reaches a phase.
 3. **Resolve the model families, if the binding names any.** When the binding carries a `modelResolution`, its rungs name model families rather than models: follow that rule once, now, to turn each into a concrete model, and hold the resulting rung→model map in place of the families.
-4. **Hold it; write no file.** Keep the resolved binding in the conversation. Nothing writes it to disk; only the `adapters/*.mjs` defaults are files. Every phase reads this held binding rather than re-deriving anything: it resolves a model-ladder rung (S/M/L/XL) to the concrete model to spawn, names the mechanism behind a capability (spawn a subagent, run the workflow, arm the monitor), and gives the instruction-file name that subagents and worktree-init point at.
-5. **Re-run on every fresh conversation.** A context clear or a switch of host starts a new conversation, so resolve again at its start. `state.json` carries no harness field by design, so a resumed run re-resolves rather than recovering the binding from state; that is what keeps a checkout driven from a second harness from ever carrying a stale binding.
+4. **Hold it; write no file.** Keep the resolved binding in the conversation. Every phase reads this held binding rather than re-deriving anything: it resolves a model-ladder rung (S/M/L/XL) to the concrete model to spawn, names the mechanism behind a capability (spawn a subagent, run the workflow, arm the monitor), and gives the instruction-file name that subagents and worktree-init point at.
+5. **Re-run on every fresh conversation.** A context clear or a switch of host starts a new conversation, so resolve again at its start; `state.json` carries no harness.
 
 ## Preconditions
 
