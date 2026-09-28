@@ -152,3 +152,7 @@ The Codex adapter mapped rungs to versioned slugs (`gpt-6-luna` and so on), and 
 ## Post-review: the code-review lens runs through the binding (2026-09-28)
 
 The implementation review's code-review lens named Claude Code's built-in `code-review` skill, so on Codex it silently dropped out of the panel. The user weighed general instructions ("use the harness's reviewer") against a binding key, and chose the key as the clearer signal. `code-review` is now an optional mechanism: Claude Code maps it to the built-in skill, Codex to `codex review --base <branch>` at high reasoning effort, and a harness with no standard reviewer omits the key, which drops the lens and tells the user once. Origin: User.
+
+## Post-review: the binding carries only what a phase reads (2026-09-28)
+
+The resolver required mechanisms for spawn-subagent (both forms) and run-parallel, and every adapter carried `invocation` and `permissions` text. No phase read any of them: the phases spawn at intent level, `workflow.js` calls `agent()` and `parallel()` inside the runtime module, and the Codex sandbox flags live in `permissions.mjs`. They cost context in every conversation, which the spec treats as the scarce resource. The binding now requires only `run-workflow` and `monitor`, keeps `code-review` optional, and `CONTRACT.md` still names spawn and parallel as capabilities a harness must have. The one actionable line in the Codex `invocation` text (re-run the start command outside the sandbox on a network failure) moved into its run-workflow mechanism. Origin: User.

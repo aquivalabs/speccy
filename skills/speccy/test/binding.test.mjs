@@ -24,9 +24,6 @@ function goodDefaults(overrides = {}) {
     version: 1,
     harness: 'fake',
     mechanisms: {
-      'spawn-subagent.orchestrator-native': 'native subagents',
-      'spawn-subagent.workflow-module': 'the workflow module agent()',
-      'run-parallel': 'the workflow module parallel()',
       'run-workflow': 'a runner command',
       'monitor': 'the heartbeat poll loop',
     },
@@ -140,8 +137,8 @@ test('an empty harness identity fails loud', () => {
 
 test('a missing capability mechanism fails loud, naming the gap', () => {
   const defaults = goodDefaults()
-  delete defaults.mechanisms['run-parallel']
-  assert.throws(() => resolveBinding('fake', defaults), /missing a mechanism for: run-parallel/)
+  delete defaults.mechanisms.monitor
+  assert.throws(() => resolveBinding('fake', defaults), /missing a mechanism for: monitor/)
 })
 
 test('an unresolved rung fails loud, naming the rung', () => {

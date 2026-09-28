@@ -25,14 +25,14 @@ export default {
 
   // capability -> the concrete mechanism Codex provides or the port polyfills.
   mechanisms: {
-    'spawn-subagent.orchestrator-native': 'Codex native subagents',
-    'spawn-subagent.workflow-module': 'the Codex workflow runtime module (one codex exec per agent() call)',
-    'run-parallel': 'the Codex workflow module parallel() (concurrency-capped codex exec subprocesses)',
     'run-workflow':
       `write the workflow args as JSON to a file, then run \`node ${RUN_WORKFLOW} start --script <scriptPath> --args-file <file> --repo <repo root>\`. ` +
       'It returns at once, printing the run\'s statusPath, heartbeatPath, resultPath and logPath. ' +
       'No completion notification follows: the monitor\'s status poll is how you learn the run finished, and resultPath then holds what the workflow returned. ' +
-      `To stop the run, \`node ${RUN_WORKFLOW} stop --status <statusPath>\`.`,
+      `To stop the run, \`node ${RUN_WORKFLOW} stop --status <statusPath>\`. ` +
+      // Unverified: the codex exec children need network access, which the
+      // workspace-write sandbox denies by default.
+      'If the codex exec children fail on network access, re-run the start command outside the sandbox.',
     'code-review':
       'run `codex review --base <base-branch> -c model_reasoning_effort="high"` in the shell and capture its output; it reports and changes nothing. ' +
       'If the shell call returns before the review finishes, keep polling that session until it exits.',
@@ -79,11 +79,4 @@ export default {
     'run `grep -E \'^model_reasoning_effort\' "${CODEX_HOME:-$HOME/.codex}/config.toml" 2>/dev/null | cut -d\'"\' -f2`; ' +
     'it prints the configured reasoning effort, or nothing (an unreported effort is not a low one). xhigh, max, and ultra are above high; ' +
     'the user lowers it in the model picker or model_reasoning_effort.',
-
-  // Resolution-time settlements (see CONTRACT.md).
-  // Unverified: the codex exec children need network access, which Codex's
-  // workspace-write sandbox denies by default, so starting the run may need
-  // escalated permissions.
-  invocation: `plan-execution's workflow runs through \`node ${RUN_WORKFLOW} start\` (see run-workflow), spawning codex exec children from a normal process context; if they fail on network access, re-run the start command outside the sandbox`,
-  permissions: 'adapters/codex/permissions.mjs — codex exec runs in the workspace-write sandbox with approvals routed to automatic review; the sandbox is never bypassed',
 }

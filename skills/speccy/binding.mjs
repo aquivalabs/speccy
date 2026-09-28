@@ -26,16 +26,9 @@ import codex from '../../adapters/codex.mjs'
 // adapter-defaults file under adapters/; the semantic core does not change.
 const ADAPTERS = { claude, codex }
 
-// The contract's beyond-baseline capabilities as machine-checkable keys, mirroring
-// adapters/CONTRACT.md (the human-readable authority). Every adapter must name a
-// mechanism for each. spawn-subagent has two bindings, so it is two keys.
-export const REQUIRED_MECHANISMS = [
-  'spawn-subagent.orchestrator-native',
-  'spawn-subagent.workflow-module',
-  'run-parallel',
-  'run-workflow',
-  'monitor',
-]
+// The mechanisms a phase reads from the binding (see adapters/CONTRACT.md).
+// Every adapter must name each; code-review is optional.
+export const REQUIRED_MECHANISMS = ['run-workflow', 'monitor']
 
 // The fixed model ladder. Every adapter resolves all four rungs.
 export const RUNGS = ['S', 'M', 'L', 'XL']
@@ -91,11 +84,9 @@ export function resolveBinding(harness, defaults = ADAPTERS[harness], cwd = proc
     mechanisms: Object.freeze({ ...mechanisms }),
     models: Object.freeze({ ...models }),
     instructionFile,
-    invocation: defaults.invocation ?? null,
     modelResolution: defaults.modelResolution ?? null,
     effortCheck: defaults.effortCheck ?? null,
     worktreeRoot: defaults.worktreeRoot ?? null,
-    permissions: defaults.permissions ?? null,
   })
 }
 

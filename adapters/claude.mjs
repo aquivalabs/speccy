@@ -56,12 +56,8 @@ export default {
   version: 1,
   harness: 'claude',
 
-  // capability -> the concrete mechanism Claude Code provides. spawn-subagent
-  // has two bindings, so it appears as two keys (see CONTRACT.md).
+  // capability -> the concrete mechanism Claude Code provides.
   mechanisms: {
-    'spawn-subagent.orchestrator-native': 'the Agent tool',
-    'spawn-subagent.workflow-module': "the Workflow tool's injected agent()",
-    'run-parallel': "the Workflow tool's injected parallel()",
     'run-workflow':
       'the Workflow tool, given the scriptPath and args; it runs in the background and notifies on completion. ' +
       'Its worktrees branch from HEAD only when .claude/settings.json has "worktree": { "baseRef": "head" }; if missing, add it ' +
@@ -98,8 +94,4 @@ export default {
   effortCheck:
     'run `echo "${CLAUDE_EFFORT:-$(grep -o \'"effortLevel"[^,]*\' ~/.claude/settings.json 2>/dev/null | cut -d\'"\' -f4)}"`; ' +
     'it prints the effort level, or nothing (an unreported effort is not a low one). xhigh and max are above high; the user lowers it with /effort.',
-
-  // Resolution-time settlements (see CONTRACT.md).
-  invocation: 'the speccy skill, triggered in the Claude Code conversation',
-  permissions: 'the plugin permission settings shipped in .claude-plugin/',
 }

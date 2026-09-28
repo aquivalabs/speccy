@@ -10,20 +10,11 @@ Every harness is assumed to read, write, and edit files, run shell commands, and
 
 ## Beyond-baseline capabilities
 
-Each adapter names a mechanism for every key below.
+Each adapter names a mechanism for every required key below.
 
-### spawn-subagent
+### spawn-subagent and run-parallel: required, but unbound
 
-Two bindings, because speccy spawns from two places with different return shapes.
-
-- **orchestrator-native** — the orchestrator, running in the harness conversation, spawns a subagent from a prompt and a model-ladder rung. It returns prose; there is no result schema, because speccy reads the file the spawned agent writes, not its returned summary. This backs every critic, the planner, revise agents, review lenses, and fixers. Orchestrator fan-out (several critics or lenses at once) is just several calls to this binding, not a separate capability.
-- **workflow-module** — the `agent()` injected into the workflow runtime. It takes a prompt and a rung and returns a result derived from files and git, with an optional schema and optional worktree isolation. It is owned by the runtime module, not the orchestrator.
-
-A harness with no native subagent may later satisfy spawn-subagent with a headless-subprocess mechanism. This contract admits that form; no adapter here implements it.
-
-### run-parallel
-
-The workflow module's `parallel()`, which fans out parallel build tasks under a concurrency cap. It has no orchestrator-level counterpart; orchestrator fan-out is repeated spawn-subagent calls.
+A harness must let the orchestrator spawn a subagent from a prompt and a model-ladder rung, and its workflow runtime must supply `agent()` and `parallel()`. Neither gets a binding key. The phases say "spawn a subagent" at intent level, and speccy reads the file the spawned agent writes rather than its return, so any native subagent serves. `agent()` and `parallel()` are called by `workflow.js` itself, inside the runtime module, never by the orchestrator. A harness with no native subagent may later spawn through a headless subprocess; that would add a key here.
 
 ### run-workflow
 
@@ -45,8 +36,6 @@ The fixed rungs S, M, L, XL, each resolved to a concrete model the harness's run
 
 These are fixed when the binding resolves, not through runtime tool calls. Each adapter carries them.
 
-- **invocation entrypoint** — how the harness starts a run of speccy's core.
-- **permission / approval configuration** — the sandbox and approval posture a spawned agent runs under.
 - **effort check** (optional) — how to read the session's reasoning effort and which levels count as above `high`, for speccy's precondition that warns against a run at an expensive effort.
 - **worktree root** — where the harness's workflow runtime creates worktrees, relative to the repo root, so the workflow's cleanup can remove the directory once it is empty.
 - **instruction-file name** — the project instruction file this harness loads (`CLAUDE.md`, `AGENTS.md`, or another), which speccy points subagents and worktree-init at.
