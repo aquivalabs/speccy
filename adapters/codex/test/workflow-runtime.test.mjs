@@ -12,19 +12,12 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn as nodeSpawn } from "node:child_process";
 
-import {
-  extractMeta,
-  stripExport,
-  buildFactory,
-  loadWorkflow,
-  AMBIENTS
-} from "../loader.mjs";
+import { loadWorkflow } from "../loader.mjs";
 import {
   createCodexRuntime,
   concurrencyCap,
   validateAgainstSchema,
-  augmentResultPrompt,
-  confirmCommitLanded
+  augmentResultPrompt
 } from "../workflow-runtime.mjs";
 import { codexPermissionArgs } from "../permissions.mjs";
 
@@ -107,19 +100,8 @@ function runtimeOn(root, extra = {}) {
 
 // ── loader ─────────────────────────────────────────────────────────────
 
-test("extractMeta reads workflow.js's meta literal", () => {
-  const src = fs.readFileSync(WORKFLOW_JS, "utf8");
-  const meta = extractMeta(src);
-  assert.equal(meta.name, "plan-execution");
-  assert.equal(meta.phases.length, 5);
-  assert.equal(meta.phases[0].title, "Breakdown");
-});
-
-test("stripExport turns the top-level export into a plain const", () => {
-  const src = "export const meta = { name: 'x' };\nreturn 1;\n";
-  const stripped = stripExport(src);
-  assert.match(stripped, /^const meta = \{/);
-  assert.doesNotMatch(stripped, /export/);
+test("workflow.js compiles through the loader", () => {
+  loadWorkflow(fs.readFileSync(WORKFLOW_JS, "utf8"));
 });
 
 test("the transform wraps a body with top-level return and binds the five ambients", async () => {
@@ -144,8 +126,7 @@ return { phase: parsed.n, first: r[0] };`;
     args: { n: 42 }
   };
 
-  const { meta, run } = loadWorkflow(src);
-  assert.equal(meta.name, "synthetic");
+  const { run } = loadWorkflow(src);
   const out = await run(ambients);
   assert.deepEqual(out, { phase: 42, first: "RESULT" });
   assert.deepEqual(seen.phases, ["go"]);
@@ -153,15 +134,9 @@ return { phase: parsed.n, first: r[0] };`;
   assert.equal(seen.agents[0].opts.label, "a");
 });
 
-test("an unterminated block comment in the meta literal throws instead of livelocking", () => {
-  const src = "export const meta = { /* oops\n};\nreturn 1;\n";
-  assert.throws(() => extractMeta(src), /unterminated block comment/);
-});
-
 test("run rejects a missing ambient", () => {
   const { run } = loadWorkflow("export const meta = {};\nreturn 1;");
   assert.throws(() => run({ agent: 1, parallel: 1, phase: 1, log: 1 }), /missing ambient "args"/);
-  assert.deepEqual(AMBIENTS, ["agent", "parallel", "phase", "log", "args"]);
 });
 
 // ── concurrency cap ────────────────────────────────────────────────────
@@ -356,37 +331,7 @@ test("a schema agent() accepts a valid result file even when codex exec exits no
 
 // ── commit cross-check ─────────────────────────────────────────────────
 
-test("confirmCommitLanded finds an unmerged worktree commit by its id prefix", () => {
-  const { root, g, cleanup } = repo();
-  const wt = path.join(root, "wt-1");
-  g("worktree", "add", "-b", "run/task-1", wt, "main");
-  fs.writeFileSync(path.join(wt, "f.txt"), "x");
-  execFileSync("git", ["-C", wt, "add", "."], { stdio: "ignore" });
-  execFileSync("git", ["-C", wt, "commit", "-m", "task-1: did the work"], { stdio: "ignore" });
-  const [hash] = execFileSync("git", ["-C", wt, "rev-parse", "HEAD"], { encoding: "utf8" }).trim().split("\n");
-
-  const landed = confirmCommitLanded("task-1", { repoRoot: root, baseBranch: "main" });
-  assert.deepEqual(landed, [hash]);
-  assert.deepEqual(confirmCommitLanded("task-9", { repoRoot: root, baseBranch: "main" }), []);
-  g("worktree", "remove", "--force", wt);
-  cleanup();
-});
-
-test("the cross-check discards a commit whose subject does not start with the id prefix", () => {
-  const { root, g, cleanup } = repo();
-  const wt = path.join(root, "wt-2");
-  g("worktree", "add", "-b", "run/task-2", wt, "main");
-  fs.writeFileSync(path.join(wt, "f.txt"), "x");
-  execFileSync("git", ["-C", wt, "add", "."], { stdio: "ignore" });
-  // The id appears only in the body, not at the start of the subject.
-  execFileSync("git", ["-C", wt, "commit", "-m", "chore: mention task-2: in the body"], { stdio: "ignore" });
-  assert.deepEqual(confirmCommitLanded("task-2", { repoRoot: root, baseBranch: "main" }), []);
-  g("worktree", "remove", "--force", wt);
-  cleanup();
-});
-
-// The two tests above drive confirmCommitLanded standalone. These drive it
-// through agent()'s crossCheckCommit guard (only fires when the schema result
+// These drive agent()'s crossCheckCommit guard (only fires when the schema result
 // carries success:true and a string commit), so a renamed guard field would
 // fail a test here even though it is defense-in-depth with no functional effect.
 
@@ -466,18 +411,18 @@ test("agent()'s cross-check logs nothing for a sequential-style commit on the ba
 
 // ── permissions wiring ──────────────────────────────────────────────────
 
-test("agent() spawns with the flags permissions.mjs builds for the posture", async () => {
+test("agent() spawns with the flags permissions.mjs builds", async () => {
   const { root, cleanup } = repo();
   const seen = [];
   const capturingSpawn = (cmd, a, o) => {
     seen.push(a);
     return nodeSpawn(cmd, a, o);
   };
-  // Default posture: the flags must be exactly what codexPermissionArgs returns,
+  // The flags must be exactly what codexPermissionArgs returns,
   // proving the runtime reads permissions.mjs rather than a hardcoded literal.
   const rtDefault = runtimeOn(root, { spawn: capturingSpawn });
   await rtDefault.agent("do it", { label: "exec:task-1" });
-  const defaultArgs = codexPermissionArgs({ posture: "workspace-write" });
+  const defaultArgs = codexPermissionArgs();
   assert.ok(
     defaultArgs.every((f) => seen[0].includes(f)),
     `expected default spawn to carry ${defaultArgs.join(" ")}, got ${seen[0].join(" ")}`
@@ -495,15 +440,6 @@ test("agent() spawns with the flags permissions.mjs builds for the posture", asy
   assert.equal(fs.realpathSync(seen[0][addDir + 1]), fs.realpathSync(path.join(root, ".git")));
   await rtWorktree.dispose();
 
-  // A non-default posture flows through the same seam.
-  seen.length = 0;
-  const rtReadOnly = runtimeOn(root, { spawn: capturingSpawn, posture: "read-only" });
-  await rtReadOnly.agent("do it", { label: "exec:task-2" });
-  assert.ok(
-    seen[0].includes("read-only") && !seen[0].includes("--dangerously-bypass-approvals-and-sandbox"),
-    `expected read-only posture flags, got ${seen[0].join(" ")}`
-  );
-  await rtReadOnly.dispose();
   cleanup();
 });
 

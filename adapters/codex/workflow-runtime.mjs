@@ -26,8 +26,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
-import { readIfPresent } from "./read-if-present.mjs";
-import { codexPermissionArgs, DEFAULT_POSTURE } from "./permissions.mjs";
+import { codexPermissionArgs } from "./permissions.mjs";
 import codexAdapter from "../codex.mjs";
 
 // ── Concurrency cap ──────────────────────────────────────────────────
@@ -94,29 +93,6 @@ ${JSON.stringify(schema, null, 2)}
 Write only the JSON object — no prose, no code fences, no Markdown, and no other content in that file. This file is how your result is read; nothing on stdout is used.`;
 }
 
-// ── Commit-landing cross-check (defense-in-depth) ────────────────────
-//
-// The exact query workflow.js's confirmFromGit uses for worktree tasks:
-// `git log --branches --not <base> --grep '^<id>: '`, then discard any
-// candidate whose subject does not start with `<id>: ` (--grep matches the body
-// too). Returns the surviving commit hashes, newest first.
-export function confirmCommitLanded(id, { repoRoot, baseBranch }) {
-  const out = execFileSync(
-    "git",
-    ["-C", repoRoot, "log", "--branches", "--not", baseBranch, "--grep", `^${id}: `, "--format=%H%x00%s"],
-    { encoding: "utf8" }
-  );
-  return out
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const [hash, subject] = line.split("\x00");
-      return { hash, subject: subject ?? "" };
-    })
-    .filter((e) => e.subject.startsWith(`${id}: `))
-    .map((e) => e.hash);
-}
-
 // Task id carried by an exec/confirm label, e.g. "confirm:task-1" → "task-1".
 function idFromLabel(label) {
   const m = /^(?:confirm|exec):(.+)$/.exec(label || "");
@@ -150,8 +126,6 @@ function slug(s) {
 //   heartbeatThrottleMs — minimum gap between heartbeat writes triggered by
 //                   subprocess stdout/stderr data (default 200); spawn and
 //                   close always write regardless of this gap.
-//   posture       — codex sandbox/approval posture, resolved to flags by
-//                   permissions.mjs (default DEFAULT_POSTURE, "workspace-write").
 //
 // Returns the five ambients plus a dispose() teardown and inspectable state.
 export function createCodexRuntime(config = {}) {
@@ -166,8 +140,7 @@ export function createCodexRuntime(config = {}) {
     cpus = os.cpus().length,
     retries = 2,
     modelFlag = "--model",
-    heartbeatThrottleMs = 200,
-    posture = DEFAULT_POSTURE
+    heartbeatThrottleMs = 200
   } = config;
   if (!repoRoot) throw new Error("createCodexRuntime: repoRoot is required");
   // Resolve to absolute: workDir, worktree paths, and the schema result path are
@@ -292,7 +265,7 @@ export function createCodexRuntime(config = {}) {
     const lastMsgPath = path.join(workDir, `${id}.last.txt`);
     const buildExecArgs = (finalPrompt) => {
       const addDirs = isolation === "worktree" ? [gitCommonDir] : [];
-      const execArgs = ["exec", "-C", cwd, "-o", lastMsgPath, ...codexPermissionArgs({ posture, addDirs })];
+      const execArgs = ["exec", "-C", cwd, "-o", lastMsgPath, ...codexPermissionArgs(addDirs)];
       if (model) execArgs.push(modelFlag, model);
       execArgs.push(finalPrompt);
       return execArgs;
@@ -308,7 +281,11 @@ export function createCodexRuntime(config = {}) {
       const { code } = await runCodex(buildExecArgs(prompt), cwd);
       if (code !== 0)
         log(`${label}: codex exec exited with code ${code} (returning report; git state is the oracle)`);
-      return readIfPresent(lastMsgPath);
+      try {
+        return fs.readFileSync(lastMsgPath, "utf8");
+      } catch {
+        return null;
+      }
     }
 
     // Schema call: run, read the result file, validate. The oracle is a
@@ -425,7 +402,6 @@ export function createCodexRuntime(config = {}) {
     args,
     // lifecycle + inspection
     dispose,
-    confirmCommitLanded: (id) => confirmCommitLanded(id, { repoRoot, baseBranch }),
     worktrees,
     heartbeatPath,
     workDir,

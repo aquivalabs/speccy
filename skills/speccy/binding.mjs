@@ -37,10 +37,6 @@ export const REQUIRED_MECHANISMS = [
   'monitor',
 ]
 
-// Capabilities an adapter may omit when its harness has no such mechanism; the
-// phase that uses one skips it when the binding names none.
-export const OPTIONAL_MECHANISMS = ['code-review']
-
 // The fixed model ladder. Every adapter resolves all four rungs.
 export const RUNGS = ['S', 'M', 'L', 'XL']
 
@@ -101,13 +97,6 @@ export function resolveBinding(harness, defaults = ADAPTERS[harness], cwd = proc
     worktreeRoot: defaults.worktreeRoot ?? null,
     permissions: defaults.permissions ?? null,
   })
-}
-
-/** Resolve a model-ladder rung to its concrete model, failing on an unknown rung. */
-export function resolveModel(binding, rung) {
-  const model = binding.models[rung]
-  if (!model) fail(`rung "${rung}" is not one of ${RUNGS.join('/')}`)
-  return model
 }
 
 // ---------------------------------------------------------------- entry point

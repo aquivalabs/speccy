@@ -13,7 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 
-import { resolveBinding, resolveModel, REQUIRED_MECHANISMS, OPTIONAL_MECHANISMS, RUNGS } from '../binding.mjs'
+import { resolveBinding, REQUIRED_MECHANISMS, RUNGS } from '../binding.mjs'
 
 const BINDING = path.resolve(import.meta.dirname, '..', 'binding.mjs')
 
@@ -78,7 +78,7 @@ test('codex resolves to a complete binding, its rungs naming model families to r
 
 test('both built adapters name a code reviewer; an adapter without one still resolves', () => {
   for (const harness of ['claude', 'codex']) {
-    for (const key of OPTIONAL_MECHANISMS) assert.ok(resolveBinding(harness).mechanisms[key], `${harness} names ${key}`)
+    assert.ok(resolveBinding(harness).mechanisms['code-review'], `${harness} names code-review`)
   }
   const b = resolveBinding('fake', goodDefaults())
   assert.equal(b.mechanisms['code-review'], undefined)
@@ -168,18 +168,6 @@ test('resolve is pure: two calls agree and write nothing to the binding', () => 
   assert.deepEqual(a, b)
   assert.ok(Object.isFrozen(a), 'the binding is frozen')
   assert.ok(Object.isFrozen(a.models), 'the model map is frozen')
-})
-
-// ------------------------------------------------------------ rung resolution
-
-test('resolveModel maps a rung to its concrete model', () => {
-  const b = resolveBinding('claude')
-  assert.equal(resolveModel(b, 'L'), 'opus')
-})
-
-test('resolveModel rejects an unknown rung', () => {
-  const b = resolveBinding('claude')
-  assert.throws(() => resolveModel(b, 'XXL'), /not one of S\/M\/L\/XL/)
 })
 
 // ------------------------------------------------------------ CLI path

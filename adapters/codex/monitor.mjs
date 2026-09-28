@@ -24,29 +24,26 @@
 
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { readIfPresent } from './read-if-present.mjs'
+import fs from 'node:fs'
 
-// Read and shape-check the heartbeat. Returns { mtime, alive } or null when the
-// file is absent or unreadable — the same "no signal" the bash loop treats as 0.
-// A malformed or wrong-shaped file is null too: a monitor must never crash the
-// run it is watching.
-export function readHeartbeat(heartbeatPath) {
-  const raw = readIfPresent(heartbeatPath)
-  if (raw === null) return null
+// A missing, unreadable, or malformed file is null: a monitor must never crash
+// the run it is watching.
+function readJson(filePath) {
   try {
-    const parsed = JSON.parse(raw)
-    if (
-      parsed === null ||
-      typeof parsed !== 'object' ||
-      typeof parsed.mtime !== 'number' ||
-      typeof parsed.alive !== 'boolean'
-    ) {
-      return null
-    }
-    return { mtime: parsed.mtime, alive: parsed.alive }
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'))
   } catch {
     return null
   }
+}
+
+// Read and shape-check the heartbeat. Returns { mtime, alive }, or null when
+// there is no usable file — the same "no signal" the bash loop treats as 0.
+export function readHeartbeat(heartbeatPath) {
+  const hb = readJson(heartbeatPath)
+  if (hb === null || typeof hb !== 'object' || typeof hb.mtime !== 'number' || typeof hb.alive !== 'boolean') {
+    return null
+  }
+  return { mtime: hb.mtime, alive: hb.alive }
 }
 
 // The liveness signal in epoch SECONDS, so it drops straight into the bash poll
@@ -72,14 +69,8 @@ export function isWorkInFlight(heartbeatPath) {
 // says running but the runner's process is gone (killed, or crashed before it
 // could record a failure).
 export function readStatus(statusPath, isAlive = pidAlive) {
-  const raw = readIfPresent(statusPath)
-  if (raw === null) return { state: 'starting' }
-  let status
-  try {
-    status = JSON.parse(raw)
-  } catch {
-    return { state: 'starting' }
-  }
+  const status = readJson(statusPath)
+  if (status === null) return { state: 'starting' }
   if (status.state === 'running' && !isAlive(status.pid)) return { ...status, state: 'died' }
   return status
 }
@@ -99,12 +90,11 @@ function pidAlive(pid) {
 // loop stats a transcript:
 //   node monitor.mjs mtime <heartbeatPath>   → liveness in epoch seconds (or 0)
 //   node monitor.mjs alive <heartbeatPath>   → "1" if a subprocess is live, else "0"
-//   node monitor.mjs json  <heartbeatPath>   → the two-field object, or "null"
 //   node monitor.mjs status <statusPath>     → the run's status (see readStatus)
 export function main(argv = process.argv.slice(2)) {
   const [field, heartbeatPath] = argv
   if (!field || !heartbeatPath) {
-    process.stderr.write('usage: monitor.mjs <mtime|alive|json|status> <path>\n')
+    process.stderr.write('usage: monitor.mjs <mtime|alive|status> <path>\n')
     return 2
   }
   if (field === 'status') {
@@ -119,11 +109,7 @@ export function main(argv = process.argv.slice(2)) {
     process.stdout.write(`${isWorkInFlight(heartbeatPath) ? '1' : '0'}\n`)
     return 0
   }
-  if (field === 'json') {
-    process.stdout.write(`${JSON.stringify(readHeartbeat(heartbeatPath))}\n`)
-    return 0
-  }
-  process.stderr.write(`monitor: unknown field "${field}" (mtime|alive|json|status)\n`)
+  process.stderr.write(`monitor: unknown field "${field}" (mtime|alive|status)\n`)
   return 2
 }
 

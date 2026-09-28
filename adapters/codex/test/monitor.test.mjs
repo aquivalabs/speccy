@@ -120,12 +120,3 @@ test("CLI alive prints 1 when a subprocess is live, 0 otherwise", () => {
   assert.equal(cli(["alive", hbPath]).stdout.trim(), "0");
   cleanup();
 });
-
-test("CLI json prints the two-field object, or null when absent", () => {
-  const { hbPath, cleanup } = tmpHeartbeatPath();
-  write(hbPath, JSON.stringify({ mtime: 5, alive: false }));
-  assert.deepEqual(JSON.parse(cli(["json", hbPath]).stdout), { mtime: 5, alive: false });
-  fs.rmSync(hbPath);
-  assert.equal(cli(["json", hbPath]).stdout.trim(), "null");
-  cleanup();
-});

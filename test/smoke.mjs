@@ -27,7 +27,6 @@ import { fileURLToPath } from 'node:url'
 
 import {
   resolveBinding,
-  resolveModel,
   REQUIRED_MECHANISMS,
   RUNGS,
 } from '../skills/speccy/binding.mjs'
@@ -268,8 +267,7 @@ await probe('workflow.js fans out parallel tasks through the module (isolation h
       },
       ...agentSpawnConfig(agentPath),
     })
-    const { meta, run } = loadWorkflow(MINIMAL_WORKFLOW)
-    assert.equal(meta.name, 'smoke-fanout', 'the loader transformed the minimal workflow.js')
+    const { run } = loadWorkflow(MINIMAL_WORKFLOW)
     const out = await run({
       agent: rt.agent, parallel: rt.parallel, phase: rt.phase, log: rt.log, args: rt.args,
     })
@@ -387,7 +385,7 @@ await probe('model ladder resolves every rung to an alias or family', () => {
   const b = resolveBinding(harness)
   const resolved = {}
   for (const rung of RUNGS) {
-    const model = resolveModel(b, rung)
+    const model = b.models[rung]
     assert.ok(typeof model === 'string' && model.length > 0, `${rung} → an alias or family`)
     assert.doesNotMatch(model, /\d/, `${rung} stores no version`)
     resolved[rung] = model
@@ -399,16 +397,15 @@ await probe('model ladder resolves every rung to an alias or family', () => {
 // P8 — exactly one workflow.js, and the one file loads on both harnesses.
 // This is the meaningful syntax gate for a loader-transformed file: `node
 // --check` cannot pass on it, since by design it mixes `export const meta` with
-// top-level `return`, which no single JS goal accepts. loadWorkflow's
-// buildFactory compiles the body, so it throws on any real syntax error.
+// top-level `return`, which no single JS goal accepts. loadWorkflow compiles
+// the body, so it throws on any real syntax error.
 await probe('one workflow.js, loadable through the runtime (no fork)', () => {
   const found = execFileSync('git', ['-C', REPO, 'ls-files', '*workflow.js'], { encoding: 'utf8' })
     .split('\n').filter(Boolean)
   assert.deepEqual(found, ['skills/plan-execution/workflow.js'], 'exactly one workflow.js, unforked')
   for (const rel of ['skills/plan-execution/workflow.js', 'skills/plan-execution/workflow-simple.js']) {
     const src = fs.readFileSync(path.join(REPO, rel), 'utf8')
-    const { meta } = loadWorkflow(src) // throws on any syntax error in the body
-    assert.ok(meta && meta.name, `${rel} transforms and exposes meta`)
+    loadWorkflow(src) // throws on any syntax error in the body
   }
   return 'single workflow.js; both scripts transform cleanly through the loader'
 })

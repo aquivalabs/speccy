@@ -22,7 +22,7 @@ Run `node --test "skills/speccy/test/*.test.mjs" "adapters/codex/test/*.test.mjs
 
 ## The workflow scripts don't parse standalone
 
-`skills/plan-execution/workflow.js` and `workflow-simple.js` combine `export const meta` (module-level) with a top-level `return` (function-body-only), so no JS mode parses them and `node --check` always fails, on `main` too. They run only through the loader transform; the real syntax gate is `loadWorkflow()` / `buildFactory()` in `adapters/codex/loader.mjs`. Don't add a `node --check` step for them.
+`skills/plan-execution/workflow.js` and `workflow-simple.js` combine `export const meta` (module-level) with a top-level `return` (function-body-only), so no JS mode parses them and `node --check` always fails, on `main` too. They run only through the loader transform; the real syntax gate is `loadWorkflow()` in `adapters/codex/loader.mjs`. Don't add a `node --check` step for them.
 
 ## Verify harness facts against current docs, never memory
 
