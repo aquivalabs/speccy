@@ -60,6 +60,8 @@ export default {
   mechanisms: {
     'run-workflow':
       'the Workflow tool, given the scriptPath and args; it runs in the background and notifies on completion. ' +
+      'It refuses a scriptPath outside the working directory and added directories, which excludes the skill install, ' +
+      'so copy the script into .speccy/<run-id>/ first and pass the copy. ' +
       'Its worktrees branch from HEAD only when .claude/settings.json has "worktree": { "baseRef": "head" }; if missing, add it ' +
       '(via Bash/python, since direct Edit on that file is blocked). The default (fresh) branches from origin/<default-branch>, which misses every feature-branch commit.',
     'code-review':

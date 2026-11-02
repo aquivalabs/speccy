@@ -682,3 +682,7 @@ Every reference now carries the `<skill-dir>/` prefix, and `SKILL.md` defines `<
 A harness variable would be tighter, but the core may not name one, and the hosts differ. Claude Code prints a base-directory line when a skill loads and expands `${CLAUDE_SKILL_DIR}`; Codex documents no variable and gives the model the skill's path through its skill list. Asked to name the absolute paths from a project with both skills installed by symlink, each harness resolved them correctly, so a placeholder the model fills in works on both without a binding key.
 
 Not addressed: `binding.mjs` imports the adapters from `../../adapters/`, so a copy of `skills/speccy` alone (rather than a symlink or the plugin install) fails at the binding step. And the `allowed-tools` patterns match `*skills/speccy/…`, so an install under a different directory name prompts for permission.
+
+### The Claude adapter copies the workflow script into the run directory (2026-11-02)
+
+The `Workflow` tool accepts a `scriptPath` only inside the working directory or a directory the session has added. The skill install sits outside both, whether a plugin cache or a local checkout, so every build launch was refused until the orchestrator improvised a copy. The `run-workflow` mechanism now says to copy the script into `.speccy/<run-id>/` and pass the copy. The run directory is gitignored, and the scripts import nothing, so the copy runs as the original does. Passing the script inline also works, but puts 26 KB of `workflow.js` into the orchestrator's context.
