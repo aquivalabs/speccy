@@ -732,3 +732,13 @@ A forced move is recorded when a reader would plausibly propose the alternative 
 ### The Claude adapter copies the workflow script into the run directory (2026-11-02)
 
 The `Workflow` tool accepts a `scriptPath` only inside the working directory or a directory the session has added. The skill install sits outside both, whether a plugin cache or a local checkout, so every build launch was refused until the orchestrator improvised a copy. The `run-workflow` mechanism now says to copy the script into `.speccy/<run-id>/` and pass the copy. The run directory is gitignored, and the scripts import nothing, so the copy runs as the original does. Passing the script inline also works, but puts 26 KB of `workflow.js` into the orchestrator's context.
+
+### Only a blocker or major fix earns another review round (2026-11-02)
+
+The review loop ran until a round dispositioned nothing Fix, and "diff size is not a reason to defer" sends every cheap minor finding to Fix. So a round that reworded one comment bought a whole further round of the panel. On a small tested run, round 1's value was four test-strength fixes, round 2 fixed one assertion and two pieces of polish, and round 3 found nothing new.
+
+Minor findings are still fixed, but only a blocker or major fix earns another round; the gates after the fix catch a minor fix that breaks something. The output contract now defines the severities, because the exit now turns on them: a test that cannot catch the defect it is named for is major, which is what the useful round-1 fixes were.
+
+The suppressions lens now leaves out language constructs that widen access (a sharing bypass, an elevated-permission call). They are design choices the plan records, and the lens's watertight rule had demanded rule-name comments on them that the comments lens then argued against across rounds. The same lens twice rated the plan's settled sharing decision major, once on a wrong reading of the platform, which stalled the run on a question to the user.
+
+The risk is a first round that rates a real defect minor and so ends the loop early. The severity definitions are the guard; the cold-round rule still holds whenever a round continues.
