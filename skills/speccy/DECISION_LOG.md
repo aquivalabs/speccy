@@ -728,3 +728,7 @@ The same run deferred its merge question to a planning spike without running one
 Scope exclusions stay plain Scope boundaries lines. On the next run, the critic judged speccy's default exclusions (indirect Contacts, no backfill, no repair job) "stated scope calls with no hidden alternative worth challenging", and the user agreed; a decision entry for each would have been padding. A scope cut the user makes at their read is still a decision with Origin *User*, since it carries a reason the draft lacked.
 
 A forced move is recorded when a reader would plausibly propose the alternative it rules out, since re-opening a settled point costs more than the entry. This narrows the critique fix's ban on asking for forced moves.
+
+### The Claude adapter copies the workflow script into the run directory (2026-11-02)
+
+The `Workflow` tool accepts a `scriptPath` only inside the working directory or a directory the session has added. The skill install sits outside both, whether a plugin cache or a local checkout, so every build launch was refused until the orchestrator improvised a copy. The `run-workflow` mechanism now says to copy the script into `.speccy/<run-id>/` and pass the copy. The run directory is gitignored, and the scripts import nothing, so the copy runs as the original does. Passing the script inline also works, but puts 26 KB of `workflow.js` into the orchestrator's context.
