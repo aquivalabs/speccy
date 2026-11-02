@@ -690,3 +690,11 @@ On a run seeded with one sentence, the first draft ran to some sixty lines. It n
 The template now opens with two tests every line must pass. A line earns its place when the user could reasonably object to it or the build would plausibly go wrong without it; what a competent builder does anyway, or a criterion already forces, goes. A line stays at spec level when a different, equally good implementation would not break it. An empty section reads "None." Deliverables name behaviours and leave files and classes to the plan. 1c holds the draft to both tests and re-reads against them before presenting.
 
 The tests live in the template so the readability pass, which receives it, rewrites against them too. A separate short template for small changes was rejected: it needs a size call up front that the drafter would get wrong on mid-sized work, while "None." lets one template shrink to fit. The plan template's "fill in every section" instruction is left as is; this run showed no plan padding.
+
+### The draft closes its own open questions (2026-11-02)
+
+The same run's first draft carried open questions the pipeline could have closed itself, plus one that never belonged in a spec. Whether an Account merge fires the Contact trigger decides whether a completion criterion stays in scope; a spike answers it. Whether the project has a trigger framework changes only the build's structure, and the planner reads the codebase anyway. 1b and the template both said to defer such questions to planning, which produced both entries.
+
+1c now ends with an open-question pass. A question stays only if its answer would change the spec, the same altitude test the template applies to every line. Code, config, and the environment answer what they can: a look-up, or a spike for a feasibility assumption, with the verdict folded into the spec before the user's first read. Questions only the user can answer are asked alongside the draft. An `unproven` verdict stays open for a planning spike.
+
+Spikes run without asking. Many are read-only or run against a disposable environment, so a consent prompt is noise, and the spike prompt already requires undoing any state it creates. `plan-spike.md` becomes `spike.md`, since the spec phase now uses it too. Borderline questions, such as the framework one, get cut; the user can raise them at their read if they disagree.

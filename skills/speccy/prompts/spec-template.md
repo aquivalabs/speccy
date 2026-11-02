@@ -88,8 +88,10 @@
 
 ## Open questions
 
-<!-- Items deferred to the planning phase, with the codebase research needed to resolve each. Include
-     any *feasibility assumption*: a requirement (often hiding in Constraints or Completion criteria)
-     that takes some platform, API, timing, or ordering capability for granted without confirming it
-     (e.g. "corrected synchronously in the same transaction"). Mark each for a feasibility spike in
-     planning, so the plan proves the mechanism before the build discovers it cannot. -->
+<!-- Questions whose answer would change this spec and that drafting could not close: what only the
+     user can answer, and any *feasibility assumption* a spike left unproven. A feasibility assumption
+     is a requirement (often hiding in Constraints or Completion criteria) that takes some platform,
+     API, timing, or ordering capability for granted without confirming it (e.g. "corrected
+     synchronously in the same transaction"). Mark each unproven one for a feasibility spike in
+     planning, so the plan proves the mechanism before the build discovers it cannot.
+     A question whose answer only shapes the build belongs to the plan; leave it out. -->

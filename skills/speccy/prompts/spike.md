@@ -6,4 +6,4 @@ If you cannot exercise the action (no access, no safe path), the verdict is `unp
 
 Spike code is throwaway. Discard it and undo any state it created, so the environment is left as you found it.
 
-Report the verdict (`confirmed`, `refuted`, or `unproven`), what you actually did, and the concrete signal behind it (the error, the returned value, the observed timing), so the reader can weigh the evidence rather than take the verdict on trust. If it fails, say what that means for the plan.
+Report the verdict (`confirmed`, `refuted`, or `unproven`), what you actually did, and the concrete signal behind it (the error, the returned value, the observed timing), so the reader can weigh the evidence rather than take the verdict on trust. If it fails, say what that means for the spec or plan it was run for.

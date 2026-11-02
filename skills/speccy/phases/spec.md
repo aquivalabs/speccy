@@ -26,7 +26,7 @@ Ask only about gaps the intake leaves genuinely open and that materially change 
 
 Identify external context that would improve the spec or plan: documentation, other projects with relevant patterns, standards, API references. Ask the user about anything you can't access directly. This is worth doing early: missing context discovered mid-build is expensive. Record the references that matter in the spec itself (under Open questions, or a short references note) so they survive the context clear before planning. Anything left only in conversation is lost when the user clears the context.
 
-**Never ask what code or the environment can answer.** If a quick look at the repo, config, or tooling would settle it, look instead of asking. Mark questions needing deeper codebase research open and defer them to planning.
+**Never ask what code or the environment can answer.** If a quick look at the repo, config, or tooling would settle it, look instead of asking. Leave a question that needs deeper research for the open-question pass at the end of 1c.
 
 **Asking nothing is fine.** If the intake settles what you need, write the draft and skip the interview. (Clarifying questions only; the habits under **Steering away from cognitive surrender** still apply.)
 
@@ -51,7 +51,14 @@ Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timesta
 
 Tell the user about the directory: critique rounds, the plan, review notes, and run state will be saved there so they can open them in their editor rather than scrolling terminal output. Mention the path once here; don't repeat it at every save.
 
-Now present the draft and **stop**: the user reads and edits it until satisfied, and 1d's critique does not begin until they hand it on. Commit any edits they make. This is their first read rather than a gate, so pose no engagement question here; the pre-question comes at the 1d critique, once they have the draft in hand. Put the hand-off prompt last in the turn and wait, the way the gate stops do. The run sits at `spec-draft` for the whole read, so a context clear mid-read resumes here; when the user hands it on, `state.mjs advance --run <id> spec-critique` and continue to 1d.
+**Close the open questions you can.** Keep an open question only if its answer would change the spec; one whose answer only shapes the build (which existing framework to follow, how to structure the code) belongs to planning, so cut it. For each that stays:
+
+- If code, config, or the environment can answer it, answer it now. Look it up, or prove a feasibility assumption with a spike: spawn a subagent with `<skill-dir>/prompts/spike.md` and the mechanism to prove, writing its verdict to `.speccy/<run-id>/spike-spec-<topic>.md`. Fold the answer into the section it belongs to (a constraint, a scope boundary, a criterion) and drop the question. A question a spike leaves `unproven` stays open, marked for a spike in planning.
+- If only the user can answer it, ask it when you present the draft.
+
+Commit the spec if this pass changed it, and tell the user what each spike found, especially one that changed scope.
+
+Now present the draft and **stop**: the user reads and edits it until satisfied, and 1d's critique does not begin until they hand it on. Commit any edits they make, and fold their answers to the open questions into the spec. This is their first read rather than a gate, so pose no engagement question here; the pre-question comes at the 1d critique, once they have the draft in hand. Put the hand-off prompt last in the turn and wait, the way the gate stops do. The run sits at `spec-draft` for the whole read, so a context clear mid-read resumes here; when the user hands it on, `state.mjs advance --run <id> spec-critique` and continue to 1d.
 
 ### 1d. Adversarial spec critique
 
