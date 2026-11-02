@@ -78,9 +78,9 @@
        *speccy, alone*, arises in the plan and review phases rather than here. The wrap-up reads
        this tag.
 
-     A scope exclusion with a viable alternative is a decision too: record it here as well as in
-     Scope boundaries, so the user sees why before choosing whether to object.
-     Record a decision only where a real alternative existed; a forced move is not a decision. An
+     Record a decision where a real alternative existed. Record a forced move too when a reader
+     would plausibly propose the alternative it rules out (a roll-up summary field, unavailable on a
+     lookup), so nobody re-opens it; its Why is the fact that forces it. An
      assumption is a guess made under ambiguity; a decision is a deliberate pick among options.
      Keep it spec-level, the WHAT and its shape; code-level HOW belongs to the plan.
      Where the input already settles a choice (a stated preference, a mandate, an existing
