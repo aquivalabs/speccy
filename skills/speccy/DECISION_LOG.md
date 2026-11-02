@@ -716,3 +716,11 @@ On the test run, two critique rounds took a ten-line spec to ten completion crit
 The critic and the reviser now receive the template. A finding whose fix fails either test is not a finding, and the reviser answers accepted findings in the fewest lines that pass them. The decision hunt becomes "flag a load-bearing choice the spec makes silently", excluding forced moves and choices the environment makes moot. Completion criteria name outcomes; test design is plan material. In triage the orchestrator recommends take or skip per finding and applies only what the user accepts, silence meaning skip.
 
 The critic gets no explicit "find lines to cut" class. It already flags how-detail, and a critic asked to cut would generate cut findings to look productive, the same triage noise reversed. Spec-level padding that passes the altitude test is left to the drafter's self-check and the readability pass; revisit if it survives to planning.
+
+### First-draft choices are proposed decisions (2026-11-02)
+
+The third test run's spec held one decision. Its scope exclusions (indirect Contacts, no backfill, no repair job) sat in Scope boundaries with no rationale anywhere, and the user's own ruling to exclude merges reached only Scope boundaries and the log. Both traced to rules: the earlier fix sent first-draft defaults to Assumptions until the user ruled, and nothing converted them afterwards; and 1c folded the user's answers "into the spec" without naming Decisions & rationale.
+
+The earlier fix overreached. Its target was a false *speccy, user-agreed* tag, and hiding the choice from Decisions cost the reasoning the user needs to decide whether to object. A first-draft choice with a viable alternative, scope exclusions included, is now a decision tagged *speccy, proposed*. When the user hands the draft on, every proposed entry they let stand becomes *speccy, user-agreed*, matching the rule that reading the spec is deciding; the wrap-up never sees *proposed*. A user ruling at the read goes to Decisions & rationale with Origin *User*.
+
+The same run deferred its merge question to a planning spike without running one, though 1c said to answer it now; the session shows no reason. 1c now says a question marked for a planning spike needs an `unproven` verdict file behind it.

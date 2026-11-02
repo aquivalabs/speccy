@@ -72,13 +72,14 @@
      - **Decision**: what was chosen (a scope call, an approach, a contract/deliverable shape).
      - **Alternatives**: the viable option(s) considered and rejected.
      - **Why**: the deciding factor that made the chosen option win.
-     - **Origin**: **User** (a preference, mandate, or judgement the user brought) or **speccy,
-       user-agreed** (a default the pipeline proposed and the user signed off). A third origin,
+     - **Origin**: **User** (a preference, mandate, or judgement the user brought), **speccy,
+       proposed** (a choice the first draft makes before the user has read it), or **speccy,
+       user-agreed** (a proposed choice the user let stand at their read). A fourth origin,
        *speccy, alone*, arises in the plan and review phases rather than here. The wrap-up reads
        this tag.
 
-     The first draft has no user sign-off to cite, so a default speccy proposes there goes in
-     Assumptions. It becomes a decision tagged **speccy, user-agreed** only once the user rules on it.
+     A scope exclusion with a viable alternative is a decision too: record it here as well as in
+     Scope boundaries, so the user sees why before choosing whether to object.
      Record a decision only where a real alternative existed; a forced move is not a decision. An
      assumption is a guess made under ambiguity; a decision is a deliberate pick among options.
      Keep it spec-level, the WHAT and its shape; code-level HOW belongs to the plan.
