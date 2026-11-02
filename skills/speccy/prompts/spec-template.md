@@ -9,6 +9,16 @@
      rest. Don't restate the instruction file anywhere in this file. Reference it by file/section where a
      constraint turns on it, and spell a rule out only where this feature diverges from it. -->
 
+<!-- Size the spec to the work: a one-sentence change gets a short spec. Every line passes two tests.
+     It earns its place: the user could reasonably object to it (a scope call, such as not counting
+     indirect relationships), or the build would plausibly go wrong without it (an edge case, an
+     unverified platform behaviour). Cut what a competent builder does anyway, such as deploying or
+     running the tests, and anything a completion criterion already forces.
+     It stays at spec level: a different, equally good implementation would not break it. "One query
+     and one update per transaction" fails; "the count updates even when the user cannot edit the
+     record" passes. Class names, handler structure, and query shapes belong to the plan.
+     A section with nothing that passes both tests reads "None." -->
+
 ## Goal
 
 <!-- This is the file's lead. One paragraph: the problem this solves and what the spec produces.
@@ -20,8 +30,10 @@
 
 ## Deliverables
 
-<!-- What exists when this spec is done. Name the artifacts, behaviours, or capabilities the
-     implementation produces.
+<!-- What exists when this spec is done: the behaviours and capabilities the implementation
+     produces. Files and classes are plan material. Don't repeat the completion criteria, and don't
+     list steps they already force, such as deployment. When the Goal already names the only
+     deliverable, say so in one line.
      Describe; don't justify. Every argument the spec makes lives in Decisions & rationale.
      Avoid code examples unless this spec defines an API contract or a specific refactor target. -->
 

@@ -32,7 +32,9 @@ Identify external context that would improve the spec or plan: documentation, ot
 
 ### 1c. Structured spec
 
-Produce a first-draft spec from the interview answers using the template in `<skill-dir>/prompts/spec-template.md`. Fill in every section; remove the HTML comments. Write it to the standard in `<skill-dir>/prompts/writing-style.md`: a draft that starts dense stays dense, because every later step is a revision of it.
+Produce a first-draft spec from the interview answers using the template in `<skill-dir>/prompts/spec-template.md`. Hold every line to the two tests in the template's opening comment (it earns its place; it stays at spec level), and remove the HTML comments. Write it to the standard in `<skill-dir>/prompts/writing-style.md`: a draft that starts dense stays dense, because every later step is a revision of it.
+
+Before presenting the draft, re-read it against those two tests and cut every line that fails. The user's first read is for judgement; trimming is your job.
 
 The template defines what each section holds. Two things about **Decisions & rationale** are the interview's job rather than the template's:
 
