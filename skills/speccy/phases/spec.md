@@ -51,10 +51,10 @@ Generate a `runId`: lowercase kebab from the slug plus a `YYYYMMDD-HHmm` timesta
 
 Tell the user about the directory: critique rounds, the plan, review notes, and run state will be saved there so they can open them in their editor rather than scrolling terminal output. Mention the path once here; don't repeat it at every save.
 
-**Close the open questions you can.** Keep an open question only if its answer would change the spec; one whose answer only shapes the build (which existing framework to follow, how to structure the code) belongs to planning, so cut it. For each that stays:
+**Close the open questions you can.** A question belongs to the spec if its answer would change the spec, or could raise a choice a user would reasonably want to make there. When a question looks build-level, answer it first if that's cheap: "is there an existing framework?" is build-level when one exists, and raises a scope choice when none does. Cut what remains build-level; planning finds it. For each that stays:
 
 - If code, config, or the environment can answer it, answer it now. Look it up, or prove a feasibility assumption with a spike: spawn a subagent with `<skill-dir>/prompts/spike.md` and the mechanism to prove, writing its verdict to `.speccy/<run-id>/spike-spec-<topic>.md`. Fold the answer into the section it belongs to (a constraint, a scope boundary, a criterion) and drop the question. A question a spike leaves `unproven` stays open, marked for a spike in planning.
-- If only the user can answer it, ask it when you present the draft.
+- If it needs the user's judgement, state a reasonable default in Assumptions or Scope boundaries; the user objects at their read if they disagree. Ask only when no default is reasonable, and then ask when you present the draft.
 
 Commit the spec if this pass changed it, and tell the user what each spike found, especially one that changed scope.
 

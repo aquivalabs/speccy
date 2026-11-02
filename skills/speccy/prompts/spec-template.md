@@ -88,10 +88,12 @@
 
 ## Open questions
 
-<!-- Questions whose answer would change this spec and that drafting could not close: what only the
-     user can answer, and any *feasibility assumption* a spike left unproven. A feasibility assumption
+<!-- Questions whose answer would change this spec and that drafting could not close: a choice for
+     the user with no reasonable default (state one in Assumptions or Scope boundaries where it
+     exists), and any *feasibility assumption* a spike left unproven. A feasibility assumption
      is a requirement (often hiding in Constraints or Completion criteria) that takes some platform,
      API, timing, or ordering capability for granted without confirming it (e.g. "corrected
      synchronously in the same transaction"). Mark each unproven one for a feasibility spike in
      planning, so the plan proves the mechanism before the build discovers it cannot.
-     A question whose answer only shapes the build belongs to the plan; leave it out. -->
+     A question belongs here only if its answer could change the spec or raise a choice a user
+     would reasonably want to make in it; one that only shapes the build belongs to the plan. -->
