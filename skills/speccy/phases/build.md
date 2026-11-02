@@ -1,6 +1,6 @@
 # Phase 3: Implementation
 
-_Paths like `prompts/implementation-fix.md` are relative to the skill directory (the parent of this `phases/` folder), the same anchor `SKILL.md` uses. **Bold section names** (e.g. **Steering away from cognitive surrender**, **Subagent results: trust files over returns**) refer to `SKILL.md`, which is always loaded; read it for the cross-cutting rules this phase relies on._
+_`<skill-dir>` is defined in `SKILL.md`. **Bold section names** (e.g. **Steering away from cognitive surrender**, **Subagent results: trust files over returns**) refer to `SKILL.md`, which is always loaded; read it for the cross-cutting rules this phase relies on._
 
 The build kickoff is a handoff rather than a gate (see **Steering away from cognitive surrender**): 2b was the engagement point, so pose no pre-question and announce no check here. If you frame the handoff at all, keep it to a passing line: the build now runs autonomously and the user stays **on** the loop, free to watch it work and step in, rather than walking away from it, which is the vibe-coding failure mode speccy exists to avoid. ("In the loop" is for the spec and plan gates, where the user decides each acceptance; the build is supervision rather than decision-by-decision.) Then start the build.
 
@@ -18,9 +18,9 @@ After implementation is complete, the code gets an independent review across sev
 
 ### The lenses
 
-Each round spawns these reviewers as **parallel** subagents (one message, one spawn each), all **read-only**; none edits code. Each writes its findings to its own file `.speccy/<run-id>/review-round-N-<lens>.md`. Pass each the base branch so it can diff `<base-branch>...HEAD`. All prompt paths are relative to the skill directory.
+Each round spawns these reviewers as **parallel** subagents (one message, one spawn each), all **read-only**; none edits code. Each writes its findings to its own file `.speccy/<run-id>/review-round-N-<lens>.md`. Pass each the base branch so it can diff `<base-branch>...HEAD`.
 
-Pass each bespoke lens `prompts/review-output-contract.md` alongside its own prompt. It standardises the finding shape across lenses so triage is mechanical, and makes writing the file a hard contract: a lens that runs out of room mid-verification still leaves a file, marking the unconfirmed candidate `PLAUSIBLE`, rather than returning nothing. The code-review lens is the harness's own reviewer and won't read the contract; the orchestrator applies the same shape itself when it normalises `code-review`'s findings into the code-review lens file.
+Pass each bespoke lens `<skill-dir>/prompts/review-output-contract.md` alongside its own prompt. It standardises the finding shape across lenses so triage is mechanical, and makes writing the file a hard contract: a lens that runs out of room mid-verification still leaves a file, marking the unconfirmed candidate `PLAUSIBLE`, rather than returning nothing. The code-review lens is the harness's own reviewer and won't read the contract; the orchestrator applies the same shape itself when it normalises `code-review`'s findings into the code-review lens file.
 
 - **Code review**: the harness's own code reviewer, run through the binding's `code-review` mechanism against `<base-branch>...HEAD`, reporting only: it applies no fixes and posts nothing. It covers correctness and general code quality, so the bespoke lenses handle only what it can't. Run it every round.
 
@@ -28,12 +28,12 @@ Pass each bespoke lens `prompts/review-output-contract.md` alongside its own pro
 
   If the binding names no `code-review` mechanism, the harness has no standard reviewer: drop this lens, and tell the user once, at the first review round, that the panel runs without a general correctness reviewer.
 - **Project review gate**: the repo's *own* review gate, if it ships one (a review skill, project-defined reviewer agents, or a review configuration file). When present, run it as an extra lens. It encodes the house security bar, thresholds, and invariants a generic reviewer can't replicate, so where it exists it is the highest-signal lens in the panel; run it the way the repo documents (its own agents, models, and thresholds; do not override them). Like the code-review lens, a project gate is usually itself multi-agent, so invoke it **directly in the main conversation** rather than wrapped in a spawned subagent (same reason, and see **Subagent results: trust files over returns**). It is **spec-blind**: it checks house quality and says nothing about whether the build meets _this spec's_ criteria, so it complements the spec-fidelity lens and never replaces it. Normalise its findings into the shared shape and write `review-round-N-project-gate.md` yourself; the triage step dedups its overlap with `code-review`, codebase fit, and local-doc adherence like any other lens. If the repo has no such gate, skip this lens.
-- **Spec fidelity**: `prompts/review-spec-fidelity.md`, with the spec path. Does the code satisfy the spec's completion criteria and intent?
-- **Tests**: `prompts/review-tests.md`, with the spec and plan paths. Test-strategy adherence, test quality, and consolidation of new tests against the existing suite.
-- **Codebase fit**: `prompts/review-codebase-fit.md`. Does this change worsen an already-imperfect area or repeat an existing smell? Judged against the touched files' current state rather than the diff alone.
-- **Local-doc adherence**: `prompts/review-local-docs.md`. Violations of the repo's governing docs, including the instruction file, which it deliberately re-checks even though code-review covers it too.
-- **Suppressions**: `prompts/review-suppressions.md`. Extremely harsh on any linter/analysis/type/test-gate suppression the change adds or leans on. Each must be watertight or it is a finding.
-- **Comments**: `prompts/review-comments.md`. Comments the change adds or edits that restate the code, narrate edit history, or pad a real point. Proposes deletions only; the fixer mends any seam.
+- **Spec fidelity**: `<skill-dir>/prompts/review-spec-fidelity.md`, with the spec path. Does the code satisfy the spec's completion criteria and intent?
+- **Tests**: `<skill-dir>/prompts/review-tests.md`, with the spec and plan paths. Test-strategy adherence, test quality, and consolidation of new tests against the existing suite.
+- **Codebase fit**: `<skill-dir>/prompts/review-codebase-fit.md`. Does this change worsen an already-imperfect area or repeat an existing smell? Judged against the touched files' current state rather than the diff alone.
+- **Local-doc adherence**: `<skill-dir>/prompts/review-local-docs.md`. Violations of the repo's governing docs, including the instruction file, which it deliberately re-checks even though code-review covers it too.
+- **Suppressions**: `<skill-dir>/prompts/review-suppressions.md`. Extremely harsh on any linter/analysis/type/test-gate suppression the change adds or leans on. Each must be watertight or it is a finding.
+- **Comments**: `<skill-dir>/prompts/review-comments.md`. Comments the change adds or edits that restate the code, narrate edit history, or pad a real point. Proposes deletions only; the fixer mends any seam.
 
 Run the bespoke judgment lenses on the **L rung**, except suppressions and comments on the **M rung** (a mechanical scan, and a focused style pass). A pinned adversary rung overrides all of them; the code-review lens and any project review gate manage their own.
 
@@ -53,7 +53,7 @@ Run the bespoke judgment lenses on the **L rung**, except suppressions and comme
    A suppression finding is effectively never Defer: remove it or make it watertight, this round. **Exit the loop when nothing is dispositioned Fix.**
 
    You make these disposition calls yourself as the loop runs; the review is autonomous. But surface them to the human at wrap-up so they still review the judgment: deferrals in the deferred list, and any divergence-from-pattern or wider-than-the-diff fix in the summary and decision log.
-3. **Fix.** If nothing is dispositioned Fix, skip to the next round's review (or exit). Otherwise read `prompts/implementation-fix.md` and spawn a fix subagent with that prompt, the Fix findings (point it at the lens files, and state any diverge / fix-wider instruction), the spec path, the plan path, and **`baseBranch` from state.json**. It makes the changes and commits.
+3. **Fix.** If nothing is dispositioned Fix, skip to the next round's review (or exit). Otherwise read `<skill-dir>/prompts/implementation-fix.md` and spawn a fix subagent with that prompt, the Fix findings (point it at the lens files, and state any diverge / fix-wider instruction), the spec path, the plan path, and **`baseBranch` from state.json**. It makes the changes and commits.
 
    **The fixer runs on the M rung.** A triaged finding names the defect and its location, so applying it is execution against a written instruction, which the M rung does faster and no worse. `builderModel` does not govern this: a build raised to the L rung for its novelty says nothing about the difficulty of applying a finding, and inheriting it would put every fix round on the slower tier for the rest of the run.
 

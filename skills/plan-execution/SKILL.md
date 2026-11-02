@@ -43,13 +43,15 @@ Before starting, check the plan names concrete deliverables. If it's vague or un
 
 ## Choosing a workflow
 
-Two fixed workflows are bundled; do not modify them. Use **`workflow-simple.js`** when the plan touches ~5 or fewer files in one coherent change; use **`workflow.js`** (default) for anything larger.
+`<skill-dir>` is the absolute path of the directory holding this SKILL.md. The host reports it when it loads the skill (a "base directory" line, or the path the skill was listed at); use that path, never a guess or a path relative to the working directory.
+
+Two fixed workflows are bundled in it; do not modify them. Use **`<skill-dir>/workflow-simple.js`** when the plan touches ~5 or fewer files in one coherent change; use **`<skill-dir>/workflow.js`** (default) for anything larger.
 
 ## Running a workflow
 
-Read `prompts.md` and pass its `## sections` as `args.prompts` keyed by heading name. Determine `baseBranch` from `git branch --show-current`. Generate a `runId` as a lowercase kebab-case slug from the plan name plus `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`).
+Read `<skill-dir>/prompts.md` and pass its `## sections` as `args.prompts` keyed by heading name. Determine `baseBranch` from `git branch --show-current`. Generate a `runId` as a lowercase kebab-case slug from the plan name plus `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`).
 
-Run the chosen workflow through the binding's run-workflow mechanism, with its `scriptPath` and these `args`:
+Run the chosen workflow through the binding's run-workflow mechanism, with its absolute `scriptPath` and these `args`:
 
 - `planPath`: absolute or repo-relative path to the plan markdown file. **Prefer this**: the workflow embeds the path in subagent prompts and lets each agent read the file itself, keeping the orchestration tool call small.
 - `plan`: full plan text. Use only when the plan isn't on disk (rare). Mutually exclusive with `planPath`; one must be set.

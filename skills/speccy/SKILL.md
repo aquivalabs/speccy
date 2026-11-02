@@ -12,7 +12,9 @@ The orchestrator runs in the main conversation. Heavy work (adversarial critique
 
 ## Getting started
 
-When the skill triggers, **show the speccy banner first**, on every invocation. Run `banner.sh` from this skill's own directory (alongside this SKILL.md) by its **absolute path**: a relative path breaks when the Bash cwd has drifted or the skill is installed as a plugin. Don't prepend `cd` and don't use command substitution; both break the pre-approved permission match.
+`<skill-dir>` is the absolute path of the directory holding this SKILL.md. The host reports it when it loads the skill (a "base directory" line, or the path the skill was listed at); use that path, never a guess or a path relative to the working directory. Every `<skill-dir>/…` path in this skill and its phase files means that directory. Write it out in full before passing such a path to a subagent, which starts in the project's directory and does not know it.
+
+When the skill triggers, **show the speccy banner first**, on every invocation. Run `banner.sh` by its **absolute path**: a relative path breaks when the Bash cwd has drifted or the skill is installed as a plugin. Don't prepend `cd` and don't use command substitution; both break the pre-approved permission match.
 
 ```bash
 bash <skill-dir>/banner.sh
@@ -50,7 +52,7 @@ Two overrides: pin a single adversary rung (`adversaryModel`), then used for eve
 
 Each loop restarts at round 1 and exits early when a round surfaces no valuable criticism (the spec and plan loops first run one more round to check the readability pass; see 1d and 2a).
 
-If the user's trigger message already includes a description of what to build, skip straight to the adversary rung note and proceed to the precondition check and Phase 1 (`phases/spec.md`; see **Phase dispatch**).
+If the user's trigger message already includes a description of what to build, skip straight to the adversary rung note and proceed to the precondition check and Phase 1 (`<skill-dir>/phases/spec.md`; see **Phase dispatch**).
 
 ## Resuming a run
 
@@ -138,9 +140,9 @@ Before starting work:
 
 ## Writing style
 
-Every artifact this pipeline produces (spec, plan, critique, review notes, summary, decision log) is written for a person first: the reviewer now, and whoever picks the work up later. `prompts/writing-style.md` (relative to this SKILL.md's directory) holds the rules. It governs what speccy writes itself, and it is passed to every subagent speccy spawns to write one of those artifacts (see **Propagate the session's voice to subagents**). Plan-execution's build agents are outside it: their task files are working notes for the build rather than something a reviewer reads.
+Every artifact this pipeline produces (spec, plan, critique, review notes, summary, decision log) is written for a person first: the reviewer now, and whoever picks the work up later. `<skill-dir>/prompts/writing-style.md` holds the rules. It governs what speccy writes itself, and it is passed to every subagent speccy spawns to write one of those artifacts (see **Propagate the session's voice to subagents**). Plan-execution's build agents are outside it: their task files are working notes for the build rather than something a reviewer reads.
 
-The critique loops pull the other way, since the cheapest answer to a critic is one more clause. Three things push back, all wired in below. Every one of those agents gets `writing-style.md`, so a draft starts readable. The readability pass (`prompts/readability-pass.md`) is the one step allowed to remove. And once that pass has run, the critique prompts add a reader lens, which is what stops the rewrite sliding back over the rounds that follow.
+The critique loops pull the other way, since the cheapest answer to a critic is one more clause. Three things push back, all wired in below. Every one of those agents gets `writing-style.md`, so a draft starts readable. The readability pass (`<skill-dir>/prompts/readability-pass.md`) is the one step allowed to remove. And once that pass has run, the critique prompts add a reader lens, which is what stops the rewrite sliding back over the rounds that follow.
 
 ## The decision log runs with the run
 
@@ -164,11 +166,11 @@ So for every spawned agent: you know what it was spawned to do and the exact fil
 
 The main session may be governed by a behavioural or output style a fresh agent context does **not** inherit: a house-voice hook (e.g. one injected at session start), a configured output style, or communication conventions that live beyond the project's instruction file. A subagent starts clean and never sees the main session's system prompt, so unless you carry that style across, every critic, revise agent, planner, review lens, and fixer speaks in a default voice that clashes with how this session talks, and the artifacts they write (critiques, plan, review notes) read in a different register from the rest of the run.
 
-So **before spawning any subagent, restate the active style concisely at the top of its prompt**, enough that both its reasoning and its written output match the session's voice. **Pass `prompts/writing-style.md` to every subagent that writes an artifact**, which is all of them but the fixer: the session's voice is a layer on top of those rules rather than a substitute for them, and a style restated from memory is the least reliable way to carry a writing standard across a context boundary. Two things are out of reach and don't need carrying: conventions already in the instruction file (the harness loads it for subagents — whether it auto-loads into a subagent is harness-dependent, and where it doesn't the orchestrator passes it itself, a consideration the binding carries), and the harness's code reviewer run inline (it manages its own prompt; the orchestrator just applies the session's voice when it normalises those findings into the lens file). This rule applies to every spawn site in the phases below; it is stated once here rather than repeated at each. speccy's own narration back to the user follows the same style as a matter of course.
+So **before spawning any subagent, restate the active style concisely at the top of its prompt**, enough that both its reasoning and its written output match the session's voice. **Pass `<skill-dir>/prompts/writing-style.md` to every subagent that writes an artifact**, which is all of them but the fixer: the session's voice is a layer on top of those rules rather than a substitute for them, and a style restated from memory is the least reliable way to carry a writing standard across a context boundary. Two things are out of reach and don't need carrying: conventions already in the instruction file (the harness loads it for subagents — whether it auto-loads into a subagent is harness-dependent, and where it doesn't the orchestrator passes it itself, a consideration the binding carries), and the harness's code reviewer run inline (it manages its own prompt; the orchestrator just applies the session's voice when it normalises those findings into the lens file). This rule applies to every spawn site in the phases below; it is stated once here rather than repeated at each. speccy's own narration back to the user follows the same style as a matter of course.
 
 ## Pass the tool-use rules to every subagent
 
-**Pass `prompts/tool-use.md` to every subagent speccy spawns**, plan-execution's build agents included. Like the writing-style rule above, it applies at every spawn site in the phases below and is stated once here rather than repeated at each, with the same two exceptions: the harness's code reviewer and any project review gate manage their own prompts.
+**Pass `<skill-dir>/prompts/tool-use.md` to every subagent speccy spawns**, plan-execution's build agents included. Like the writing-style rule above, it applies at every spawn site in the phases below and is stated once here rather than repeated at each, with the same two exceptions: the harness's code reviewer and any project review gate manage their own prompts.
 
 ## Steering away from cognitive surrender
 
@@ -197,15 +199,15 @@ Apply the same standard to the final diff: read it as if a contributor you do no
 
 ## Phase dispatch
 
-The phase bodies live in one file each, under `phases/` (relative to this SKILL.md's directory). The core above (getting started, resuming, the harness binding, preconditions, the state CLI contract, and every **bold** cross-cutting rule) is always loaded; the phase files layer on top. So a run that clears its context at a boundary reloads this core plus only the phase it is resuming into.
+The phase bodies live in one file each, under `<skill-dir>/phases/`. The core above (getting started, resuming, the harness binding, preconditions, the state CLI contract, and every **bold** cross-cutting rule) is always loaded; the phase files layer on top. So a run that clears its context at a boundary reloads this core plus only the phase it is resuming into.
 
 **When you enter or resume into a phase, Read its file before acting.** Map the `phase` in state.json to a file:
 
 | `phase` in state.json | Read |
 | --- | --- |
-| `spec-draft`, `spec-critique` | `phases/spec.md` (Phase 1) |
-| `planning`, `plan-critique`, `plan-review` | `phases/plan.md` (Phase 2) |
-| `implementation`, `review`, `wrap-up` | `phases/build.md` (Phases 3–4 + wrap-up) |
-| `complete` | none; report and run metrics (see `phases/build.md`, wrap-up) |
+| `spec-draft`, `spec-critique` | `<skill-dir>/phases/spec.md` (Phase 1) |
+| `planning`, `plan-critique`, `plan-review` | `<skill-dir>/phases/plan.md` (Phase 2) |
+| `implementation`, `review`, `wrap-up` | `<skill-dir>/phases/build.md` (Phases 3–4 + wrap-up) |
+| `complete` | none; report and run metrics (see `<skill-dir>/phases/build.md`, wrap-up) |
 
-A fresh run starts at `spec-draft`, so read `phases/spec.md` once the precondition checks pass. Each file ends by naming the next, so you know which to load when a phase hands on. This extra Read is the point: it keeps a phase's detail out of context until the phase needs it.
+A fresh run starts at `spec-draft`, so read `<skill-dir>/phases/spec.md` once the precondition checks pass. Each file ends by naming the next, so you know which to load when a phase hands on. This extra Read is the point: it keeps a phase's detail out of context until the phase needs it.
