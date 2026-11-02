@@ -16,7 +16,9 @@
      running the tests, and anything a completion criterion already forces.
      It stays at spec level: a different, equally good implementation would not break it. "One query
      and one update per transaction" fails; "the count updates even when the user cannot edit the
-     record" passes. Class names, handler structure, and query shapes belong to the plan.
+     record" passes. Class names, handler structure, and query shapes belong to the plan. When a
+     mechanism matters for a property it gives, state the property and leave the mechanism: "a wrong
+     count corrects itself on the next change" passes; "recount rather than increment" fails.
      A section with nothing that passes both tests reads "None." -->
 
 ## Goal
@@ -73,6 +75,8 @@
        *speccy, alone*, arises in the plan and review phases rather than here. The wrap-up reads
        this tag.
 
+     The first draft has no user sign-off to cite, so a default speccy proposes there goes in
+     Assumptions. It becomes a decision tagged **speccy, user-agreed** only once the user rules on it.
      Record a decision only where a real alternative existed; a forced move is not a decision. An
      assumption is a guess made under ambiguity; a decision is a deliberate pick among options.
      Keep it spec-level, the WHAT and its shape; code-level HOW belongs to the plan.

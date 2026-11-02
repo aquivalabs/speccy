@@ -700,3 +700,11 @@ The same run's first draft left open questions the pipeline could have closed it
 A choice that needs the user becomes a stated default in Assumptions or Scope boundaries, and a question only when no default is reasonable. Reading the spec and objecting is the user's job at their first read; a default they can strike costs less than a question they must answer.
 
 Spikes run without asking. Many are read-only or run against a disposable environment, so a consent prompt is noise, and the spike prompt already requires undoing any state it creates. `plan-spike.md` becomes `spike.md`, since the spec phase now uses it too.
+
+### A tested draft tightened three seams (2026-11-02)
+
+A rerun of the same seed on the changes above produced a spec-level draft, with the merge question settled by a spike and offered as a scope default. It also showed three gaps.
+
+- **A property passed the altitude test as its mechanism.** The draft made "recount rather than apply deltas" a decision, justified by its self-correcting property; the user had cut the same line from the first run as build detail. The template now says to state the property ("a wrong count corrects itself on the next change") and leave the mechanism to the plan.
+- **The first draft claimed sign-off it did not have.** That recount decision was tagged *speccy, user-agreed* before the user had read anything. The wrap-up reads the tag. A first-draft default now goes in Assumptions and becomes a decision only once the user rules on it.
+- **Spike findings landed as mechanism.** The draft folded the spike's raw platform behaviour into Constraints. 1c now folds in the consequence for the spec and leaves the behaviour in the spike file, which `phases/plan.md` now passes to the planner so it does not repeat the spike.
