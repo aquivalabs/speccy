@@ -16,8 +16,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run the metrics reader's tests
-        run: node --test "skills/speccy/test/*.test.mjs"
+      - name: Run the speccy and Codex adapter unit test suites, and neutrality denylist
+        run: node --test "skills/speccy/test/*.test.mjs" "adapters/codex/test/*.test.mjs"
+      - name: Run the Claude-side smoke test (PR gate)
+        run: node test/smoke.mjs --harness claude
 
   plugin-version-bump:
     runs-on: ubuntu-latest

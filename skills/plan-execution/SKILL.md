@@ -1,7 +1,6 @@
 ---
 name: plan-execution
-description: Decompose an implementation plan into right-sized tasks and execute them. Each task gets a fresh context window. Handles breakdown, execution, integration, and completeness verification.
-when_to_use: When another skill invokes it, or user has an approved plan and asks to "break this down", "execute this plan", "run this in parallel", or similar. NOT for unplanned work; point the user to planning mode first.
+description: Decompose an implementation plan into right-sized tasks and execute them, each in a fresh context window, covering breakdown, execution, integration, and completeness verification. Use when another skill invokes it, or when the user has an approved plan and asks to "break this down", "execute this plan", "run this in parallel", or similar. Not for unplanned work; point the user to planning first.
 ---
 
 # Plan Execution
@@ -14,15 +13,15 @@ If the plan fits a single context window, still use this skill: it produces one 
 
 ### Verification tools
 
-Check that CLAUDE.md documents the project's verification tools (build, lint, static analysis, test commands). Execute agents rely on these to validate their work. If they're missing, tell the user: establishing verification standards comes before running a plan.
+Check that the instruction file documents the project's verification tools (build, lint, static analysis, test commands). Execute agents rely on these to validate their work. If they're missing, tell the user: establishing verification standards comes before running a plan.
 
 ### Worktree init
 
 Worktree init is only needed when the plan has parallel tasks (which use git worktrees). If the plan is purely sequential, skip this section.
 
-Worktrees must branch from the current HEAD so that parallel tasks see work committed by prior sequential tasks. Check `.claude/settings.json` for `"worktree": { "baseRef": "head" }`. If missing, add it (via Bash/python, since direct Edit on that file is blocked). The default (`fresh`) branches from `origin/<default-branch>`, which misses all feature-branch commits.
+Worktrees must branch from the current HEAD so that parallel tasks see work committed by prior sequential tasks. If the binding's run-workflow mechanism names a setting that controls this, check it and set it where missing.
 
-Check whether CLAUDE.md has a `## Worktree init` section. If it does, resolve the gather/apply variables before running the workflow:
+Check whether the instruction file has a `## Worktree init` section. If it does, resolve the gather/apply variables before running the workflow:
 
 1. Parse the **Gather** block, where each line has the form `NAME` — `command`. Run each command via Bash in the main checkout and capture its stdout (trimmed).
 2. Parse the **Apply** block, where each line is a shell command that may reference `${NAME}` variables from the gather step. Substitute the gathered values into each command. Make symlink commands idempotent: replace `ln -s ` with `ln -snf ` so re-runs don't create circular symlinks inside the existing target.
@@ -44,49 +43,54 @@ Before starting, check the plan names concrete deliverables. If it's vague or un
 
 ## Choosing a workflow
 
-Two fixed workflows are bundled; do not modify them. Use **`workflow-simple.js`** when the plan touches ~5 or fewer files in one coherent change; use **`workflow.js`** (default) for anything larger.
+`<skill-dir>` is the absolute path of the directory holding this SKILL.md. The host reports it when it loads the skill (a "base directory" line, or the path the skill was listed at); use that path, never a guess or a path relative to the working directory.
+
+Two fixed workflows are bundled in it; do not modify them. Use **`<skill-dir>/workflow-simple.js`** when the plan touches ~5 or fewer files in one coherent change; use **`<skill-dir>/workflow.js`** (default) for anything larger.
 
 ## Running a workflow
 
-Read `prompts.md` and pass its `## sections` as `args.prompts` keyed by heading name. Determine `baseBranch` from `git branch --show-current`. Generate a `runId` as a lowercase kebab-case slug from the plan name plus `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`).
+Read `<skill-dir>/prompts.md` and pass its `## sections` as `args.prompts` keyed by heading name. Determine `baseBranch` from `git branch --show-current`. Generate a `runId` as a lowercase kebab-case slug from the plan name plus `YYYYMMDD-HHmm` timestamp (e.g. `auth-refactor-20260609-1430`).
 
-Call the Workflow tool with the chosen workflow's `scriptPath` and these `args`:
+Run the chosen workflow through the binding's run-workflow mechanism, with its absolute `scriptPath` and these `args`:
 
 - `planPath`: absolute or repo-relative path to the plan markdown file. **Prefer this**: the workflow embeds the path in subagent prompts and lets each agent read the file itself, keeping the orchestration tool call small.
 - `plan`: full plan text. Use only when the plan isn't on disk (rare). Mutually exclusive with `planPath`; one must be set.
 - `baseBranch`: current branch
 - `runId`: from above
 - `prompts`: the parsed prompts object
-- `model` (optional): when set, execution/integration/verify agents use that model and breakdown sizes tasks accordingly. Breakdown always uses Opus. When omitted, non-breakdown agents inherit the session model.
+- `models`: the resolved rung→model map from the binding, keyed by rung (`{ S, M, L, XL }`); the active harness's adapter defines the concrete model each rung maps to. Required: breakdown reads `models.L`, so an absent `models` throws at the breakdown phase.
+- `model` (optional): when set, execution/integration/verify agents use that model and breakdown sizes tasks accordingly. Breakdown itself is fixed to the L rung (`models.L`). When omitted, non-breakdown agents inherit the session model.
 - `retrospective` (optional, default true): when false, skips friction log synthesis
-- `worktreeInit` (optional): array of resolved shell commands to run at the start of every worktree agent (parallel tasks and corrective tasks only). Assembled from the gather/apply blocks in CLAUDE.md's `## Worktree init` section (see Prerequisites above). Pass the fully-substituted commands, with no unresolved `${VAR}` references. Sequential tasks run on the main checkout and don't need this.
+- `worktreeRoot` (optional): the binding's `worktreeRoot`, where worktrees are created; the cleanup step removes it once empty.
+- `worktreeInit` (optional): array of resolved shell commands to run at the start of every worktree agent (parallel tasks and corrective tasks only). Assembled from the gather/apply blocks in the instruction file's `## Worktree init` section (see Prerequisites above). Pass the fully-substituted commands, with no unresolved `${VAR}` references. Sequential tasks run on the main checkout and don't need this.
 
 ## While the workflow runs: watchdog
 
-The `Workflow` tool runs in the background and notifies you on completion. But a long run with sparse commits is indistinguishable from a hang, and a build that keeps spawning corrective tasks may be improvising rather than converging; the orchestrator needs a way to notice and intervene without watching every tick.
+The workflow runs in the background. Where the binding's run-workflow mechanism sends a completion notification, that is how you learn it finished; where it sends none, the monitor's poll is, so on such a harness the monitor is required rather than best-effort. Either way, a long run with sparse commits is indistinguishable from a hang, and a build that keeps spawning corrective tasks may be improvising rather than converging; the orchestrator needs a way to notice and intervene without watching every tick.
 
-Right after launching the workflow, arm a `Monitor` as a watchdog (best-effort; if `Monitor` is unavailable, just proceed). The launch result gives you the `runId` and the **transcript dir**. The run's liveness signal is the newest `agent-*.jsonl` mtime in that dir: those per-agent transcripts are the actual heartbeat, ticking whenever any agent does work. (Don't use `journal.jsonl` mtime: the journal only records phase-boundary events, so it stays silent through a single long-running agent, e.g. the breakdown phase, and would read as a stall.) The Monitor polls every ~75s and stays **silent while healthy**, emitting a line only when a heuristic trips. Poll cheap git/file state: commits on the base branch since launch (progress), commit subjects starting with `CT-` (corrective tasks), and the newest transcript mtime (liveness). `stat`-ing a transcript for its mtime is safe: it reads metadata rather than contents.
+Right after launching the workflow, arm the binding's monitor capability as a watchdog (best-effort where a completion notification follows; if the binding provides no monitor, just proceed). Liveness comes from the **binding-resolved heartbeat**, which exposes two fields: the **newest-activity mtime** (epoch, ticking whenever any agent does work) and whether a **subprocess is still alive** (a task is mid-flight). The binding maps both fields to whatever the harness offers: the workflow module writes them to a heartbeat file, or the binding derives them from per-agent transcripts. The monitor polls every ~75s and stays **silent while healthy**, emitting a line only when a heuristic trips. Poll cheap state: commits on the base branch since launch (progress), commit subjects starting with `CT-` (corrective tasks), and the heartbeat's two fields (liveness). Reading the heartbeat is cheap: it reads metadata or a small file rather than any agent's contents.
 
 Two tiers, deliberately asymmetric. They serve both a present user (who can correct on a warning) and an absent user (e.g. an overnight run, better served by a completed run than one killed out from under them):
 
-- **Tier 1: warn, do NOT stop.** Two triggers, neither stops the run. Corrective-task escalation (**≥2** corrective tasks) fires **once** and may mean the build is struggling; emit it and send a `PushNotification` so an absent user is reached. The soft wall-clock cap is a **recurring health check-in**, firing every **~25 min** the run is still going. It is a periodic, visible beat rather than a sign of trouble: it shows the run is watched and progressing, which a human observer values, and it forces the orchestrator to do a real state check each time. A present user can judge and `TaskStop` manually; an absent user gets a finished run. (With the build's read-only and halt-on-impossibility rules, a genuinely stuck build halts itself, so this tier means "slow, many passes, or just long" rather than "redesigning around the spec.")
-- **Tier 2: auto-stop.** Trips on a hard stall: **no new commit AND no transcript activity (newest `agent-*.jsonl` mtime) for >5 min**. Nothing is being accomplished, so stopping loses no progress whether the user is present or absent. Before stopping, confirm no tool is in flight (see below); then `TaskStop` the workflow, send a `PushNotification` (an auto-stopped overnight run is exactly when an absent user needs reaching), and report what it was last doing (last commit, journal tail) and where to resume.
+- **Tier 1: warn, do NOT stop.** Two triggers, neither stops the run. Corrective-task escalation (**≥2** corrective tasks) fires **once** and may mean the build is struggling; emit it and send a push notification so an absent user is reached. The soft wall-clock cap is a **recurring health check-in**, firing every **~25 min** the run is still going. It is a periodic, visible beat rather than a sign of trouble: it shows the run is watched and progressing, which a human observer values, and it forces the orchestrator to do a real state check each time. A present user can judge and stop the run manually; an absent user gets a finished run. (With the build's read-only and halt-on-impossibility rules, a genuinely stuck build halts itself, so this tier means "slow, many passes, or just long" rather than "redesigning around the spec.")
+- **Tier 2: auto-stop.** Trips on a hard stall: **no new commit AND no heartbeat activity (its newest-activity mtime) for >5 min**. That idle test alone decides the trip; a subprocess reporting itself alive can't tell a hung call from a working one, so it never gates the trip, only what happens after. Nothing is being accomplished once idle passes the threshold, so stopping loses no progress whether the user is present or absent. Before stopping, confirm no subprocess is in flight (see below); then stop the workflow, send a push notification (an auto-stopped overnight run is exactly when an absent user needs reaching), and report what it was last doing (last commit, last heartbeat) and where to resume.
 
-When any line lands, confirm before acting: a slow `sf` deploy or test run is not a hang, and transcript mtime only ticks when a tool *returns*, so a single long-running tool call looks identical to a stall. Tail the newest `agent-*.jsonl`: if its last entry is a `tool_use` with no matching `tool_result`, a tool is still running and the build is working rather than stalled, so leave it alone. Emit each signal sparingly so the Monitor isn't auto-stopped for noise: the corrective-task warning fires once (a flag); the stall flag re-arms once activity resumes so a confirmed-benign stall doesn't blind the watchdog to a later real one; and the soft-cap health check-in recurs on its ~25-min interval (bump the threshold rather than flag it). The ~25-min interval keeps even a multi-hour run to a handful of beats, well under the noise-stop threshold. `TaskStop` the Monitor once the workflow's completion notification arrives so it doesn't linger.
+When any line lands, confirm before acting: a slow deploy or test run is not a hang, and the heartbeat's mtime only ticks when a subprocess *reports* activity, so a single long-running call can look identical to a stall. Read the heartbeat's second field: if a subprocess is still alive, work is in flight and the build is working rather than stalled, so leave it alone. Emit each signal sparingly so the monitor isn't stopped for noise: the corrective-task warning fires once (a flag); the stall flag re-arms once activity resumes so a confirmed-benign stall doesn't blind the watchdog to a later real one; and the soft-cap health check-in recurs on its ~25-min interval (bump the threshold rather than flag it). The ~25-min interval keeps even a multi-hour run to a handful of beats, well under the noise-stop threshold. Stop the monitor once the workflow completes (its notification arrives, or the polled status leaves `running`) so it doesn't linger.
 
-Sketch of the poll loop (adapt paths; `stat -f %m` is macOS, use `-c %Y` on Linux):
+Sketch of the poll loop (adapt to the binding's heartbeat; read its mtime as whole epoch seconds and its alive field as 1/0):
 
 ```bash
-BASE=<base-branch>; TDIR=<transcript-dir>
+BASE=<base-branch>; HB=<heartbeat-source>   # binding-resolved: {mtime, alive}
 START=$(git rev-parse HEAD); START_TS=$(date +%s); w_ct=0; cap=1500; w_stall=0   # cap = next soft-cap beat threshold (s)
 while true; do
   now=$(date +%s); el=$(( now - START_TS ))
   ct=$(git log "$START"..HEAD --format='%s' 2>/dev/null | grep -cE '^CT-')
   lc=$(git log -1 --format=%ct 2>/dev/null || echo 0)
-  tm=$(stat -f %m "$TDIR"/agent-*.jsonl 2>/dev/null | sort -rn | head -1 || echo 0)  # newest transcript mtime
+  tm=$(hb_mtime "$HB")   # heartbeat newest-activity mtime (epoch s); binding-resolved liveness
+  alive=$(hb_alive "$HB")   # 1 while a subprocess is in flight, else 0
   idle=$(( now - (lc > tm ? lc : tm) ))
   if [ "$idle" -le 300 ]; then w_stall=0; fi   # re-arm once it's moving again
-  if [ "$idle" -gt 300 ] && [ "$w_stall" -eq 0 ]; then echo "STALL: idle $((idle/60))m (elapsed $((el/60))m, $ct corrective)"; w_stall=1; fi
+  if [ "$idle" -gt 300 ] && [ "$w_stall" -eq 0 ]; then echo "STALL: idle $((idle/60))m (elapsed $((el/60))m, $ct corrective, alive=$alive)"; w_stall=1; fi
   if [ "$ct" -ge 2 ] && [ "$w_ct" -eq 0 ]; then echo "WARN: $ct corrective tasks — may be struggling (elapsed $((el/60))m)"; w_ct=1; fi
   if [ "$el" -gt "$cap" ]; then echo "HEARTBEAT: elapsed $((el/60))m, still running ($ct corrective) — health check-in"; cap=$(( cap + 1500 )); fi   # recurring ~25m beat
   sleep 75

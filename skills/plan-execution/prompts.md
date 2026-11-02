@@ -1,6 +1,6 @@
 # Subagent Prompts
 
-Prompt templates for each subagent role. The SKILL.md instructs Claude to read this file and pass the prompts via `args.prompts`. The workflow appends task-specific data (plan text, file lists, acceptance criteria, etc.) to each prompt at runtime.
+Prompt templates for each subagent role. The SKILL.md instructs the orchestrator to read this file and pass the prompts via `args.prompts`. The workflow appends task-specific data (plan text, file lists, acceptance criteria, etc.) to each prompt at runtime.
 
 ---
 
@@ -38,9 +38,9 @@ Execute this task in your worktree. Do NOT merge or modify other branches.
 
 The plan and spec are authoritative: treat them as read-only. Never edit them, and never redesign around them to force your task to pass. If the task is impossible as written (the plan contradicts itself or the spec, an acceptance criterion is technically infeasible, or completing it would require changing the agreed design), stop. Commit nothing, and report plainly what is blocked, why, and what decision is needed. Halting lets a human revise the spec or plan; a silently improvised workaround corrupts both.
 
-Before committing, run the verification level your task specifies. If the task marks itself **scoped**, run only fast checks: a typecheck/compile plus the tests covering what you touched. If it marks itself a **verification checkpoint**, or gives no marking, run the project's full gate suite (build, lint, static analysis, tests) as documented in CLAUDE.md and fix any breakage. A checkpoint's footprint is the whole integrated base, so it may repair regressions wherever they surface rather than only in files it introduced. Either way, never hand broken code downstream. If CLAUDE.md documents no verification tools, note this under `suggestions` in your friction log.
+Before committing, run the verification level your task specifies. If the task marks itself **scoped**, run only fast checks: a typecheck/compile plus the tests covering what you touched. If it marks itself a **verification checkpoint**, or gives no marking, run the project's full gate suite (build, lint, static analysis, tests) as documented in the instruction file and fix any breakage. A checkpoint's footprint is the whole integrated base, so it may repair regressions wherever they surface rather than only in files it introduced. Either way, never hand broken code downstream. If the instruction file documents no verification tools, note this under `suggestions` in your friction log.
 
-When satisfying an enforced completion gate forces violating a softer CLAUDE.md preference, satisfy the gate and log the friction. An enforced gate is a rule whose violation blocks "done": a failing lint / static-analysis check or a required test. If the only way to clear it conflicts with a CLAUDE.md *style or aesthetic* preference (e.g. a rule requiring doc comments vs. "comment only the non-obvious"), clear the gate and record the trade under `harder_than_expected` in your friction log. This carve-out is for style preferences only: an enforced gate must never override a CLAUDE.md *safety or correctness* rule (e.g. "never log PII"); there, stop and report it as a blocker rather than complying.
+When satisfying an enforced completion gate forces violating a softer instruction-file preference, satisfy the gate and log the friction. An enforced gate is a rule whose violation blocks "done": a failing lint / static-analysis check or a required test. If the only way to clear it conflicts with an instruction-file *style or aesthetic* preference (e.g. a rule requiring doc comments vs. "comment only the non-obvious"), clear the gate and record the trade under `harder_than_expected` in your friction log. This carve-out is for style preferences only: an enforced gate must never override an instruction-file *safety or correctness* rule (e.g. "never log PII"); there, stop and report it as a blocker rather than complying.
 
 Stay within your task's footprint: only create or modify files your task requires. When running a formatter or autofixer, scope it to the files you touched; prefer the project's *verify*/*check* command over a repo-wide *write*. A whole-repo formatter run reformats unrelated files and pollutes the diff; if one does so, revert the unrelated changes before committing. Commit only the files belonging to your task.
 
@@ -51,7 +51,7 @@ When done, commit all changes. Then end your report with these two lines, exactl
 
 You do not need to return a structured result; a concise prose report is enough. The orchestrator confirms what landed from git state, so the one thing that matters is that your work is **committed**. Include a friction log in your report with three fields:
 
-- **harder_than_expected**: anything that took more effort or was more complex than the task description suggested
+- **harder_than_expected**: anything that took more effort or was more complex than the task description suggested, including every tool call the harness blocked or held for approval (what you ran, and what happened)
 - **wrong_turns**: approaches you tried that didn't work, and why
 - **suggestions**: what would have made this task easier (better instructions, missing context, tooling gaps)
 
@@ -104,8 +104,8 @@ This is a gap check rather than a quality review.
 
 Synthesize friction logs from a multi-task execution run into a retrospective.
 
-Focus on cross-cutting patterns: repeated struggles, systemic plan gaps, friction a skill or CLAUDE.md update could eliminate. Note positives too. Individual one-off difficulties: mention briefly.
+Focus on cross-cutting patterns: repeated struggles, systemic plan gaps, friction a skill or instruction-file update could eliminate. Note positives too. Individual one-off difficulties: mention briefly.
 
-Collect any finding that points at a project-level doc gap (a CLAUDE.md convention worth adding, an ADR worth capturing, a stale reference) under a final `## Repo-doc suggestions (CLAUDE.md / ADR)` heading, so the orchestrator can surface them at wrap-up.
+Collect any finding that points at a project-level doc gap (an instruction-file convention worth adding, an ADR worth capturing, a stale reference) under a final `## Repo-doc suggestions (instruction file / ADR)` heading, so the orchestrator can surface them at wrap-up.
 
 Be concise and actionable.

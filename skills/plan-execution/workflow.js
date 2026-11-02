@@ -41,14 +41,18 @@ const {
   baseBranch,
   runId,
   model,
+  models,
   prompts,
   retrospective: runRetrospective = true,
-  worktreeInit = []
+  worktreeInit = [],
+  worktreeRoot
 } = parsedArgs;
 if (!plan && !planPath)
   throw new Error(
     "plan-execution requires either `planPath` or `plan` in args"
   );
+if (!models || !models.L)
+  throw new Error("plan-execution requires `args.models.L` to be set");
 const planRef = planPath
   ? `Read the plan from this file: \`${planPath}\``
   : plan;
@@ -396,11 +400,12 @@ ${model ? `\n## Task sizing\n\nSubagents will use the model "${model}". Size tas
 
 ${planRef}`;
 
-// Breakdown is the hardest-thinking phase — always use Opus regardless of the execution model
+// Breakdown is the hardest-thinking phase, so it is fixed to the L rung regardless
+// of the execution rung.
 const breakdown = await withRetry("breakdown", () =>
   agent(breakdownPrompt, {
     label: "decompose",
-    model: "opus",
+    model: models.L,
     schema: STEP_SCHEMA
   })
 );
@@ -456,8 +461,9 @@ Steps:
 4. Delete ONLY these already-integrated branches, and only after their worktree is gone. Use \`git branch -D <branch>\` (a squash merge leaves no ancestry, so \`-d\` would wrongly refuse):
 ${deleteList}
    If \`git branch -D\` reports a branch is still checked out in a worktree, the removal in step 2 did not take effect — record it under \`errors\` and move on; do not retry blindly.
-5. Leave every branch NOT in the delete list intact — it may hold unmerged work needed for recovery. Record those under \`skipped_branches\`.
-6. If \`.claude/worktrees/\` is now empty, remove it.`,
+5. Leave every branch NOT in the delete list intact — it may hold unmerged work needed for recovery. Record those under \`skipped_branches\`.${
+      worktreeRoot ? `\n6. If \`${worktreeRoot}/\` is now empty, remove it.` : ""
+    }`,
     { label: "cleanup-worktrees", schema: CLEANUP_RESULT_SCHEMA }
   );
   for (const e of result?.errors || []) log(`cleanup-worktrees: ${e}`);
