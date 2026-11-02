@@ -58,6 +58,8 @@
 <!-- Observable conditions that mean the work is done: verifiable by running something, reading
      something, or checking something concrete. These are the specific checks, so don't restate the
      deliverables.
+     Name outcomes: "the count is correct after a reparent" is a criterion. Which tests to write,
+     what data they use, and how they assert are plan material.
      One line each, and no caveats. A criterion that needs a caveat isn't checkable: put the
      qualification in Constraints, or the doubt in Open questions, and leave the check here. -->
 
