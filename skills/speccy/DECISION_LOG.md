@@ -770,3 +770,7 @@ The first spike after the docs-first rule ran an experiment and never mentioned 
 On the next test run, the planner left a query-row limit "unproven" because testing it looked like a large data load. It had read the docs-first spike prompt, but that rule applies only once a spike starts, and the planner had decided against spiking on the experiment's cost. The vendor documents the rule.
 
 The spec and plan phases now say a spike starts with the docs, so cost is no reason to skip one. A claim stays unproven only when the docs do not settle it and the experiment cannot run, and `spike.md`'s `unproven` verdict requires both. The plan critic flags a claim left unproven without a doc check, which sends it to a spike.
+
+### Planning carries straight on into plan critique (2026-11-03)
+
+On a test run the orchestrator briefed the user on the drafted plan, advanced to `plan-critique`, and ended its turn; the user had to ask for the critique to start. The phase said to brief and advance but not to continue, and a briefing reads like a natural stopping point. 2a now follows the briefing without waiting, unless the contradicted-assumption gate fires. The user's gate in planning is 2b.
