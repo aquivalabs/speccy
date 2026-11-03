@@ -760,3 +760,7 @@ Test runs kept settling one platform rule, how an aggregate query counts against
 A spike now checks the vendor's reference docs first. A clear passage that covers the case settles a documented platform rule, cited by URL and quoted. An interaction specific to the environment (this code, this user, this configuration) still needs the experiment, because docs describe the platform rather than the org, and so does a passage that is ambiguous or stops short of the case. Secondary sources and memory do not count.
 
 A doc check stays inside the spike, with the same file and verdicts, so commit 11's evidence record and overturn rule cover it unchanged. The overturn rule gains one flaw: a cited passage that does not cover the case. The plan critic, which demanded an exercised action, now accepts a quoted passage for a documented rule; without that, it would order the experiment anyway.
+
+### A spike that experiments says why the docs did not settle it (2026-11-03)
+
+The first spike after the docs-first rule ran an experiment and never mentioned documentation. From the file, a spike that checked the docs and found them silent cannot be told apart from one that skipped the check, so neither the reader nor a later run can tell whether the rule ran. A spike that experiments now names the docs it checked and why they fell short. The cost is one line per spike; the record makes the doc check auditable.
