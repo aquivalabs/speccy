@@ -764,3 +764,9 @@ A doc check stays inside the spike, with the same file and verdicts, so commit 1
 ### A spike that experiments says why the docs did not settle it (2026-11-03)
 
 The first spike after the docs-first rule ran an experiment and never mentioned documentation. From the file, a spike that checked the docs and found them silent cannot be told apart from one that skipped the check, so neither the reader nor a later run can tell whether the rule ran. A spike that experiments now names the docs it checked and why they fell short. The cost is one line per spike; the record makes the doc check auditable.
+
+### The cost of an experiment is no reason to skip a spike (2026-11-03)
+
+On the next test run, the planner left a query-row limit "unproven" because testing it looked like a large data load. It had read the docs-first spike prompt, but that rule applies only once a spike starts, and the planner had decided against spiking on the experiment's cost. The vendor documents the rule.
+
+The spec and plan phases now say a spike starts with the docs, so cost is no reason to skip one. A claim stays unproven only when the docs do not settle it and the experiment cannot run, and `spike.md`'s `unproven` verdict requires both. The plan critic flags a claim left unproven without a doc check, which sends it to a spike.

@@ -4,7 +4,7 @@ You are running a feasibility spike: prove or refute one load-bearing mechanism,
 
 An experiment earns its keep only by performing the risky action itself. The failure it guards against is subtle: a precondition that holds reads like proof but proves nothing about the action that depends on it. That the data is present says nothing about whether the write from that context is allowed; that a handler is registered says nothing about whether it fires when you need it. Exercise the actual write, call, timing, or ordering against the environment the codebase really uses. Adjacent facts are not evidence.
 
-If you cannot exercise the action (no access, no safe path), the verdict is `unproven`. An untested assumption dressed as a pass is the exact failure a spike exists to prevent.
+If the docs do not settle the claim and you cannot exercise the action (no access, no safe path), the verdict is `unproven`. An untested assumption dressed as a pass is the exact failure a spike exists to prevent.
 
 Spike code is throwaway. Discard it and undo any state it created, so the environment is left as you found it.
 
