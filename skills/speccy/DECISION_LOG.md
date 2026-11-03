@@ -752,3 +752,11 @@ On an Opus test run, the planner's spike left no file. Its verdicts lived only i
 Every spike, including one the planner runs inline, now writes its own file, with a verdict per claim, and a spike stopped early still lists what it settled. The plan cites the files, so its readers (critics, builder, reviewer) reach them without being passed paths. The spec cannot cite them, because the spec is committed and `.speccy/` is not, so the spec critic and reviser receive the spec-phase spike paths directly, as the planner already did.
 
 A recorded verdict is settled evidence, but it can be overturned. A later agent re-spikes a claim only when it can name a flaw in the method (a precondition tested in place of the action, the wrong context or user) or a change since the spike ran. The new file names the one it overturns; the old file stays as history. A separate evidence store was rejected: it would duplicate the spike files.
+
+### A spike reads the docs before it experiments (2026-11-03)
+
+Test runs kept settling one platform rule, how an aggregate query counts against a row limit, by experiment, though the vendor documents it. An experiment costs a deploy, a run and a cleanup; a doc lookup costs a fetch.
+
+A spike now checks the vendor's reference docs first. A clear passage that covers the case settles a documented platform rule, cited by URL and quoted. An interaction specific to the environment (this code, this user, this configuration) still needs the experiment, because docs describe the platform rather than the org, and so does a passage that is ambiguous or stops short of the case. Secondary sources and memory do not count.
+
+A doc check stays inside the spike, with the same file and verdicts, so commit 11's evidence record and overturn rule cover it unchanged. The overturn rule gains one flaw: a cited passage that does not cover the case. The plan critic, which demanded an exercised action, now accepts a quoted passage for a documented rule; without that, it would order the experiment anyway.
