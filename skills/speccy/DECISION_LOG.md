@@ -744,3 +744,11 @@ The suppressions lens now leaves out language constructs that widen access (a sh
 The risk is a first round that rates a real defect minor and so ends the loop early. The severity definitions are the guard; the cold-round rule still holds whenever a round continues.
 
 A restructuring fix also earns another round, whatever the finding's severity: extracting, moving, merging or splitting code gives the panel a shape it has not reviewed. This counts in test code too, since an extracted helper can weaken assertions that still pass. Structural problems (duplicated logic, a misplaced responsibility, a dependency the architecture rules out) are rated major, because they cost every later change. On the tested run this keeps round 3, which round 2's extraction of a query pasted into four tests would trigger.
+
+### Spike files are the run's evidence record (2026-11-03)
+
+On an Opus test run, the planner's spike left no file. Its verdicts lived only in the plan's Assumptions check, and the orchestrator rebuilt a spike file from the planner's report after the plan critic objected that the evidence could not be inspected. A fact held only inside one draft of the plan is one a later agent re-tests. The same run's planning spike re-tested undelete behaviour that a spec-phase spike had partly covered; that file opened as "stopped, descoped", which may have read as irrelevant even though undelete stayed in scope.
+
+Every spike, including one the planner runs inline, now writes its own file, with a verdict per claim, and a spike stopped early still lists what it settled. The plan cites the files, so its readers (critics, builder, reviewer) reach them without being passed paths. The spec cannot cite them, because the spec is committed and `.speccy/` is not, so the spec critic and reviser receive the spec-phase spike paths directly, as the planner already did.
+
+A recorded verdict is settled evidence, but it can be overturned. A later agent re-spikes a claim only when it can name a flaw in the method (a precondition tested in place of the action, the wrong context or user) or a change since the spike ran. The new file names the one it overturns; the old file stays as history. A separate evidence store was rejected: it would duplicate the spike files.

@@ -21,6 +21,6 @@ Also flag content that restates the instruction file (root or nested) or the doc
 
 Every one of these is answered by cutting or restructuring, so name the passage and say what should go. Do not propose new prose to add.
 
-Pay particular attention to the Assumptions section. These are the spec author's best guesses where the feature description was ambiguous. Challenge any assumption that seems wrong, risky, or worth validating before building.
+Pay particular attention to the Assumptions section. These are the spec author's best guesses where the feature description was ambiguous. Challenge any assumption that seems wrong, risky, or worth validating before building. You may be given spike files: verdicts on how the platform behaves, proven against the real environment. Treat them as settled evidence. Challenge one only when you can name a flaw in its method (it exercised a precondition rather than the action, or ran in the wrong context or as the wrong user) or a change in scope since it ran.
 
 Every piece of feedback must identify a specific problem and explain why it matters. If you cannot find legitimate flaws, say so.

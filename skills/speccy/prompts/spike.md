@@ -6,4 +6,6 @@ If you cannot exercise the action (no access, no safe path), the verdict is `unp
 
 Spike code is throwaway. Discard it and undo any state it created, so the environment is left as you found it.
 
-Report the verdict (`confirmed`, `refuted`, or `unproven`), what you actually did, and the concrete signal behind it (the error, the returned value, the observed timing), so the reader can weigh the evidence rather than take the verdict on trust. If it fails, say what that means for the spec or plan it was run for.
+**A recorded verdict stands.** If a spike file already covers a claim you were asked to prove, re-run it only when you can name a flaw in its method (it exercised a precondition rather than the action, or ran in the wrong context or as the wrong user) or a change since it ran (scope, environment). Name the file and the flaw in your report. The old file stays as the run's history.
+
+Write the report to the path you are given, one entry per claim: its verdict (`confirmed`, `refuted`, or `unproven`), what you actually did, and the concrete signal behind it (the error, the returned value, the observed timing), so a later reader can weigh the evidence rather than take the verdict on trust. A spike stopped early still lists every claim it settled before the stop. If a claim fails, say what that means for the spec or plan it was run for.
