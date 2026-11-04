@@ -693,7 +693,7 @@ The tests live in the template so the readability pass, which receives it, rewri
 
 ### The draft closes its own open questions (2026-11-02)
 
-The same run's first draft left open questions the pipeline could have closed itself. Whether an Account merge fires the Contact trigger decides whether a completion criterion stays in scope; a spike answers it. Whether the project has a trigger framework was left as a question when a look-up would have answered it. 1b and the template both said to defer such questions to planning, which produced both entries.
+The same run's first draft left open questions the pipeline could have closed itself. Whether a record merge fires the trigger the feature relies on decides whether a completion criterion stays in scope; a spike answers it. Whether the project has a trigger framework was left as a question when a look-up would have answered it. 1b and the template both said to defer such questions to planning, which produced both entries.
 
 1c now ends with an open-question pass. A question stays if its answer would change the spec, or could raise a choice a user would reasonably want to make there: the same "earns its place" test the template applies to every line. A build-level question is answered first when that is cheap, because its answer can raise a spec-level choice. An existing trigger framework is the planner's to follow; no framework raises whether to build one, which a user could reasonably want to decide. Code, config, and the environment answer what they can: a look-up, or a spike for a feasibility assumption, with the verdict folded into the spec before the user's first read. An `unproven` verdict stays open for a planning spike.
 
@@ -711,7 +711,7 @@ A rerun of the same seed on the changes above produced a spec-level draft, with 
 
 ### Critique holds its fixes to the same tests (2026-11-02)
 
-On the test run, two critique rounds took a ten-line spec to ten completion criteria and six decisions. The criteria became a test plan: data shapes ("5 Accounts, 2 each"), assertion techniques (`Limits.getDmlStatements()`), seeded values ("starts at 99"). Three things drove it. The critic's brief lists nine kinds of gap and one kind of excess, so nearly every finding's fix adds a line, and it was told to "hunt for decisions that should be there". Neither the critic nor the reviser receives the template, so neither knew the two line tests. And the orchestrator applied unaccepted findings "as my default" and on silence, carrying the drafting rule about defaults into triage.
+On the test run, two critique rounds took a ten-line spec to ten completion criteria and six decisions. The criteria became a test plan: data shapes ("5 parents, 2 children each"), assertion techniques (counting the transaction's writes), seeded values ("starts at 99"). Three things drove it. The critic's brief lists nine kinds of gap and one kind of excess, so nearly every finding's fix adds a line, and it was told to "hunt for decisions that should be there". Neither the critic nor the reviser receives the template, so neither knew the two line tests. And the orchestrator applied unaccepted findings "as my default" and on silence, carrying the drafting rule about defaults into triage.
 
 The critic and the reviser now receive the template. A finding whose fix fails either test is not a finding, and the reviser answers accepted findings in the fewest lines that pass them. The decision hunt becomes "flag a load-bearing choice the spec makes silently", excluding forced moves and choices the environment makes moot. Completion criteria name outcomes; test design is plan material. In triage the orchestrator recommends take or skip per finding and applies only what the user accepts, silence meaning skip.
 
@@ -719,13 +719,13 @@ The critic gets no explicit "find lines to cut" class. It already flags how-deta
 
 ### First-draft choices are proposed decisions (2026-11-02)
 
-The third test run's spec held one decision. Its scope exclusions (indirect Contacts, no backfill, no repair job) sat in Scope boundaries with no rationale anywhere, and the user's own ruling to exclude merges reached only Scope boundaries and the log. Both traced to rules: the earlier fix sent first-draft defaults to Assumptions until the user ruled, and nothing converted them afterwards; and 1c folded the user's answers "into the spec" without naming Decisions & rationale.
+The third test run's spec held one decision. Its scope exclusions (indirect relationships, no backfill, no repair job) sat in Scope boundaries with no rationale anywhere, and the user's own ruling to exclude merges reached only Scope boundaries and the log. Both traced to rules: the earlier fix sent first-draft defaults to Assumptions until the user ruled, and nothing converted them afterwards; and 1c folded the user's answers "into the spec" without naming Decisions & rationale.
 
 The earlier fix overreached. Its target was a false *speccy, user-agreed* tag, and hiding the choice from Decisions cost the reasoning the user needs to decide whether to object. A first-draft choice with a viable alternative is now a decision tagged *speccy, proposed*. When the user hands the draft on, every proposed entry they let stand becomes *speccy, user-agreed*, matching the rule that reading the spec is deciding; the wrap-up never sees *proposed*. A user ruling at the read goes to Decisions & rationale with Origin *User*.
 
 The same run deferred its merge question to a planning spike without running one, though 1c said to answer it now; the session shows no reason. 1c now says a question marked for a planning spike needs an `unproven` verdict file behind it.
 
-Scope exclusions stay plain Scope boundaries lines. On the next run, the critic judged speccy's default exclusions (indirect Contacts, no backfill, no repair job) "stated scope calls with no hidden alternative worth challenging", and the user agreed; a decision entry for each would have been padding. A scope cut the user makes at their read is still a decision with Origin *User*, since it carries a reason the draft lacked.
+Scope exclusions stay plain Scope boundaries lines. On the next run, the critic judged speccy's default exclusions (indirect relationships, no backfill, no repair job) "stated scope calls with no hidden alternative worth challenging", and the user agreed; a decision entry for each would have been padding. A scope cut the user makes at their read is still a decision with Origin *User*, since it carries a reason the draft lacked.
 
 A forced move is recorded when a reader would plausibly propose the alternative it rules out, since re-opening a settled point costs more than the entry. This narrows the critique fix's ban on asking for forced moves.
 
@@ -739,7 +739,7 @@ The review loop ran until a round dispositioned nothing Fix, and "diff size is n
 
 Minor findings are still fixed, but only a blocker or major fix earns another round; the gates after the fix catch a minor fix that breaks something. The output contract now defines the severities, because the exit now turns on them: a test that cannot catch the defect it is named for is major, which is what the useful round-1 fixes were.
 
-The suppressions lens now leaves out language constructs that widen access (a sharing bypass, an elevated-permission call). They are design choices the plan records, and the lens's watertight rule had demanded rule-name comments on them that the comments lens then argued against across rounds. The same lens twice rated the plan's settled sharing decision major, once on a wrong reading of the platform, which stalled the run on a question to the user.
+The suppressions lens now leaves out language constructs that widen access (a sharing bypass, an elevated-permission call). They are design choices the plan records, and the lens's watertight rule had demanded rule-name comments on them that the comments lens then argued against across rounds. The same lens twice rated the plan's settled access decision major, once on a wrong reading of the platform, which stalled the run on a question to the user.
 
 The risk is a first round that rates a real defect minor and so ends the loop early. The severity definitions are the guard; the cold-round rule still holds whenever a round continues.
 
@@ -747,7 +747,7 @@ A restructuring fix also earns another round, whatever the finding's severity: e
 
 ### Spike files are the run's evidence record (2026-11-03)
 
-On an Opus test run, the planner's spike left no file. Its verdicts lived only in the plan's Assumptions check, and the orchestrator rebuilt a spike file from the planner's report after the plan critic objected that the evidence could not be inspected. A fact held only inside one draft of the plan is one a later agent re-tests. The same run's planning spike re-tested undelete behaviour that a spec-phase spike had partly covered; that file opened as "stopped, descoped", which may have read as irrelevant even though undelete stayed in scope.
+On an Opus test run, the planner's spike left no file. Its verdicts lived only in the plan's Assumptions check, and the orchestrator rebuilt a spike file from the planner's report after the plan critic objected that the evidence could not be inspected. A fact held only inside one draft of the plan is one a later agent re-tests. The same run's planning spike re-tested record-restore behaviour that a spec-phase spike had partly covered; that file opened as "stopped, descoped", which may have read as irrelevant even though restore stayed in scope.
 
 Every spike, including one the planner runs inline, now writes its own file, with a verdict per claim, and a spike stopped early still lists what it settled. The plan cites the files, so its readers (critics, builder, reviewer) reach them without being passed paths. The spec cannot cite them, because the spec is committed and `.speccy/` is not, so the spec critic and reviser receive the spec-phase spike paths directly, as the planner already did.
 
@@ -759,7 +759,7 @@ Test runs kept settling one platform rule, how an aggregate query counts against
 
 A spike now checks the vendor's reference docs first. A clear passage that covers the case settles a documented platform rule, cited by URL and quoted. An interaction specific to the environment (this code, this user, this configuration) still needs the experiment, because docs describe the platform rather than the org, and so does a passage that is ambiguous or stops short of the case. Secondary sources and memory do not count.
 
-A doc check stays inside the spike, with the same file and verdicts, so commit 11's evidence record and overturn rule cover it unchanged. The overturn rule gains one flaw: a cited passage that does not cover the case. The plan critic, which demanded an exercised action, now accepts a quoted passage for a documented rule; without that, it would order the experiment anyway.
+A doc check stays inside the spike, with the same file and verdicts, so the evidence record and overturn rule (see *Spike files are the run's evidence record*) cover it unchanged. The overturn rule gains one flaw: a cited passage that does not cover the case. The plan critic, which demanded an exercised action, now accepts a quoted passage for a documented rule; without that, it would order the experiment anyway.
 
 ### A spike that experiments says why the docs did not settle it (2026-11-03)
 
@@ -774,3 +774,13 @@ The spec and plan phases now say a spike starts with the docs, so cost is no rea
 ### Planning carries straight on into plan critique (2026-11-03)
 
 On a test run the orchestrator briefed the user on the drafted plan, advanced to `plan-critique`, and ended its turn; the user had to ask for the critique to start. The phase said to brief and advance but not to continue, and a briefing reads like a natural stopping point. 2a now follows the briefing without waiting, unless the contradicted-assumption gate fires. The user's gate in planning is 2b.
+
+### Review runs at least two rounds; spikes write only to disposable environments (2026-11-04)
+
+A review of this change found that the review-loop exit kept the premise of cold rounds (a later independent review routinely finds what an earlier one missed) and dropped its conclusion. A round 1 whose fixes were all minor ended the loop after one cold pass. The severity of a round's fixes predicts whether they broke something; it says nothing about what the panel missed. Round 2 now always runs, and the severity-and-restructuring rule decides only whether round 3 does. That keeps the saving the tested run measured, which was round 3.
+
+The suppressions lens exempted access-widening constructs because "the plan records them", but nothing required the record and the lens never saw the plan. It now receives the plan and exempts only a construct the plan records; an unrecorded one is a finding.
+
+Spec-phase spikes run before the user has read the draft, and the spike prompt said to exercise the actual write against the environment the codebase uses. Undoing state afterwards does not make a write to a shared environment safe. A spike now writes only to an environment created for throwaway work and runs read-only probes elsewhere; a claim that needs a write with no such environment is `unproven`, which in planning reaches the user through the existing blocking gate.
+
+1c's trim now runs after the open-question pass, so the defaults and spike consequences that pass adds face the line tests too.

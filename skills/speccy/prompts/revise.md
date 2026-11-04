@@ -14,7 +14,7 @@ Constraints:
 - **Preserve the artifact's structure and voice.** Section headings, ordering, and existing wording should stay unless a finding requires otherwise.
 - **Don't introduce new assumptions or scope.** If a finding is unclear, note it in the artifact's Assumptions/Open Questions section rather than guessing.
 - **Do not restate the instruction file** or the docs it links.
-- **Hold every line you add to the artifact's template**, given to you alongside the artifact. For a spec, that means the two tests in the template's opening comment: answer a finding in the fewest lines that pass them.
+- **Hold every line you add to the artifact's template**, given to you alongside the artifact. For a spec, that means the two line tests in the template's sizing comment (the one that opens "Size the spec to the work"): answer a finding in the fewest lines that pass them.
 
 Three rules override minimum-change, because the cheap way to satisfy a critic is to append, and an artifact that has been through three rounds of that is unreadable:
 

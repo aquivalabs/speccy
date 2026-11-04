@@ -32,9 +32,7 @@ Identify external context that would improve the spec or plan: documentation, ot
 
 ### 1c. Structured spec
 
-Produce a first-draft spec from the interview answers using the template in `<skill-dir>/prompts/spec-template.md`. Hold every line to the two tests in the template's opening comment (it earns its place; it stays at spec level), and remove the HTML comments. Write it to the standard in `<skill-dir>/prompts/writing-style.md`: a draft that starts dense stays dense, because every later step is a revision of it.
-
-Before presenting the draft, re-read it against those two tests and cut every line that fails. The user's first read is for judgement; trimming is your job.
+Produce a first-draft spec from the interview answers using the template in `<skill-dir>/prompts/spec-template.md`. Hold every line to the two line tests in the template's sizing comment (it earns its place; it stays at spec level), and remove the HTML comments. Write it to the standard in `<skill-dir>/prompts/writing-style.md`: a draft that starts dense stays dense, because every later step is a revision of it.
 
 The template defines what each section holds. Two things about **Decisions & rationale** are the interview's job rather than the template's:
 
@@ -56,7 +54,7 @@ Tell the user about the directory: critique rounds, the plan, review notes, and 
 - If code, config, or the environment can answer it, answer it now. Look it up, or prove a feasibility assumption with a spike: spawn a subagent with `<skill-dir>/prompts/spike.md` and the mechanism to prove, writing its verdict to `.speccy/<run-id>/spike-spec-<topic>.md`. Fold the answer's consequence for the spec into the section it belongs to (a constraint, a scope boundary, a criterion) and drop the question. How the platform behaves stays in the spike file; planning reads it there. Spike every feasibility assumption now. A spike starts with the docs, so the cost of an experiment is no reason to skip one; leave an assumption to planning only when the docs do not settle it and the environment can't run the experiment. A question marked for a spike in planning needs an `unproven` verdict file behind it.
 - If it needs the user's judgement, state a reasonable default in Assumptions or Scope boundaries; the user objects at their read if they disagree. Ask only when no default is reasonable, and then ask when you present the draft.
 
-Commit the spec if this pass changed it, and tell the user what each spike found, especially one that changed scope.
+Then re-read the whole draft against the two line tests and cut every line that fails, including lines this pass added. The user's first read is for judgement; trimming is your job. Commit the spec if either pass changed it, and tell the user what each spike found, especially one that changed scope.
 
 Now present the draft and **stop**: the user reads and edits it until satisfied, and 1d's critique does not begin until they hand it on. Commit any edits they make. Their rulings, including answers to open questions and scope cuts, go to Decisions & rationale with Origin **User**, as well as to the section they change. When they hand it on, retag every *speccy, proposed* decision they let stand as *speccy, user-agreed*. This is their first read rather than a gate, so pose no engagement question here; the pre-question comes at the 1d critique, once they have the draft in hand. Put the hand-off prompt last in the turn and wait, the way the gate stops do. The run sits at `spec-draft` for the whole read, so a context clear mid-read resumes here; when the user hands it on, `state.mjs advance --run <id> spec-critique` and continue to 1d.
 
