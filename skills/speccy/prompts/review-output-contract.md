@@ -14,7 +14,10 @@ One entry per finding. Start each with a single-line header:
 
 - **lens**: the `<lens>` tag from your findings-file name (`review-round-N-<lens>.md`), so the id is unique across lenses.
 - **file:line**: the anchor, as narrow as you can make it (a single line or a tight range). If the finding isn't line-specific, name the file and use `—` for the line. Anchor precisely: matching `file:line` across lenses is how convergence surfaces.
-- **severity**: `blocker` | `major` | `minor`. The impact if left unfixed.
+- **severity**: the impact if left unfixed. After round 2, only a blocker or major fix earns the panel another round, so size it honestly.
+  - `blocker`: unsafe to merge: broken behaviour, data loss, a security hole, a failing gate.
+  - `major`: a defect a user or the next change would hit: wrong behaviour in a case the spec covers, a missing guard, or a test that cannot catch the defect it is named for (including a case the spec requires with no test at all). A structural problem that costs every later change is major too: duplicated logic, a responsibility in the wrong place, a dependency the codebase's architecture rules out.
+  - `minor`: everything else, such as naming, comments, or a test that could be tighter.
 - **verdict**: `CONFIRMED` (you traced it and it holds) or `PLAUSIBLE` (a genuine candidate you could not finish confirming). `PLAUSIBLE` is not licence to pad the list with hypotheticals.
 - **one-line summary**: the defect in a single sentence.
 
