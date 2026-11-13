@@ -25,11 +25,6 @@ Under each header, a few lines a triager needs: the mechanism (how it fails or w
 
 ## Sizing a structural fix
 
-Propose the smallest fix. A fix that reshapes code is one of two kinds:
-
-- A **local refactor** extracts, moves, merges or splits code, creating at most one new modest unit (a function, or a class with one job) that its callers call directly. Pulling a duplicated block into a shared function, extracting a wording class, and splitting an oversized class along a seam it already has are all local.
-- A **redesign** adds indirection that other code must go through, or changes how components relate: a new interface or base type with several implementations, a pattern such as strategy, factory, registry or visitor, a shared layer adopted across features, or anything that overturns one of the plan's architecture decisions.
-
-Review applies local refactors only. When the only fix you can see is a redesign, still report the finding, and start its fix line with `Redesign:` so triage sends it to the user. Add any per-lens detail your prompt asks for. Write those lines to the standard in `writing-style.md` (alongside this prompt): a triager and the user both read them, so state the defect and stop.
+Propose the smallest fix. A **local refactor** extracts, moves, merges or splits code into at most one new modest unit that its callers call directly. A **redesign** adds indirection other code must go through (a new interface or base type, a pattern such as strategy or factory, a shared layer across features) or overturns a plan decision. Review applies only local refactors, because the plan settled the design. Still report a finding that needs a redesign, starting its fix line with `Redesign:` so triage takes it to the user. Add any per-lens detail your prompt asks for. Write those lines to the standard in `writing-style.md` (alongside this prompt): a triager and the user both read them, so state the defect and stop.
 
 List every finding you're confident of, including the less clear-cut, but no padding. If your lens is clean, write the file and say so.

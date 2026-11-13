@@ -12,13 +12,13 @@ The user may or may not have provided a starting description alongside the trigg
 
 **If they provided nothing** (e.g. just "spec mode"), ask what they want to build. Suggest the kind of information that's useful at this stage: what problem they're solving, who it's for, any constraints they already know about, and how they'll know it's done. Don't require all of this upfront; just enough to start the interview.
 
-**Check the fit before the interview.** Once you have a seed, judge whether a speccy run suits it, and say so briefly when it doesn't:
+**Check the fit before the interview.** Speccy's loops repay their cost on one well-defined requirement, however large. Say so briefly when the seed is:
 
-- **Separate requirements.** The seed bundles requirements that could ship apart: different user intents, different backends or packages, or one waiting on a release the others don't need. Every critique and review round covers the whole spec, so bundling multiplies the run's cost, and one blocked requirement holds up the rest. Name the requirements you see and suggest a run for each. Size alone is no reason to split: one requirement with a lot of code suits one run.
-- **Iterative work.** The problem gets solved by trying and looking, such as tuning a layout, chasing a bug or tuning a prompt against its outputs. Speccy assumes a spec can say up front what done looks like. Suggest working with the agent directly.
-- **A very small change.** One the user could describe in a sentence and review at a glance, where the loops cost more than they catch. Suggest working with the agent directly.
+- **several requirements** that could ship apart (different user intents, backends or release dependencies). Every round covers the whole spec, and one blocked requirement holds up the rest. Name them and suggest a run for each.
+- **iterative**, solved by trying and looking. Speccy needs done defined up front, so suggest working with the agent directly.
+- **very small**, where the loops cost more than they catch. Suggest working with the agent directly.
 
-This is advice. Raise it once, and if the user wants to continue, continue without raising it again. When they split, the run takes the requirement they choose and lists the others in the spec's Scope boundaries.
+This is advice, raised once; if the user carries on, so do you. After a split, the run takes the requirement they choose and lists the others in Scope boundaries.
 
 ### 1b. Interview
 
