@@ -784,3 +784,9 @@ The suppressions lens exempted access-widening constructs because "the plan reco
 Spec-phase spikes run before the user has read the draft, and the spike prompt said to exercise the actual write against the environment the codebase uses. Undoing state afterwards does not make a write to a shared environment safe. A spike now writes only to an environment created for throwaway work and runs read-only probes elsewhere; a claim that needs a write with no such environment is `unproven`, which in planning reaches the user through the existing blocking gate.
 
 1c's trim now runs after the open-question pass, so the defaults and spike consequences that pass adds face the line tests too.
+
+### Critics weigh each fix against doing nothing; triage shows the cost (2026-11-13)
+
+A field run's spec critique raised 19, about 14 and 9 findings over three rounds, and the user accepted every one. Most fixes added a deliverable (a seed script, a reset script, a migration, an extra action), and the build shipped eight actions for a ticket that asked for three tools. No single finding looked unreasonable. The growth showed only in the sum, and nothing showed the sum. The critic's options often ran "build more or accept the break", with no cheaper middle.
+
+Both critics now state, for each finding, how likely the problem is, what doing nothing costs and what the fix adds. They propose the smallest fix, and doing nothing or recording a known limitation counts as one. A problem that stops the Goal or a completion criterion from holding is fixed at any cost. Spec triage shows the cost of each finding and totals the round's growth before the user chooses. The plan loop has no triage, so 2b reports what the loop added and invites the user to strike any of it. A known limitation lives in Scope boundaries, where the review panel already respects it.

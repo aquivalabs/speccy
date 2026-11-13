@@ -41,7 +41,9 @@
 
 ## Scope boundaries
 
-<!-- What this spec deliberately does not cover. Prevents gold-plating and scope creep. -->
+<!-- What this spec deliberately does not cover. Prevents gold-plating and scope creep. Known
+     limitations go here too: a problem the user judged too unlikely, or too cheap to live with,
+     to be worth a fix. -->
 
 ## Constraints
 
