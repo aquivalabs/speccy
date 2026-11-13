@@ -785,11 +785,15 @@ Spec-phase spikes run before the user has read the draft, and the spike prompt s
 
 1c's trim now runs after the open-question pass, so the defaults and spike consequences that pass adds face the line tests too.
 
-### Critics weigh each fix against doing nothing; triage shows the cost (2026-11-13)
+### Weigh each addition against leaving it out (2026-11-13)
 
-A field run's spec critique raised 19, about 14 and 9 findings over three rounds, and the user accepted every one. Most fixes added a deliverable (a seed script, a reset script, a migration, an extra action), and the build shipped eight actions for a ticket that asked for three tools. No single finding looked unreasonable. The growth showed only in the sum, and nothing showed the sum. The critic's options often ran "build more or accept the break", with no cheaper middle.
+A field run's spec critique raised 19, about 14 and 9 findings over three rounds, and the user accepted every one. Most fixes added a deliverable (a seed script, a reset script, a migration, an extra action), and the build shipped eight actions for a ticket that asked for three tools. No single finding looked unreasonable. The growth showed only in the sum, and nothing showed the sum.
 
-Both critics now state, for each finding, how likely the problem is, what doing nothing costs and what the fix adds. They propose the cheapest answer that holds: doing nothing, a known limitation, a small fix, or a reframe that revisits the earlier choice a problem stems from, when that choice matters less than the complexity it now forces. A problem that stops the Goal or a completion criterion from holding is fixed at any cost. Spec triage shows the cost of each finding and totals the round's growth before the user chooses. The plan loop has no triage, so 2b reports what the loop added and invites the user to strike any of it. A known limitation lives in Scope boundaries, where the review panel already respects it.
+The spec critic now states, for each finding, how likely the problem is, what it costs if left alone and what the fix adds. It proposes the cheapest answer that holds: doing nothing, a known limitation, a small fix, or a reframe that revisits the earlier choice the problem stems from. Spec triage shows each finding's cost and totals the round's growth before the user chooses.
+
+The plan critic gets a narrower rule. The spec has fixed what must hold, and the critic already hunts simpler alternatives, so a reframe would repeat it. What it lacked was weighing a mitigation (a task, script or fixture) against the risk it guards; it may now propose an accepted risk instead, never one to a completion criterion. Its fixes reach the build without triage, so the plan's user review reports what the loop added.
+
+The same pull acts on every step, so `SKILL.md` now tells the orchestrator to weigh each of its own choices against leaving the addition out. The spec template asks a decision that rejects the simpler option to say what that option fails to do. Neither the spec nor the plan gains a cost field: the weighing happens in critique and triage, and the artefact records the outcome.
 
 ### Review redesigns only to simplify (2026-11-13)
 

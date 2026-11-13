@@ -144,6 +144,10 @@ Every artifact this pipeline produces (spec, plan, critique, review notes, summa
 
 The critique loops pull the other way, since the cheapest answer to a critic is one more clause. Three things push back, all wired in below. Every one of those agents gets `writing-style.md`, so a draft starts readable. The readability pass (`<skill-dir>/prompts/readability-pass.md`) is the one step allowed to remove. And once that pass has run, the critique prompts add a reader lens, which is what stops the rewrite sliding back over the rounds that follow.
 
+## Prefer the smaller change
+
+Every step of a run is tempted to add: a critic finds a gap, a fix fills it, and the next reviewer finds the fix's gap. Each addition looks reasonable on its own, and the sum is how a run overbuilds. Weigh every choice you make (drafting, triage, briefing a reviser, review dispositions) against leaving the addition out, and prefer removing, narrowing, or revisiting an earlier choice. When two options both hold, the one that builds less wins.
+
 ## The decision log runs with the run
 
 `specs/<slug>-decision-log.md` is created with the spec at 1c and appended to as the run goes. The wrap-up completes it; it does not start it.
