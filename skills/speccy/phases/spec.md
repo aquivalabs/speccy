@@ -12,6 +12,14 @@ The user may or may not have provided a starting description alongside the trigg
 
 **If they provided nothing** (e.g. just "spec mode"), ask what they want to build. Suggest the kind of information that's useful at this stage: what problem they're solving, who it's for, any constraints they already know about, and how they'll know it's done. Don't require all of this upfront; just enough to start the interview.
 
+**Check the fit before the interview.** Once you have a seed, judge whether a speccy run suits it, and say so briefly when it doesn't:
+
+- **Separate requirements.** The seed bundles requirements that could ship apart: different user intents, different backends or packages, or one waiting on a release the others don't need. Every critique and review round covers the whole spec, so bundling multiplies the run's cost, and one blocked requirement holds up the rest. Name the requirements you see and suggest a run for each. Size alone is no reason to split: one requirement with a lot of code suits one run.
+- **Iterative work.** The problem gets solved by trying and looking, such as tuning a layout, chasing a bug or tuning a prompt against its outputs. Speccy assumes a spec can say up front what done looks like. Suggest working with the agent directly.
+- **A very small change.** One the user could describe in a sentence and review at a glance, where the loops cost more than they catch. Suggest working with the agent directly.
+
+This is advice. Raise it once, and if the user wants to continue, continue without raising it again. When they split, the run takes the requirement they choose and lists the others in the spec's Scope boundaries.
+
 ### 1b. Interview
 
 **Treat the intake as settled.** Take what the user gave you at face value: don't re-ask what it answers, don't ask them to reconfirm a stated choice, and only reopen a settled point if they re-raise it or you have a serious, specific doubt. Prefer recording a reasonable default in the spec's Assumptions section over asking; the critique loop challenges it there.
