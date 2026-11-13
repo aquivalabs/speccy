@@ -41,7 +41,8 @@
 
 ## Scope boundaries
 
-<!-- What this spec deliberately does not cover. Prevents gold-plating and scope creep. -->
+<!-- What this spec deliberately does not cover. Prevents gold-plating and scope creep. Known
+     limitations go here too. -->
 
 ## Constraints
 
@@ -71,7 +72,8 @@
      one section that argues. One entry per meaningful decision:
      - **Decision**: what was chosen (a scope call, an approach, a contract/deliverable shape).
      - **Alternatives**: the viable option(s) considered and rejected.
-     - **Why**: the deciding factor that made the chosen option win.
+     - **Why**: the deciding factor that made the chosen option win. When the rejected option is the
+       simpler one, say what it fails to do.
      - **Origin**: **User** (a preference, mandate, or judgement the user brought), **speccy,
        proposed** (a choice the first draft makes before the user has read it), or **speccy,
        user-agreed** (a proposed choice the user let stand at their read). A fourth origin,

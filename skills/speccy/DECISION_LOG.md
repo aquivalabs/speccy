@@ -784,3 +784,25 @@ The suppressions lens exempted access-widening constructs because "the plan reco
 Spec-phase spikes run before the user has read the draft, and the spike prompt said to exercise the actual write against the environment the codebase uses. Undoing state afterwards does not make a write to a shared environment safe. A spike now writes only to an environment created for throwaway work and runs read-only probes elsewhere; a claim that needs a write with no such environment is `unproven`, which in planning reaches the user through the existing blocking gate.
 
 1c's trim now runs after the open-question pass, so the defaults and spike consequences that pass adds face the line tests too.
+
+### Weigh each addition against leaving it out (2026-11-13)
+
+A field run's spec critique raised 19, about 14 and 9 findings over three rounds, and the user accepted every one. Most fixes added a deliverable (a seed script, a reset script, a migration, an extra action), and the build shipped eight actions for a ticket that asked for three tools. No single finding looked unreasonable. The growth showed only in the sum, and nothing showed the sum.
+
+The spec critic now states, for each finding, how likely the problem is, what it costs if left alone and what the fix adds. It proposes the cheapest answer that holds: doing nothing, a known limitation, a small fix, or a reframe that revisits the earlier choice the problem stems from. Spec triage shows each finding's cost and totals the round's growth before the user chooses.
+
+The plan critic gets a narrower rule. The spec has fixed what must hold, and the critic already hunts simpler alternatives, so a reframe would repeat it. What it lacked was weighing a mitigation (a task, script or fixture) against the risk it guards; it may now propose an accepted risk instead, never one to a completion criterion. Its fixes reach the build without triage, so the plan's user review reports what the loop added.
+
+The same pull acts on every step, so `SKILL.md` now tells the orchestrator to weigh each of its own choices against leaving the addition out. The spec template asks a decision that rejects the simpler option to say what that option fails to do. Neither the spec nor the plan gains a cost field: the weighing happens in critique and triage, and the artefact records the outcome.
+
+### Review redesigns only to simplify (2026-11-13)
+
+The same field run's review fixes extracted shared classes, split a wording class, reworked a gateway's class hierarchy and added a feature. Each later round then reviewed shapes the previous round had created, and one fix dropped a query limit that round 3 flagged as a blocker. Every structural fix counted as ordinary, whatever it added.
+
+The output contract now separates two kinds of structural fix. A local refactor extracts, moves, merges or splits code into at most one new modest unit that its callers call directly. A redesign adds indirection other code must go through (a new interface or base type, a pattern such as strategy or factory, a shared layer across features) or overturns a plan decision. Review applies local refactors as before. It applies a redesign only when the redesign leaves the code simpler or smaller, and only before round 3, so a later round reviews it; a redesign that adds code reopens a design the plan settled, so it is deferred for the user. Waiting for the user's approval mid-review was rejected: review runs unattended, and a deferred simplification ships a defect the panel already found. The fixer states what a redesign removed, since "simpler" is self-graded, and the wrap-up surfaces each redesign, probing one that overturned a plan decision.
+
+### Intake checks whether a speccy run suits the seed (2026-11-13)
+
+The field run behind the two entries above took a ticket holding three separate requirements: a read-only score, a registration that cannot be undone, and generated collateral on its own backend. They shared a chat surface and little else. Every critique and review round covered all three, and a release dependency only one of them needed held up the others. Size was not the problem; runs that build a large PR around one requirement go well.
+
+Intake now checks the fit before the interview. It suggests a run per requirement when the seed bundles requirements that could ship apart. It suggests working with the agent directly when the work is iterative (solved by trying and looking) or very small. The check gives advice once, and the user may carry on regardless. When they split, the spec lists the other requirements in Scope boundaries.

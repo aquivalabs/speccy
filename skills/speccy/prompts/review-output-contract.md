@@ -23,4 +23,8 @@ One entry per finding. Start each with a single-line header:
 
 Under each header, a few lines a triager needs: the mechanism (how it fails or what it costs) and the concrete fix. Add any per-lens detail your prompt asks for. Write those lines to the standard in `writing-style.md` (alongside this prompt): a triager and the user both read them, so state the defect and stop.
 
+## Sizing a structural fix
+
+Propose the smallest fix. A **local refactor** extracts, moves, merges or splits code into at most one new modest unit that its callers call directly. A **redesign** adds indirection other code must go through (a new interface or base type, a pattern such as strategy or factory, a shared layer across features) or overturns a plan decision. Propose a redesign only when it leaves the code simpler or smaller than the local alternative, since a redesign that adds code reopens a design the plan settled. Start its fix line with `Redesign:` and say what it removes.
+
 List every finding you're confident of, including the less clear-cut, but no padding. If your lens is clean, write the file and say so.
