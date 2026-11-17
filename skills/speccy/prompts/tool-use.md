@@ -1,6 +1,6 @@
 # Tool use
 
-**Edit with the file-editing tool, one purpose per command.** Change files with the file-editing tool, never with a script (a heredoc, `sed -i`, a one-off program), and give each shell command one purpose rather than chaining edits, formatters and tests into one line. The harness may hold a script edit or a chained command for approval, and a subagent's approval prompt can sit where nobody sees it.
+**Prefer the file-editing tool, and don't chain commands.** Use it for edits rather than a script, sending independent edits together in one turn; a script is fine for a mechanical change across many files. Give each shell command one purpose. The harness may hold a script edit or a chained command for approval where nobody sees it.
 
 **Gather in parallel.** Whenever you need more than one piece of information and none of them depends on the result of another, issue every one of those tool calls in a single message rather than one per turn. Reading five files, grepping for three patterns, or diffing four paths is one turn, not five. Serialise only when a lookup genuinely needs the output of a previous one to be formed at all. This applies throughout your work, not just at the start.
 

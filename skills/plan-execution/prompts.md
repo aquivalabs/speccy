@@ -36,7 +36,7 @@ When a task's instructions reference its own task file (or another task file), g
 
 Execute this task where you were started: in the worktree the harness gave you if it gave you one, otherwise on the current branch of the current checkout. Never create a worktree or branch, switch branches, merge, or modify other branches. A sequential task's commit must land on the branch you started on, or it misses the base branch.
 
-Change files with the file-editing tool, never with a script (a heredoc, `sed -i`, a one-off program), and give each shell command one purpose. The harness may hold a script edit or a chained command for approval, and nobody sees a workflow agent's approval prompt, so the task stalls.
+Prefer the file-editing tool to a script for edits, sending independent edits together in one turn; a script is fine for a mechanical change across many files. Give each shell command one purpose. The harness may hold a script edit or a chained command for approval where nobody sees it, and the task stalls.
 
 When your task's deliverable is a result rather than code (a measurement, an investigation's answer), record it in a committed file: the one the task names, else the project's decision log or docs. A commit message alone does not survive a squash merge.
 
