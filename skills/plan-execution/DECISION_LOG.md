@@ -166,6 +166,18 @@ Cleanup ran `git worktree remove --force`. Measured: that destroys the tree's un
 
 Cleanup now checks `git -C <path> status --porcelain` first and removes only a clean tree. A dirty one is kept and reported with its dirty-file count. Keeping a tree that could have gone costs the next run some clutter; removing one that held work cannot be undone.
 
+### Sequential tasks must commit where they start; held calls and orchestrator edits (2026-11-17)
+
+A twelve-task run surfaced four faults.
+
+**Sequential tasks made their own worktrees.** The execute prompt opened "Execute this task in your worktree", which a sequential agent on the main checkout read as an instruction to create one. Four tasks committed off the base branch, and confirm passed one of them because its subject check never asked whether the commit was reachable. The prompt now tells the agent to work where it was started and never to create a worktree or branch. Confirm also requires a sequential task's commit to be an ancestor of `HEAD`, so a commit that missed the base branch fails loudly with its hash instead of reporting as integrated.
+
+**Held approval prompts stalled a task for days.** The held calls were file edits made by shell scripts, some chained onto other commands; the user saw the approval prompt only in the harness's workflow view, and the watchdog read the wait as a working call. Every agent speccy spawns (through `tool-use.md`) and every execute agent now edits with the file-editing tool and gives each shell command one purpose. Checking the allow rules before launch was not added: calls running the same gate commands passed, so the holds came from how the calls were written, not from missing rules. The watchdog flags a call alive but idle for over ten minutes and pushes a notification naming it, without stopping the run. Ten minutes rather than the stall test's five, because a long test run looks the same for a while.
+
+**The orchestrator broke its own run.** An uncommitted orchestrator edit made integration refuse (correctly) the remaining squashes. SKILL.md now forbids touching tracked files while a workflow runs, and the resume steps integrate `built_not_integrated` commits by hand, so a failed integration needs no rebuild. A retry mechanism inside the workflow was not added: the commits are already reported, and a squash by hand is one command.
+
+**A measured result lived only in a commit message**, which a squash merge drops. The execute prompt now sends a result to a committed file.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
