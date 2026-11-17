@@ -166,17 +166,15 @@ Cleanup ran `git worktree remove --force`. Measured: that destroys the tree's un
 
 Cleanup now checks `git -C <path> status --porcelain` first and removes only a clean tree. A dirty one is kept and reported with its dirty-file count. Keeping a tree that could have gone costs the next run some clutter; removing one that held work cannot be undone.
 
-### Sequential tasks must commit where they start; held calls and orchestrator edits (2026-11-17)
+### Agents commit where they start, and edit without scripts (2026-11-17)
 
-A twelve-task run surfaced four faults.
+**Confirm checks a sequential commit reached `HEAD`.** A commit with the right subject can sit on a branch the agent made, so the subject check alone can report unlanded work as integrated. The execute prompt also stopped saying "in your worktree", which sequential agents read as an instruction to make one.
 
-**Sequential tasks made their own worktrees.** The execute prompt opened "Execute this task in your worktree", which a sequential agent on the main checkout read as an instruction to create one. Four tasks committed off the base branch, and confirm passed one of them because its subject check never asked whether the commit was reachable. The prompt now tells the agent to work where it was started and never to create a worktree or branch. Confirm also requires a sequential task's commit to be an ancestor of `HEAD`, so a commit that missed the base branch fails loudly with its hash instead of reporting as integrated.
+**Agents edit with the file-editing tool, one purpose per shell command.** The harness may hold a script edit or a chained command for approval, and a workflow agent's prompt can go unseen for days. The rule is in `tool-use.md` and in the execute prompt, for runs without speccy. We rejected checking allow rules before launch: the gate commands themselves were allowed. The watchdog notifies on a call alive but idle for ten minutes, double the stall test's five, since a long test run looks the same for a while.
 
-**Held approval prompts stalled a task for days.** The held calls were file edits made by shell scripts, some chained onto other commands; the user never saw the approval prompt, and the watchdog read the wait as a working call. Every agent speccy spawns (through `tool-use.md`) and every execute agent now edits with the file-editing tool and gives each shell command one purpose. Checking the allow rules before launch was not added: calls running the same gate commands passed, so the holds came from how the calls were written, not from missing rules. The watchdog flags a call alive but idle for over ten minutes and pushes a notification naming it, without stopping the run. Ten minutes rather than the stall test's five, because a long test run looks the same for a while.
+**Resume squashes failed integrations by hand.** The workflow already reports each unmerged commit, and a squash is one command, so a retry mechanism inside the workflow would earn nothing. The orchestrator leaves tracked files alone during a run, since one dirty file stops integration.
 
-**The orchestrator broke its own run.** An uncommitted orchestrator edit made integration refuse (correctly) the remaining squashes. SKILL.md now forbids touching tracked files while a workflow runs, and the resume steps integrate `built_not_integrated` commits by hand, so a failed integration needs no rebuild. A retry mechanism inside the workflow was not added: the commits are already reported, and a squash by hand is one command.
-
-**A measured result lived only in a commit message**, which a squash merge drops. The execute prompt now sends a result to a committed file.
+**A measured result goes in a committed file**, because a squash merge drops a commit message.
 
 ## Known limitations
 
