@@ -34,7 +34,11 @@ When a task's instructions reference its own task file (or another task file), g
 
 ## execute
 
-Execute this task in your worktree. Do NOT merge or modify other branches.
+Execute this task where you were started: in the worktree the harness gave you if it gave you one, otherwise on the current branch of the current checkout. Never create a worktree or branch, switch branches, merge, or modify other branches. A sequential task's commit must land on the branch you started on, or it misses the base branch.
+
+Prefer the file-editing tool to a script for edits, sending independent edits together in one turn; a script is fine for a mechanical change across many files. Give each shell command one purpose. The harness may hold a script edit or a chained command for approval where nobody sees it, and the task stalls.
+
+When your task's deliverable is a result rather than code (a measurement, an investigation's answer), record it in a committed file: the one the task names, else the project's decision log or docs. A commit message alone does not survive a squash merge.
 
 The plan and spec are authoritative: treat them as read-only. Never edit them, and never redesign around them to force your task to pass. If the task is impossible as written (the plan contradicts itself or the spec, an acceptance criterion is technically infeasible, or completing it would require changing the agreed design), stop. Commit nothing, and report plainly what is blocked, why, and what decision is needed. Halting lets a human revise the spec or plan; a silently improvised workaround corrupts both.
 

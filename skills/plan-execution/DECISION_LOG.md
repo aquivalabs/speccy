@@ -166,6 +166,16 @@ Cleanup ran `git worktree remove --force`. Measured: that destroys the tree's un
 
 Cleanup now checks `git -C <path> status --porcelain` first and removes only a clean tree. A dirty one is kept and reported with its dirty-file count. Keeping a tree that could have gone costs the next run some clutter; removing one that held work cannot be undone.
 
+### Agents commit where they start, and edit without scripts (2026-11-17)
+
+**Confirm checks a sequential commit reached `HEAD`.** A commit with the right subject can sit on a branch the agent made, so the subject check alone can report unlanded work as integrated. The execute prompt also stopped saying "in your worktree", which sequential agents read as an instruction to make one.
+
+**Agents prefer the file-editing tool and give each shell command one purpose.** The harness may hold a script edit or a chained command for approval, and a workflow agent's prompt can go unseen for days. Scripts stay allowed for mechanical changes across many files, where editing file by file costs a call per file. The rule is in `tool-use.md` and in the execute prompt, for runs without speccy. We rejected checking allow rules before launch: the gate commands themselves were allowed. The watchdog notifies on a call alive but idle for ten minutes, double the stall test's five, since a long test run looks the same for a while.
+
+**Resume squashes failed integrations by hand.** The workflow already reports each unmerged commit, and a squash is one command, so a retry mechanism inside the workflow would earn nothing. The orchestrator leaves tracked files alone during a run, since one dirty file stops integration.
+
+**A measured result goes in a committed file**, because a squash merge drops a commit message.
+
 ## Known limitations
 
 These are documented rather than deferred indefinitely — they represent real failure modes that haven't bitten hard enough yet to justify the added complexity.
